@@ -1,0 +1,96 @@
+# ===== Environment & Secrets =====
+.env
+.env.*
+!.env.example
+
+# ===== Flutter / Dart =====
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+*.config.dart
+
+# ===== Android =====
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/.gradle/
+/android/local.properties
+/android/key.properties
+*.jks
+*.keystore
+
+# ===== iOS =====
+/ios/Pods/
+/ios/.symlinks/
+/ios/Flutter/Flutter.framework
+/ios/Flutter/Flutter.podspec
+/ios/Flutter/Generated.xcconfig
+/ios/Flutter/app.framework
+/ios/Flutter/flutter_export_environment.sh
+/ios/ServiceDefinitions.json
+/ios/Runner/GeneratedPluginRegistrant.*
+
+# ===== IDE =====
+# IntelliJ / Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# ===== OS Files =====
+# macOS
+.DS_Store
+._*
+*.swp
+.swiftpm/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+nul
+
+# Linux
+*~
+
+# ===== Logs & Temp =====
+*.log
+*.tmp
+*.bak
+*.swp
+
+# ===== Build Artifacts =====
+*.class
+*.pyc
+__pycache__/
+
+# ===== Symbolication =====
+app.*.symbols
+
+# ===== Obfuscation =====
+app.*.map.json
+
+# ===== Claude Code =====
+.claude/
+CLAUDE.md
+
+# ===== Metadata =====
+.metadata
+migrate_working_dir/
+
+# UPLOAD
+upload.py
