@@ -162,6 +162,97 @@ abstract class UserEndpoints {
 
   /// GET - Récupérer le dernier kilométrage de l'utilisateur
   static const String myKilometrage = '$_base/me/kilometrage';
+
+  /// GET - Récupérer mes préférences de notification
+  static const String notificationPreferences =
+      '$_base/me/notification-preferences';
+
+  /// PUT - Modifier mes préférences de notification
+  static const String updateNotificationPreferences =
+      '$_base/me/notification-preferences';
+}
+
+/// Endpoints de l'API des todos
+abstract class TodoEndpoints {
+  static const String _base = '/todos';
+
+  /// POST - Créer un todo
+  static const String create = _base;
+
+  /// PUT - Modifier un todo
+  static String update(String uuid) => '$_base/$uuid';
+
+  /// POST - Basculer l'état done
+  static String toggle(String uuid) => '$_base/$uuid/toggle';
+
+  /// DELETE - Supprimer un todo
+  static String delete(String uuid) => '$_base/$uuid';
+
+  /// GET - Obtenir un todo par UUID
+  static String byUuid(String uuid) => '$_base/$uuid';
+
+  /// POST - Rechercher des todos
+  static const String search = '$_base/search';
+}
+
+/// Endpoints de l'API des catégories todo
+abstract class TodoCategoryEndpoints {
+  static const String _base = '/todo-categories';
+
+  /// GET - Toutes les catégories
+  static const String all = _base;
+
+  /// POST - Créer une catégorie
+  static const String create = _base;
+
+  /// PUT - Modifier une catégorie
+  static String update(String uuid) => '$_base/$uuid';
+
+  /// DELETE - Supprimer une catégorie
+  static String delete(String uuid) => '$_base/$uuid';
+
+  /// GET - Catégorie par UUID
+  static String byUuid(String uuid) => '$_base/$uuid';
+}
+
+/// Endpoints de l'API des notifications
+abstract class NotificationEndpoints {
+  static const String _base = '/notifications';
+
+  /// GET - Toutes les notifications
+  static const String all = _base;
+
+  /// GET - Notifications non lues
+  static const String unread = '$_base/unread';
+
+  /// GET - Notifications lues
+  static const String read = '$_base/read';
+
+  /// GET - Compteur de notifications non lues
+  static const String unreadCount = '$_base/unread/count';
+
+  /// GET - Notification par UUID
+  static String byUuid(String uuid) => '$_base/$uuid';
+
+  /// PATCH - Marquer une notification comme lue
+  static String markRead(String uuid) => '$_base/$uuid/read';
+
+  /// PATCH - Marquer toutes les notifications comme lues
+  static const String readAll = '$_base/read-all';
+}
+
+/// Endpoints de l'API des couchettes
+abstract class CouchetteEndpoints {
+  static const String _base = '/couchettes';
+
+  /// POST - Créer une couchette
+  static const String create = _base;
+
+  /// GET - Mes couchettes (paginé)
+  static const String my = '$_base/me';
+
+  /// DELETE - Supprimer une couchette
+  static String delete(String uuid) => '$_base/$uuid';
 }
 
 /// Endpoints de l'API des véhicules
