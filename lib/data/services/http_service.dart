@@ -86,6 +86,22 @@ class HttpService {
     );
   }
 
+  /// Effectue une requête PATCH
+  Future<dynamic> patch(
+    String endpoint, {
+    Map<String, dynamic>? body,
+    Map<String, String>? headers,
+  }) async {
+    final uri = _buildUri(endpoint);
+    return _executeRequest(
+      () => _client.patch(
+        uri,
+        headers: _buildHeaders(additionalHeaders: headers),
+        body: body != null ? jsonEncode(body) : null,
+      ),
+    );
+  }
+
   /// Effectue une requête DELETE
   Future<dynamic> delete(
     String endpoint, {
@@ -131,6 +147,13 @@ class HttpService {
 
   /// Traite la réponse HTTP
   dynamic _handleResponse(http.Response response) {
+    // 204 No Content - pas de body à parser
+    if (response.statusCode == 204 || response.body.isEmpty) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return <String, dynamic>{};
+      }
+    }
+
     final dynamic body;
 
     try {
@@ -145,6 +168,7 @@ class HttpService {
     switch (response.statusCode) {
       case 200:
       case 201:
+      case 204:
         return body;
       case 400:
         final message = body is Map<String, dynamic>

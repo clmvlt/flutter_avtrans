@@ -43,6 +43,7 @@ class Absence extends Equatable {
   final String reason;
   final AbsenceType? absenceType;
   final String? customType;
+  final String? period;
   final AbsenceStatus status;
   final User? validatedBy;
   final DateTime? validatedAt;
@@ -58,6 +59,7 @@ class Absence extends Equatable {
     required this.reason,
     this.absenceType,
     this.customType,
+    this.period,
     required this.status,
     this.validatedBy,
     this.validatedAt,
@@ -99,6 +101,7 @@ class Absence extends Equatable {
           ? AbsenceType.fromJson(json['absenceType'])
           : null,
       customType: json['customType'] as String?,
+      period: json['period'] as String?,
       status: AbsenceStatus.fromString(json['status'] as String),
       validatedBy: json['validatedBy'] != null
           ? User.fromJson(json['validatedBy'])
@@ -125,6 +128,7 @@ class Absence extends Equatable {
       'reason': reason,
       'absenceType': absenceType?.toJson(),
       'customType': customType,
+      'period': period,
       'status': status.value,
       'validatedBy': validatedBy?.toJson(),
       'validatedAt': validatedAt?.toIso8601String(),
@@ -143,6 +147,7 @@ class Absence extends Equatable {
         reason,
         absenceType,
         customType,
+        period,
         status,
         validatedBy,
         validatedAt,

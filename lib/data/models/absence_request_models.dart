@@ -5,6 +5,7 @@ class CreateAbsenceRequest {
   final String reason;
   final String? absenceTypeUuid;
   final String? customType;
+  final String? period;
 
   const CreateAbsenceRequest({
     required this.startDate,
@@ -12,6 +13,7 @@ class CreateAbsenceRequest {
     required this.reason,
     this.absenceTypeUuid,
     this.customType,
+    this.period,
   });
 
   Map<String, dynamic> toJson() {
@@ -26,6 +28,9 @@ class CreateAbsenceRequest {
     }
     if (customType != null && customType!.isNotEmpty) {
       map['customType'] = customType;
+    }
+    if (period != null && period!.isNotEmpty) {
+      map['period'] = period;
     }
 
     return map;
