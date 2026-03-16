@@ -2,9 +2,12 @@ import '../../data/repositories/absence_repository.dart';
 import '../../data/repositories/acompte_repository.dart';
 import '../../data/repositories/app_version_repository.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/repositories/couchette_repository.dart';
+import '../../data/repositories/notification_repository.dart';
 import '../../data/repositories/rapport_repository.dart';
 import '../../data/repositories/service_repository.dart';
 import '../../data/repositories/signature_repository.dart';
+import '../../data/repositories/todo_repository.dart';
 import '../../data/repositories/vehicule_repository.dart';
 import '../../data/services/download_service.dart';
 import '../../data/services/http_service.dart';
@@ -28,6 +31,9 @@ class ServiceLocator {
   SignatureRepository? _signatureRepository;
   VehiculeRepository? _vehiculeRepository;
   RapportRepository? _rapportRepository;
+  TodoRepository? _todoRepository;
+  NotificationRepository? _notificationRepository;
+  CouchetteRepository? _couchetteRepository;
   LocationService? _locationService;
   DownloadService? _downloadService;
   AppVersionRepository? _appVersionRepository;
@@ -74,6 +80,15 @@ class ServiceLocator {
     _rapportRepository = RapportRepository(
       httpService: _httpService!,
     );
+
+    // Initialise le repository des todos
+    _todoRepository = TodoRepository(_httpService!);
+
+    // Initialise le repository des notifications
+    _notificationRepository = NotificationRepository(_httpService!);
+
+    // Initialise le repository des couchettes
+    _couchetteRepository = CouchetteRepository(_httpService!);
 
     // Initialise le service de localisation
     _locationService = LocationService();
@@ -148,6 +163,24 @@ class ServiceLocator {
     return _rapportRepository!;
   }
 
+  /// Récupère le repository des todos
+  TodoRepository get todoRepository {
+    _ensureInitialized();
+    return _todoRepository!;
+  }
+
+  /// Récupère le repository des notifications
+  NotificationRepository get notificationRepository {
+    _ensureInitialized();
+    return _notificationRepository!;
+  }
+
+  /// Récupère le repository des couchettes
+  CouchetteRepository get couchetteRepository {
+    _ensureInitialized();
+    return _couchetteRepository!;
+  }
+
   /// Récupère le service de localisation
   LocationService get locationService {
     _ensureInitialized();
@@ -193,6 +226,9 @@ class ServiceLocator {
     _signatureRepository = null;
     _vehiculeRepository = null;
     _rapportRepository = null;
+    _todoRepository = null;
+    _notificationRepository = null;
+    _couchetteRepository = null;
     _locationService = null;
     _downloadService?.dispose();
     _downloadService = null;

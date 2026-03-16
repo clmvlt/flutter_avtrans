@@ -1,7 +1,7 @@
 name: av_pointage
 description: "AVTRANS"
 publish_to: 'none'
-version: 0.0.7
+version: 0.0.8
 
 environment:
   sdk: ^3.9.0
