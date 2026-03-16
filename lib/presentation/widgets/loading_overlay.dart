@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// Overlay de chargement
+/// Overlay de chargement shadcn-style
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
   final Widget child;
@@ -24,23 +24,23 @@ class LoadingOverlay extends StatelessWidget {
         child,
         if (isLoading)
           Container(
-            color: Colors.black.withValues(alpha: 0.7),
+            color: colors.background.withValues(alpha: 0.8),
             child: Center(
               child: Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: colors.bgSecondary,
+                  color: colors.card,
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: colors.borderPrimary),
+                  border: Border.all(color: colors.border),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     SizedBox(
-                      width: 24,
-                      height: 24,
+                      width: 20,
+                      height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 3,
+                        strokeWidth: 2,
                         color: colors.primary,
                       ),
                     ),
@@ -50,7 +50,7 @@ class LoadingOverlay extends StatelessWidget {
                         message!,
                         style: TextStyle(
                           fontSize: 14,
-                          color: colors.textSecondary,
+                          color: colors.mutedForeground,
                         ),
                       ),
                     ],
@@ -79,10 +79,10 @@ class LoadingIndicator extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           SizedBox(
-            width: 24,
-            height: 24,
+            width: 20,
+            height: 20,
             child: CircularProgressIndicator(
-              strokeWidth: 3,
+              strokeWidth: 2,
               color: colors.primary,
             ),
           ),
@@ -92,7 +92,7 @@ class LoadingIndicator extends StatelessWidget {
               message!,
               style: TextStyle(
                 fontSize: 14,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
             ),
           ],

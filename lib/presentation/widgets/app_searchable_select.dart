@@ -2,48 +2,20 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// Widget de sélection avec recherche intégrée
-///
-/// Un dropdown personnalisé qui ouvre un bottom sheet avec une barre
-/// de recherche et une liste filtrable d'éléments.
+/// Widget de sélection avec recherche - style shadcn/ui
 class AppSearchableSelect<T> extends StatelessWidget {
-  /// Liste des éléments à afficher
   final List<T> items;
-
-  /// Élément actuellement sélectionné
   final T? selectedItem;
-
-  /// Callback appelé lors de la sélection
   final void Function(T?) onChanged;
-
-  /// Fonction pour obtenir le label d'un élément
   final String Function(T) itemLabel;
-
-  /// Fonction pour obtenir un sous-titre optionnel
   final String Function(T)? itemSubtitle;
-
-  /// Fonction pour obtenir une icône optionnelle
   final IconData Function(T)? itemIcon;
-
-  /// Placeholder quand aucun élément n'est sélectionné
   final String placeholder;
-
-  /// Titre du bottom sheet
   final String sheetTitle;
-
-  /// Placeholder de la barre de recherche
   final String searchHint;
-
-  /// Message quand aucun résultat
   final String emptyMessage;
-
-  /// Validation du champ
   final String? Function(T?)? validator;
-
-  /// Si le champ est activé
   final bool enabled;
-
-  /// Icône préfixe du champ
   final IconData? prefixIcon;
 
   const AppSearchableSelect({
@@ -77,23 +49,19 @@ class AppSearchableSelect<T> extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
-              onTap: enabled
-                  ? () => _showSelectionSheet(context)
-                  : null,
+              onTap: enabled ? () => _showSelectionSheet(context) : null,
               borderRadius: BorderRadius.circular(AppRadius.md),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
+                  horizontal: 12,
+                  vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: colors.bgTertiary,
+                  color: Colors.transparent,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                   border: Border.all(
-                    color: showError
-                        ? colors.error
-                        : colors.borderPrimary,
-                    width: showError ? 1.5 : 1,
+                    color: showError ? colors.destructive : colors.input,
+                    width: showError ? 2 : 1,
                   ),
                 ),
                 child: Row(
@@ -101,10 +69,8 @@ class AppSearchableSelect<T> extends StatelessWidget {
                     if (prefixIcon != null) ...[
                       Icon(
                         prefixIcon,
-                        size: 20,
-                        color: enabled
-                            ? colors.textSecondary
-                            : colors.textMuted,
+                        size: 18,
+                        color: colors.mutedForeground,
                       ),
                       const SizedBox(width: 12),
                     ],
@@ -114,16 +80,15 @@ class AppSearchableSelect<T> extends StatelessWidget {
                           : Text(
                               placeholder,
                               style: TextStyle(
-                                color: colors.textMuted,
+                                color: colors.mutedForeground,
                                 fontSize: 14,
                               ),
                             ),
                     ),
                     Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: enabled
-                          ? colors.textSecondary
-                          : colors.textMuted,
+                      Icons.unfold_more_rounded,
+                      size: 18,
+                      color: colors.mutedForeground,
                     ),
                   ],
                 ),
@@ -131,12 +96,13 @@ class AppSearchableSelect<T> extends StatelessWidget {
             ),
             if (showError)
               Padding(
-                padding: const EdgeInsets.only(top: 6, left: 14),
+                padding: const EdgeInsets.only(top: 6, left: 2),
                 child: Text(
                   field.errorText!,
                   style: TextStyle(
-                    color: colors.error,
+                    color: colors.destructive,
                     fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
@@ -154,11 +120,7 @@ class AppSearchableSelect<T> extends StatelessWidget {
     return Row(
       children: [
         if (icon != null) ...[
-          Icon(
-            icon,
-            size: 18,
-            color: colors.primary,
-          ),
+          Icon(icon, size: 16, color: colors.primary),
           const SizedBox(width: 8),
         ],
         Expanded(
@@ -169,7 +131,7 @@ class AppSearchableSelect<T> extends StatelessWidget {
               Text(
                 itemLabel(item),
                 style: TextStyle(
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                   fontSize: 14,
                 ),
               ),
@@ -177,7 +139,7 @@ class AppSearchableSelect<T> extends StatelessWidget {
                 Text(
                   subtitle,
                   style: TextStyle(
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                     fontSize: 12,
                   ),
                 ),
@@ -211,7 +173,6 @@ class AppSearchableSelect<T> extends StatelessWidget {
   }
 }
 
-/// Bottom sheet avec recherche et liste
 class _SelectionSheet<T> extends StatefulWidget {
   final List<T> items;
   final T? selectedItem;
@@ -278,14 +239,17 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: screenHeight * 0.75,
-      ),
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.75),
       padding: EdgeInsets.only(bottom: viewInsets.bottom),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppRadius.xl),
+        ),
+        border: Border(
+          top: BorderSide(color: colors.border),
+          left: BorderSide(color: colors.border),
+          right: BorderSide(color: colors.border),
         ),
       ),
       child: Column(
@@ -297,7 +261,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: colors.borderSecondary,
+              color: colors.muted,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -313,17 +277,28 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+                      color: colors.foreground,
                     ),
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: colors.textSecondary,
+                SizedBox(
+                  width: 32,
+                  height: 32,
+                  child: IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: colors.mutedForeground,
+                      size: 18,
+                    ),
+                    padding: EdgeInsets.zero,
+                    style: IconButton.styleFrom(
+                      backgroundColor: colors.muted,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                    ),
                   ),
-                  visualDensity: VisualDensity.compact,
                 ),
               ],
             ),
@@ -331,27 +306,28 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
 
           // Search bar
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.base,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
             child: TextField(
               controller: _searchController,
               autofocus: widget.items.length > 5,
+              style: TextStyle(
+                fontSize: 14,
+                color: colors.foreground,
+              ),
               decoration: InputDecoration(
                 hintText: widget.searchHint,
                 prefixIcon: Icon(
                   Icons.search_rounded,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
+                  size: 18,
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        onPressed: () {
-                          _searchController.clear();
-                        },
+                        onPressed: () => _searchController.clear(),
                         icon: Icon(
                           Icons.clear_rounded,
-                          color: colors.textSecondary,
-                          size: 20,
+                          color: colors.mutedForeground,
+                          size: 16,
                         ),
                       )
                     : null,
@@ -360,12 +336,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
           ),
 
           const SizedBox(height: AppSpacing.sm),
-
-          // Divider
-          Divider(
-            height: 1,
-            color: colors.borderPrimary,
-          ),
+          Container(height: 1, color: colors.border),
 
           // List
           Flexible(
@@ -373,9 +344,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
                 ? _buildEmptyState(colors)
                 : ListView.builder(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(
-                      vertical: AppSpacing.sm,
-                    ),
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
                     itemCount: _filteredItems.length,
                     itemBuilder: (context, index) {
                       final item = _filteredItems[index];
@@ -397,14 +366,14 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
         children: [
           Icon(
             Icons.search_off_rounded,
-            size: 48,
-            color: colors.textMuted,
+            size: 40,
+            color: colors.mutedForeground,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             widget.emptyMessage,
             style: TextStyle(
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
               fontSize: 14,
             ),
           ),
@@ -424,25 +393,23 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
           horizontal: AppSpacing.base,
           vertical: AppSpacing.md,
         ),
-        color: isSelected
-            ? colors.primary.withValues(alpha: 0.1)
-            : Colors.transparent,
+        color: isSelected ? colors.accent : Colors.transparent,
         child: Row(
           children: [
             if (icon != null) ...[
               Container(
-                width: 36,
-                height: 36,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? colors.primary.withValues(alpha: 0.2)
-                      : colors.bgTertiary,
-                  borderRadius: BorderRadius.circular(AppRadius.base),
+                      ? colors.primary.withValues(alpha: 0.1)
+                      : colors.muted,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Icon(
                   icon,
-                  size: 18,
-                  color: isSelected ? colors.primary : colors.textSecondary,
+                  size: 16,
+                  color: isSelected ? colors.primary : colors.mutedForeground,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -454,7 +421,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
                   Text(
                     widget.itemLabel(item),
                     style: TextStyle(
-                      color: isSelected ? colors.primary : colors.textPrimary,
+                      color: colors.foreground,
                       fontSize: 14,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     ),
@@ -463,7 +430,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: colors.textSecondary,
+                        color: colors.mutedForeground,
                         fontSize: 12,
                       ),
                     ),
@@ -474,7 +441,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
               Icon(
                 Icons.check_rounded,
                 color: colors.primary,
-                size: 20,
+                size: 18,
               ),
           ],
         ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Champ de texte personnalisé pour l'application
+import '../../core/theme/app_theme.dart';
+
+/// Champ de texte shadcn/ui
 class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
@@ -41,25 +43,48 @@ class AppTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      textInputAction: textInputAction,
-      enabled: enabled,
-      maxLines: maxLines,
-      validator: validator,
-      onChanged: onChanged,
-      onFieldSubmitted: onSubmitted,
-      focusNode: focusNode,
-      autofocus: autofocus,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        errorText: errorText,
-        prefixIcon: prefixIcon,
-        suffixIcon: suffixIcon,
-      ),
+    final colors = context.colors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (label != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              label!,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: colors.foreground,
+              ),
+            ),
+          ),
+        TextFormField(
+          controller: controller,
+          obscureText: obscureText,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          enabled: enabled,
+          maxLines: maxLines,
+          validator: validator,
+          onChanged: onChanged,
+          onFieldSubmitted: onSubmitted,
+          focusNode: focusNode,
+          autofocus: autofocus,
+          style: TextStyle(
+            fontSize: 14,
+            color: colors.foreground,
+          ),
+          decoration: InputDecoration(
+            hintText: hint,
+            errorText: errorText,
+            prefixIcon: prefixIcon,
+            suffixIcon: suffixIcon,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -91,7 +116,7 @@ class EmailTextField extends StatelessWidget {
       hint: 'exemple@email.com',
       errorText: errorText,
       keyboardType: TextInputType.emailAddress,
-      prefixIcon: const Icon(Icons.email_outlined),
+      prefixIcon: const Icon(Icons.mail_outline, size: 18),
       enabled: enabled,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
@@ -148,10 +173,11 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
       obscureText: _obscureText,
       keyboardType: TextInputType.visiblePassword,
       textInputAction: widget.textInputAction,
-      prefixIcon: const Icon(Icons.lock_outlined),
+      prefixIcon: const Icon(Icons.lock_outline, size: 18),
       suffixIcon: IconButton(
         icon: Icon(
           _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          size: 18,
         ),
         onPressed: () => setState(() => _obscureText = !_obscureText),
       ),

@@ -5,7 +5,7 @@ import '../../core/di/service_locator.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/app_version_model.dart';
 
-/// Dialog pour afficher une mise à jour disponible
+/// Dialog shadcn/ui pour mise à jour disponible
 class UpdateDialog extends StatefulWidget {
   final AppVersion version;
   final String currentVersion;
@@ -18,7 +18,6 @@ class UpdateDialog extends StatefulWidget {
     this.onSkip,
   });
 
-  /// Affiche le dialog de mise à jour
   static Future<void> show(
     BuildContext context, {
     required AppVersion version,
@@ -56,9 +55,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
       widget.version.id,
       widget.version.originalFileName,
       (progress) {
-        if (mounted) {
-          setState(() => _progress = progress);
-        }
+        if (mounted) setState(() => _progress = progress);
       },
     );
 
@@ -73,18 +70,13 @@ class _UpdateDialogState extends State<UpdateDialog> {
       },
       (filePath) async {
         setState(() => _isDownloading = false);
-
         if (!mounted) return;
         Navigator.of(context).pop();
-
-        // Ouvre l'APK pour installation
         final openResult = await OpenFilex.open(filePath);
         if (openResult.type != ResultType.done && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                  'Impossible d\'ouvrir le fichier: ${openResult.message}'),
-              backgroundColor: Colors.red,
+              content: Text('Impossible d\'ouvrir le fichier: ${openResult.message}'),
             ),
           );
         }
@@ -97,9 +89,11 @@ class _UpdateDialogState extends State<UpdateDialog> {
     final colors = context.colors;
 
     return AlertDialog(
-      backgroundColor: colors.bgSecondary,
+      backgroundColor: colors.card,
+      surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: colors.border),
       ),
       title: Row(
         children: [
@@ -107,22 +101,18 @@ class _UpdateDialogState extends State<UpdateDialog> {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: colors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.base),
+              borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(
-              Icons.system_update,
-              color: colors.primary,
-              size: 24,
-            ),
+            child: Icon(Icons.system_update, color: colors.primary, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Mise à jour disponible',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+                color: colors.foreground,
               ),
             ),
           ),
@@ -133,11 +123,9 @@ class _UpdateDialogState extends State<UpdateDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Versions
             _buildVersionInfo(colors),
             const SizedBox(height: 16),
 
-            // Changelog
             if (widget.version.changelog != null &&
                 widget.version.changelog!.isNotEmpty) ...[
               Text(
@@ -145,22 +133,21 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colors.bgPrimary,
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  border: Border.all(color: colors.borderPrimary),
+                  color: colors.muted,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Text(
                   widget.version.changelog!,
                   style: TextStyle(
                     fontSize: 13,
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                     height: 1.4,
                   ),
                 ),
@@ -168,79 +155,59 @@ class _UpdateDialogState extends State<UpdateDialog> {
               const SizedBox(height: 16),
             ],
 
-            // Taille du fichier
             Row(
               children: [
-                Icon(
-                  Icons.folder_outlined,
-                  size: 16,
-                  color: colors.textSecondary,
-                ),
+                Icon(Icons.folder_outlined, size: 14, color: colors.mutedForeground),
                 const SizedBox(width: 8),
                 Text(
                   'Taille: ${widget.version.formattedFileSize}',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colors.textSecondary,
-                  ),
+                  style: TextStyle(fontSize: 13, color: colors.mutedForeground),
                 ),
               ],
             ),
 
-            // Progress bar si téléchargement en cours
             if (_isDownloading) ...[
               const SizedBox(height: 20),
               Text(
                 'Téléchargement en cours...',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 13, color: colors.mutedForeground),
               ),
               const SizedBox(height: 8),
               ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppRadius.full),
                 child: LinearProgressIndicator(
                   value: _progress,
-                  backgroundColor: colors.borderPrimary,
+                  backgroundColor: colors.muted,
                   valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-                  minHeight: 6,
+                  minHeight: 4,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 '${(_progress * 100).toStringAsFixed(0)}%',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colors.textSecondary,
-                ),
+                style: TextStyle(fontSize: 12, color: colors.mutedForeground),
               ),
             ],
 
-            // Erreur
             if (_error != null) ...[
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: colors.error.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.base),
+                  color: colors.errorBg,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: Border.all(
+                    color: colors.destructive.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 20,
-                      color: colors.error,
-                    ),
+                    Icon(Icons.error_outline, size: 16, color: colors.destructive),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _error!,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: colors.error,
-                        ),
+                        style: TextStyle(fontSize: 13, color: colors.destructive),
                       ),
                     ),
                   ],
@@ -260,13 +227,14 @@ class _UpdateDialogState extends State<UpdateDialog> {
                 },
                 child: Text(
                   'Plus tard',
-                  style: TextStyle(color: colors.textSecondary),
+                  style: TextStyle(color: colors.mutedForeground),
                 ),
               ),
               FilledButton(
                 onPressed: _downloadAndInstall,
                 style: FilledButton.styleFrom(
                   backgroundColor: colors.primary,
+                  foregroundColor: colors.primaryForeground,
                 ),
                 child: const Text('Mettre à jour'),
               ),
@@ -278,9 +246,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: colors.bgPrimary,
-        borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        color: colors.muted,
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Row(
         children: [
@@ -288,11 +255,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
             child: Column(
               children: [
                 Text(
-                  'Version actuelle',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: colors.textSecondary,
-                  ),
+                  'Actuelle',
+                  style: TextStyle(fontSize: 11, color: colors.mutedForeground),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -300,26 +264,19 @@ class _UpdateDialogState extends State<UpdateDialog> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
               ],
             ),
           ),
-          Icon(
-            Icons.arrow_forward,
-            color: colors.primary,
-            size: 20,
-          ),
+          Icon(Icons.arrow_forward, color: colors.mutedForeground, size: 16),
           Expanded(
             child: Column(
               children: [
                 Text(
-                  'Nouvelle version',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: colors.textSecondary,
-                  ),
+                  'Nouvelle',
+                  style: TextStyle(fontSize: 11, color: colors.mutedForeground),
                 ),
                 const SizedBox(height: 4),
                 Text(
