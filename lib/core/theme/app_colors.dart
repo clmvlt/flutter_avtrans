@@ -1,175 +1,216 @@
 import 'package:flutter/material.dart';
 
-/// Classe pour accéder aux couleurs en fonction du thème
+/// Système de couleurs inspiré de shadcn/ui
+/// Tokens: background, foreground, card, popover, primary, secondary,
+/// muted, accent, destructive, border, input, ring
 class AppColors {
   final bool isDarkMode;
 
   const AppColors._({required this.isDarkMode});
 
-  /// Instance pour le mode clair
   static const AppColors light = AppColors._(isDarkMode: false);
-
-  /// Instance pour le mode sombre
   static const AppColors dark = AppColors._(isDarkMode: true);
 
-  /// Obtient les couleurs en fonction du mode
   static AppColors of(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     return brightness == Brightness.dark ? dark : light;
   }
 
-  // ============ Couleurs principales ============
-  // Couleurs plus saturées en light mode pour meilleur contraste
+  // ============ Background & Foreground ============
+  Color get background => isDarkMode
+      ? const Color(0xFF09090B) // zinc-950
+      : const Color(0xFFFFFFFF);
+
+  Color get foreground => isDarkMode
+      ? const Color(0xFFFAFAFA) // zinc-50
+      : const Color(0xFF09090B); // zinc-950
+
+  // ============ Card ============
+  Color get card => isDarkMode
+      ? const Color(0xFF09090B)
+      : const Color(0xFFFFFFFF);
+
+  Color get cardForeground => isDarkMode
+      ? const Color(0xFFFAFAFA)
+      : const Color(0xFF09090B);
+
+  // ============ Popover ============
+  Color get popover => isDarkMode
+      ? const Color(0xFF09090B)
+      : const Color(0xFFFFFFFF);
+
+  Color get popoverForeground => isDarkMode
+      ? const Color(0xFFFAFAFA)
+      : const Color(0xFF09090B);
+
+  // ============ Primary (blue brand) ============
   Color get primary => isDarkMode
-      ? const Color(0xFF5B7FFF)
-      : const Color(0xFF4361EE);
+      ? const Color(0xFF3B82F6) // blue-500
+      : const Color(0xFF2563EB); // blue-600
+
+  Color get primaryForeground => isDarkMode
+      ? const Color(0xFFFAFAFA)
+      : const Color(0xFFFFFFFF);
 
   Color get primaryLight => isDarkMode
-      ? const Color(0xFF7A9AFF)
-      : const Color(0xFF6B8AFF);
+      ? const Color(0xFF60A5FA) // blue-400
+      : const Color(0xFF3B82F6); // blue-500
 
-  Color get primaryDark => isDarkMode
-      ? const Color(0xFF4563D9)
-      : const Color(0xFF3651D4);
-
+  // ============ Secondary ============
   Color get secondary => isDarkMode
+      ? const Color(0xFF27272A) // zinc-800
+      : const Color(0xFFF4F4F5); // zinc-100
+
+  Color get secondaryForeground => isDarkMode
+      ? const Color(0xFFFAFAFA)
+      : const Color(0xFF18181B); // zinc-900
+
+  // ============ Muted ============
+  Color get muted => isDarkMode
+      ? const Color(0xFF27272A) // zinc-800
+      : const Color(0xFFF4F4F5); // zinc-100
+
+  Color get mutedForeground => isDarkMode
+      ? const Color(0xFFA1A1AA) // zinc-400
+      : const Color(0xFF71717A); // zinc-500
+
+  // ============ Accent ============
+  Color get accent => isDarkMode
+      ? const Color(0xFF27272A) // zinc-800
+      : const Color(0xFFF4F4F5); // zinc-100
+
+  Color get accentForeground => isDarkMode
+      ? const Color(0xFFFAFAFA)
+      : const Color(0xFF18181B);
+
+  // ============ Destructive ============
+  Color get destructive => isDarkMode
+      ? const Color(0xFFEF4444) // red-500
+      : const Color(0xFFDC2626); // red-600
+
+  Color get destructiveForeground => isDarkMode
+      ? const Color(0xFFFAFAFA)
+      : const Color(0xFFFFFFFF);
+
+  // ============ Border & Input ============
+  Color get border => isDarkMode
+      ? const Color(0xFF27272A) // zinc-800
+      : const Color(0xFFE4E4E7); // zinc-200
+
+  Color get input => isDarkMode
+      ? const Color(0xFF27272A)
+      : const Color(0xFFE4E4E7);
+
+  // ============ Ring (focus) ============
+  Color get ring => isDarkMode
+      ? const Color(0xFF3B82F6) // blue-500
+      : const Color(0xFF2563EB); // blue-600
+
+  // ============ Semantic Colors ============
+  Color get success => isDarkMode
+      ? const Color(0xFF22C55E) // green-500
+      : const Color(0xFF16A34A); // green-600
+
+  Color get successForeground => const Color(0xFFFFFFFF);
+
+  Color get successMuted => isDarkMode
+      ? const Color(0xFF052E16) // green-950
+      : const Color(0xFFF0FDF4); // green-50
+
+  Color get warning => isDarkMode
+      ? const Color(0xFFFACC15) // yellow-400
+      : const Color(0xFFCA8A04); // yellow-600
+
+  Color get warningForeground => isDarkMode
+      ? const Color(0xFF09090B)
+      : const Color(0xFFFFFFFF);
+
+  Color get warningMuted => isDarkMode
+      ? const Color(0xFF422006) // yellow-950 approx
+      : const Color(0xFFFEFCE8); // yellow-50
+
+  Color get info => isDarkMode
+      ? const Color(0xFF38BDF8) // sky-400
+      : const Color(0xFF0284C7); // sky-600
+
+  Color get infoForeground => const Color(0xFFFFFFFF);
+
+  Color get infoMuted => isDarkMode
+      ? const Color(0xFF082F49) // sky-950
+      : const Color(0xFFF0F9FF); // sky-50
+
+  // ============ Chart Colors ============
+  Color get chart1 => isDarkMode
+      ? const Color(0xFF3B82F6)
+      : const Color(0xFF2563EB);
+
+  Color get chart2 => isDarkMode
+      ? const Color(0xFF22C55E)
+      : const Color(0xFF16A34A);
+
+  Color get chart3 => isDarkMode
+      ? const Color(0xFFF59E0B)
+      : const Color(0xFFD97706);
+
+  Color get chart4 => isDarkMode
       ? const Color(0xFF8B5CF6)
       : const Color(0xFF7C3AED);
 
-  Color get secondaryLight => isDarkMode
-      ? const Color(0xFFA78BFA)
-      : const Color(0xFF9061F9);
+  Color get chart5 => isDarkMode
+      ? const Color(0xFFEC4899)
+      : const Color(0xFFDB2777);
 
-  Color get secondaryDark => isDarkMode
-      ? const Color(0xFF7C3AED)
-      : const Color(0xFF6D28D9);
-
-  // ============ Couleurs de fond ============
-  // Light mode: fond gris clair pour réduire l'effet "trop blanc"
-  Color get bgPrimary => isDarkMode
-      ? const Color(0xFF0F1419)
-      : const Color(0xFFEFF1F5);  // Gris très clair au lieu de blanc
-
-  Color get bgSecondary => isDarkMode
-      ? const Color(0xFF1A1F2E)
-      : const Color(0xFFFAFAFC);  // Blanc cassé léger
-
-  Color get bgTertiary => isDarkMode
-      ? const Color(0xFF252B3B)
-      : const Color(0xFFE8EBF0);  // Gris plus marqué
-
-  Color get bgHover => isDarkMode
-      ? const Color(0xFF2D3548)
-      : const Color(0xFFDDE1E8);
-
-  // ============ Couleurs de texte ============
-  // Light mode: textes plus foncés pour meilleur contraste
-  Color get textPrimary => isDarkMode
-      ? const Color(0xFFE8EAF0)
-      : const Color(0xFF0F172A);  // Presque noir
-
-  Color get textSecondary => isDarkMode
-      ? const Color(0xFF9BA3B4)
-      : const Color(0xFF475569);  // Gris foncé
-
-  Color get textMuted => isDarkMode
-      ? const Color(0xFF6B7280)
-      : const Color(0xFF64748B);
-
-  Color get textInverse => isDarkMode
-      ? const Color(0xFF0F1419)
-      : const Color(0xFFFFFFFF);
-
-  // ============ Couleurs de bordure ============
-  // Light mode: bordures plus visibles
-  Color get borderPrimary => isDarkMode
-      ? const Color(0xFF2D3548)
-      : const Color(0xFFCBD5E1);  // Plus visible
-
-  Color get borderSecondary => isDarkMode
-      ? const Color(0xFF3E4555)
-      : const Color(0xFFB0BCC9);  // Plus foncé
-
-  Color get borderFocus => isDarkMode
-      ? const Color(0xFF5B7FFF)
-      : const Color(0xFF4361EE);
-
-  // ============ Couleurs sémantiques ============
-  // Light mode: couleurs plus saturées
-  Color get success => isDarkMode
-      ? const Color(0xFF10B981)
-      : const Color(0xFF059669);  // Plus foncé
-
-  Color get successBg => isDarkMode
-      ? const Color(0xFF064E3B)
-      : const Color(0xFFD1FAE5);
-
-  Color get error => isDarkMode
-      ? const Color(0xFFEF4444)
-      : const Color(0xFFDC2626);  // Plus foncé
-
+  // ============ Aliases (backwards compat) ============
+  Color get bgPrimary => background;
+  Color get bgSecondary => card;
+  Color get bgTertiary => muted;
+  Color get bgHover => accent;
+  Color get textPrimary => foreground;
+  Color get textSecondary => mutedForeground;
+  Color get textMuted => mutedForeground;
+  Color get textInverse => primaryForeground;
+  Color get borderPrimary => border;
+  Color get borderSecondary => border;
+  Color get borderFocus => ring;
+  Color get error => destructive;
   Color get errorBg => isDarkMode
-      ? const Color(0xFF7F1D1D)
-      : const Color(0xFFFEE2E2);
+      ? const Color(0xFF450A0A) // red-950
+      : const Color(0xFFFEF2F2); // red-50
+  Color get successBg => successMuted;
+  Color get warningBg => warningMuted;
+  Color get infoBg => infoMuted;
+  Color get surface => card;
+  Color get divider => border;
 
-  Color get warning => isDarkMode
-      ? const Color(0xFFF59E0B)
-      : const Color(0xFFD97706);  // Plus foncé
-
-  Color get warningBg => isDarkMode
-      ? const Color(0xFF78350F)
-      : const Color(0xFFFEF3C7);
-
-  Color get info => isDarkMode
-      ? const Color(0xFF3B82F6)
-      : const Color(0xFF2563EB);  // Plus foncé
-
-  Color get infoBg => isDarkMode
-      ? const Color(0xFF1E3A8A)
-      : const Color(0xFFDBEAFE);
-
-  // ============ Aliases ============
-  Color get background => bgPrimary;
-  Color get surface => bgSecondary;
-  Color get divider => borderPrimary;
-
-  // ============ Constantes statiques (rétrocompatibilité - utilisent dark par défaut) ============
-  // Ces constantes permettent d'utiliser AppColors.primary etc. sans contexte
-  // Pour un support complet du thème, utiliser context.colors à la place
-
-  static const Color primaryStatic = Color(0xFF5B7FFF);
-  static const Color primaryLightStatic = Color(0xFF7A9AFF);
-  static const Color primaryDarkStatic = Color(0xFF4563D9);
-
+  // ============ Static compat ============
+  static const Color primaryStatic = Color(0xFF3B82F6);
+  static const Color primaryLightStatic = Color(0xFF60A5FA);
+  static const Color primaryDarkStatic = Color(0xFF2563EB);
   static const Color secondaryStatic = Color(0xFF8B5CF6);
   static const Color secondaryLightStatic = Color(0xFFA78BFA);
   static const Color secondaryDarkStatic = Color(0xFF7C3AED);
-
-  static const Color bgPrimaryStatic = Color(0xFF0F1419);
-  static const Color bgSecondaryStatic = Color(0xFF1A1F2E);
-  static const Color bgTertiaryStatic = Color(0xFF252B3B);
-  static const Color bgHoverStatic = Color(0xFF2D3548);
-
-  static const Color textPrimaryStatic = Color(0xFFE8EAF0);
-  static const Color textSecondaryStatic = Color(0xFF9BA3B4);
-  static const Color textMutedStatic = Color(0xFF6B7280);
-  static const Color textInverseStatic = Color(0xFF0F1419);
-
-  static const Color borderPrimaryStatic = Color(0xFF2D3548);
-  static const Color borderSecondaryStatic = Color(0xFF3E4555);
-  static const Color borderFocusStatic = Color(0xFF5B7FFF);
-
-  static const Color successStatic = Color(0xFF10B981);
-  static const Color successBgStatic = Color(0xFF064E3B);
+  static const Color bgPrimaryStatic = Color(0xFF09090B);
+  static const Color bgSecondaryStatic = Color(0xFF09090B);
+  static const Color bgTertiaryStatic = Color(0xFF27272A);
+  static const Color bgHoverStatic = Color(0xFF27272A);
+  static const Color textPrimaryStatic = Color(0xFFFAFAFA);
+  static const Color textSecondaryStatic = Color(0xFFA1A1AA);
+  static const Color textMutedStatic = Color(0xFF71717A);
+  static const Color textInverseStatic = Color(0xFF09090B);
+  static const Color borderPrimaryStatic = Color(0xFF27272A);
+  static const Color borderSecondaryStatic = Color(0xFF27272A);
+  static const Color borderFocusStatic = Color(0xFF3B82F6);
+  static const Color successStatic = Color(0xFF22C55E);
+  static const Color successBgStatic = Color(0xFF052E16);
   static const Color errorStatic = Color(0xFFEF4444);
-  static const Color errorBgStatic = Color(0xFF7F1D1D);
-  static const Color warningStatic = Color(0xFFF59E0B);
-  static const Color warningBgStatic = Color(0xFF78350F);
-  static const Color infoStatic = Color(0xFF3B82F6);
-  static const Color infoBgStatic = Color(0xFF1E3A8A);
+  static const Color errorBgStatic = Color(0xFF450A0A);
+  static const Color warningStatic = Color(0xFFFACC15);
+  static const Color warningBgStatic = Color(0xFF422006);
+  static const Color infoStatic = Color(0xFF38BDF8);
+  static const Color infoBgStatic = Color(0xFF082F49);
 }
 
-/// Extension pour accéder facilement aux couleurs depuis le contexte
+/// Extension pour accéder aux couleurs depuis le contexte
 extension AppColorsExtension on BuildContext {
   AppColors get colors => AppColors.of(this);
 }
