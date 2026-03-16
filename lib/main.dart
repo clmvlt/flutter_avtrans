@@ -14,13 +14,8 @@ import 'presentation/widgets/update_dialog.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Charge les variables d'environnement
   await dotenv.load(fileName: '.env');
-
-  // Initialise les services
   await ServiceLocator().init();
-
-  // Initialise les données de localisation pour le calendrier
   await initializeDateFormatting('fr_FR', null);
 
   runApp(
@@ -59,7 +54,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Écran de démarrage qui vérifie l'authentification
+/// Écran de démarrage
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -85,21 +80,15 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
   Future<void> _checkAuthAndUpdate() async {
     await Future.delayed(const Duration(milliseconds: 500));
-
     if (!mounted) return;
-
-    // Vérifie les mises à jour au démarrage
     await _checkForUpdate();
-
     if (!mounted) return;
 
     final isLoggedIn = sl.authRepository.isLoggedIn();
 
     if (isLoggedIn) {
       final result = await sl.authRepository.getCurrentUser();
-
       if (!mounted) return;
-
       result.fold(
         (failure) => _navigateToLogin(),
         (user) => _navigateToHome(),
@@ -111,12 +100,10 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
   Future<void> _checkForUpdate() async {
     final updateResponse = await sl.updateCheckerService.checkForUpdate();
-
     if (!mounted) return;
 
     if (updateResponse != null && updateResponse.latestVersion != null) {
       final currentVersion = await sl.updateCheckerService.currentVersionName;
-
       if (!mounted) return;
 
       await UpdateDialog.show(
@@ -124,7 +111,6 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
         version: updateResponse.latestVersion!,
         currentVersion: currentVersion,
         onSkip: () {
-          // Ignore cette version
           sl.updateCheckerService.skipVersion(
             updateResponse.latestVersion!.versionCode,
           );
@@ -154,34 +140,31 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [colors.primary, colors.secondary],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
+                color: colors.primary,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.access_time_filled,
-                size: 64,
-                color: Colors.white,
+                size: 48,
+                color: colors.primaryForeground,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             Text(
               'Pointage AVTRANS',
               style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: colors.foreground,
+                letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 8),
@@ -189,15 +172,15 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
               'Gestion du temps de travail',
               style: TextStyle(
                 fontSize: 14,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
             ),
             const SizedBox(height: 48),
             SizedBox(
-              width: 24,
-              height: 24,
+              width: 20,
+              height: 20,
               child: CircularProgressIndicator(
-                strokeWidth: 3,
+                strokeWidth: 2,
                 color: colors.primary,
               ),
             ),

@@ -137,29 +137,29 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
         ),
         title: Text(
           'Annuler la demande',
-          style: TextStyle(color: colors.textPrimary),
+          style: TextStyle(color: colors.foreground),
         ),
         content: Text(
           'Voulez-vous vraiment annuler cette demande d\'acompte ?',
-          style: TextStyle(color: colors.textSecondary),
+          style: TextStyle(color: colors.mutedForeground),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Non',
-              style: TextStyle(color: colors.textSecondary),
+              style: TextStyle(color: colors.mutedForeground),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colors.error),
+            style: TextButton.styleFrom(foregroundColor: colors.destructive),
             child: const Text('Oui, annuler'),
           ),
         ],
@@ -233,44 +233,14 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
   }
 
   void _showError(String message) {
-    final colors = context.colors;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.bgSecondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
-        ),
-      ),
+      SnackBar(content: Text(message)),
     );
   }
 
   void _showSuccess(String message) {
-    final colors = context.colors;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_outline, color: colors.success, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.bgSecondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.success),
-        ),
-      ),
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -279,10 +249,9 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Mes acomptes'),
-        backgroundColor: colors.bgSecondary,
         actions: [
           Stack(
             children: [
@@ -311,7 +280,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateDialog,
         backgroundColor: colors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: Icon(Icons.add, color: colors.primaryForeground),
       ),
       body: _buildBody(colors),
     );
@@ -327,11 +296,11 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: colors.error),
+            Icon(Icons.error_outline, size: 48, color: colors.destructive),
             const SizedBox(height: AppSpacing.base),
             Text(
               _error!,
-              style: TextStyle(color: colors.textSecondary),
+              style: TextStyle(color: colors.mutedForeground),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.base),
@@ -339,7 +308,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
               text: 'Réessayer',
               onPressed: _loadAcomptes,
               backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: colors.primaryForeground,
             ),
           ],
         ),
@@ -354,7 +323,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
             Icon(
               Icons.payments_outlined,
               size: 64,
-              color: colors.textMuted,
+              color: colors.mutedForeground,
             ),
             const SizedBox(height: AppSpacing.base),
             Text(
@@ -363,7 +332,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                   : 'Aucune demande d\'acompte',
               style: TextStyle(
                 fontSize: 16,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
               textAlign: TextAlign.center,
             ),
@@ -392,7 +361,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                 'Appuyez sur + pour créer une demande',
                 style: TextStyle(
                   fontSize: 13,
-                  color: colors.textMuted,
+                  color: colors.mutedForeground,
                 ),
               ),
           ],
@@ -409,7 +378,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
           child: RefreshIndicator(
             onRefresh: _loadAcomptes,
             color: colors.primary,
-            backgroundColor: colors.bgSecondary,
+            backgroundColor: colors.card,
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(AppSpacing.base),
@@ -449,7 +418,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
         horizontal: AppSpacing.base,
         vertical: AppSpacing.sm,
       ),
-      color: colors.bgSecondary,
+      color: colors.card,
       child: Row(
         children: [
           Icon(Icons.filter_alt, size: 18, color: colors.primary),
@@ -459,7 +428,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
               'Filtres: ${filters.join(', ')}',
               style: TextStyle(
                 fontSize: 13,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
             ),
           ),
@@ -477,7 +446,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
             },
             child: Padding(
               padding: const EdgeInsets.all(4),
-              child: Icon(Icons.close, size: 18, color: colors.textMuted),
+              child: Icon(Icons.close, size: 18, color: colors.mutedForeground),
             ),
           ),
         ],
@@ -490,7 +459,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.base),
-      color: colors.bgSecondary,
+      color: colors.card,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.base),
       ),
@@ -524,7 +493,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
-                          color: colors.textPrimary,
+                          color: colors.foreground,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -534,7 +503,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                             : 'Date non disponible',
                         style: TextStyle(
                           fontSize: 12,
-                          color: colors.textMuted,
+                          color: colors.mutedForeground,
                         ),
                       ),
                     ],
@@ -549,7 +518,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: colors.bgPrimary,
+                  color: colors.background,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Row(
@@ -557,7 +526,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                     Icon(
                       Icons.description_outlined,
                       size: 16,
-                      color: colors.textMuted,
+                      color: colors.mutedForeground,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
@@ -565,7 +534,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                         acompte.raison!,
                         style: TextStyle(
                           fontSize: 14,
-                          color: colors.textSecondary,
+                          color: colors.mutedForeground,
                         ),
                       ),
                     ),
@@ -597,20 +566,20 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: colors.error.withValues(alpha: 0.1),
+                  color: colors.destructive.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
-                  border: Border.all(color: colors.error.withValues(alpha: 0.3)),
+                  border: Border.all(color: colors.destructive.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.cancel, size: 14, color: colors.error),
+                    Icon(Icons.cancel, size: 14, color: colors.destructive),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         acompte.rejectionReason ?? 'Rejeté',
                         style: TextStyle(
                           fontSize: 12,
-                          color: colors.error,
+                          color: colors.destructive,
                         ),
                       ),
                     ),
@@ -655,13 +624,13 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: () => _cancelAcompte(acompte),
-                  icon: Icon(Icons.cancel_outlined, size: 16, color: colors.error),
+                  icon: Icon(Icons.cancel_outlined, size: 16, color: colors.destructive),
                   label: Text(
                     'Annuler la demande',
-                    style: TextStyle(color: colors.error),
+                    style: TextStyle(color: colors.destructive),
                   ),
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.error),
+                    side: BorderSide(color: colors.destructive),
                   ),
                 ),
               ),
@@ -689,13 +658,13 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
         icon = Icons.check_circle;
         break;
       case AcompteStatus.rejected:
-        bgColor = colors.error.withValues(alpha: 0.1);
-        textColor = colors.error;
+        bgColor = colors.destructive.withValues(alpha: 0.1);
+        textColor = colors.destructive;
         icon = Icons.cancel;
         break;
       case AcompteStatus.cancelled:
-        bgColor = colors.textMuted.withValues(alpha: 0.1);
-        textColor = colors.textMuted;
+        bgColor = colors.mutedForeground.withValues(alpha: 0.1);
+        textColor = colors.mutedForeground;
         icon = Icons.block;
         break;
     }
@@ -771,20 +740,14 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
       (failure) {
         setState(() => _isSubmitting = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(failure.message),
-            backgroundColor: context.colors.error,
-          ),
+          SnackBar(content: Text(failure.message)),
         );
       },
       (acompte) {
         widget.onCreated(acompte);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Demande d\'acompte créée avec succès'),
-            backgroundColor: context.colors.success,
-          ),
+          SnackBar(content: const Text('Demande d\'acompte créée avec succès')),
         );
       },
     );
@@ -796,7 +759,7 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       padding: EdgeInsets.only(
@@ -820,12 +783,12 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: colors.textMuted),
+                  icon: Icon(Icons.close, color: colors.mutedForeground),
                 ),
               ],
             ),
@@ -836,24 +799,10 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
                 labelText: 'Montant (€)',
-                labelStyle: TextStyle(color: colors.textSecondary),
+                labelStyle: TextStyle(color: colors.mutedForeground),
                 prefixIcon: Icon(Icons.euro, color: colors.primary),
-                filled: true,
-                fillColor: colors.bgPrimary,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.borderPrimary),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.primary, width: 2),
-                ),
               ),
-              style: TextStyle(color: colors.textPrimary),
+              style: TextStyle(color: colors.foreground),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Veuillez saisir un montant';
@@ -872,24 +821,10 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: 'Raison (facultative)',
-                labelStyle: TextStyle(color: colors.textSecondary),
+                labelStyle: TextStyle(color: colors.mutedForeground),
                 prefixIcon: Icon(Icons.description_outlined, color: colors.primary),
-                filled: true,
-                fillColor: colors.bgPrimary,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.borderPrimary),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.primary, width: 2),
-                ),
               ),
-              style: TextStyle(color: colors.textPrimary),
+              style: TextStyle(color: colors.foreground),
             ),
             const SizedBox(height: AppSpacing.lg),
             // Bouton soumettre
@@ -898,7 +833,7 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
               onPressed: _isSubmitting ? null : _submit,
               isLoading: _isSubmitting,
               backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: colors.primaryForeground,
             ),
           ],
         ),
@@ -961,7 +896,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       padding: const EdgeInsets.all(AppSpacing.base),
@@ -978,12 +913,12 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.close, color: colors.textMuted),
+                icon: Icon(Icons.close, color: colors.mutedForeground),
               ),
             ],
           ),
@@ -994,7 +929,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -1020,7 +955,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -1045,7 +980,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     _startDate != null
                         ? DateFormat('dd/MM/yyyy').format(_startDate!)
                         : 'Début',
-                    style: TextStyle(color: colors.textPrimary),
+                    style: TextStyle(color: colors.foreground),
                   ),
                 ),
               ),
@@ -1069,7 +1004,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     _endDate != null
                         ? DateFormat('dd/MM/yyyy').format(_endDate!)
                         : 'Fin',
-                    style: TextStyle(color: colors.textPrimary),
+                    style: TextStyle(color: colors.foreground),
                   ),
                 ),
               ),
@@ -1082,7 +1017,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -1094,15 +1029,9 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                     hintText: 'Min (€)',
-                    hintStyle: TextStyle(color: colors.textMuted),
-                    filled: true,
-                    fillColor: colors.bgPrimary,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.base),
-                      borderSide: BorderSide.none,
-                    ),
+                    hintStyle: TextStyle(color: colors.mutedForeground),
                   ),
-                  style: TextStyle(color: colors.textPrimary),
+                  style: TextStyle(color: colors.foreground),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -1112,15 +1041,9 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
                     hintText: 'Max (€)',
-                    hintStyle: TextStyle(color: colors.textMuted),
-                    filled: true,
-                    fillColor: colors.bgPrimary,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.base),
-                      borderSide: BorderSide.none,
-                    ),
+                    hintStyle: TextStyle(color: colors.mutedForeground),
                   ),
-                  style: TextStyle(color: colors.textPrimary),
+                  style: TextStyle(color: colors.foreground),
                 ),
               ),
             ],
@@ -1136,11 +1059,11 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     Navigator.pop(context);
                   },
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.borderPrimary),
+                    side: BorderSide(color: colors.border),
                   ),
                   child: Text(
                     'Effacer',
-                    style: TextStyle(color: colors.textSecondary),
+                    style: TextStyle(color: colors.mutedForeground),
                   ),
                 ),
               ),
@@ -1156,7 +1079,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     Navigator.pop(context);
                   },
                   backgroundColor: colors.primary,
-                  foregroundColor: Colors.white,
+                  foregroundColor: colors.primaryForeground,
                 ),
               ),
             ],

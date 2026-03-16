@@ -73,12 +73,12 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
       ),
     );
   }
@@ -94,7 +94,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
       ),
     );
   }
@@ -146,10 +146,9 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
 
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: colors.bgPrimary,
+        backgroundColor: colors.background,
         appBar: AppBar(
           title: const Text('Détails du véhicule'),
-          backgroundColor: colors.bgSecondary,
         ),
         body: const LoadingIndicator(message: 'Chargement...'),
       );
@@ -157,25 +156,23 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
 
     if (_vehicule == null) {
       return Scaffold(
-        backgroundColor: colors.bgPrimary,
+        backgroundColor: colors.background,
         appBar: AppBar(
           title: const Text('Détails du véhicule'),
-          backgroundColor: colors.bgSecondary,
         ),
         body: Center(
           child: Text(
             'Véhicule non trouvé',
-            style: TextStyle(color: colors.textMuted),
+            style: TextStyle(color: colors.mutedForeground),
           ),
         ),
       );
     }
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: Text(_vehicule!.immat),
-        backgroundColor: colors.bgSecondary,
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -203,9 +200,9 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
           Container(
             padding: const EdgeInsets.all(AppSpacing.base),
             decoration: BoxDecoration(
-              color: colors.bgSecondary,
+              color: colors.card,
               borderRadius: BorderRadius.circular(AppRadius.base),
-              border: Border.all(color: colors.borderPrimary),
+              border: Border.all(color: colors.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,7 +245,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
             icon: Icons.speed,
             onPressed: _showAddKilometrageDialog,
             backgroundColor: colors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: colors.primaryForeground,
           ),
           const SizedBox(height: AppSpacing.md),
           AppButton(
@@ -256,7 +253,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
             icon: Icons.info_outline,
             onPressed: _openAddAdjustInfoScreen,
             backgroundColor: colors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: colors.primaryForeground,
           ),
         ],
       ),
@@ -281,7 +278,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: colors.textMuted,
+                  color: colors.mutedForeground,
                 ),
               ),
               const SizedBox(height: 2),
@@ -290,7 +287,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
             ],
@@ -311,7 +308,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
             icon: Icons.upload_file,
             onPressed: _showUploadFileDialog,
             backgroundColor: colors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: colors.primaryForeground,
           ),
         ),
         // Liste des fichiers
@@ -321,11 +318,11 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.folder_open, size: 64, color: colors.textMuted),
+                      Icon(Icons.folder_open, size: 64, color: colors.mutedForeground),
                       const SizedBox(height: AppSpacing.md),
                       Text(
                         'Aucun fichier',
-                        style: TextStyle(color: colors.textMuted),
+                        style: TextStyle(color: colors.mutedForeground),
                       ),
                     ],
                   ),
@@ -358,9 +355,9 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
       onTap: () => _openFile(file),
       child: Container(
         decoration: BoxDecoration(
-          color: colors.bgSecondary,
+          color: colors.card,
           borderRadius: BorderRadius.circular(AppRadius.base),
-          border: Border.all(color: colors.borderPrimary),
+          border: Border.all(color: colors.border),
         ),
         child: Column(
           children: [
@@ -396,7 +393,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: colors.bgSecondary,
+                color: colors.card,
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(AppRadius.base),
                 ),
@@ -409,7 +406,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: colors.textPrimary,
+                      color: colors.foreground,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -420,14 +417,14 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                       Icon(
                         Icons.calendar_today,
                         size: 10,
-                        color: colors.textMuted,
+                        color: colors.mutedForeground,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         date,
                         style: TextStyle(
                           fontSize: 10,
-                          color: colors.textMuted,
+                          color: colors.mutedForeground,
                         ),
                       ),
                       const Spacer(),
@@ -435,7 +432,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                         file.formattedSize,
                         style: TextStyle(
                           fontSize: 10,
-                          color: colors.textMuted,
+                          color: colors.mutedForeground,
                         ),
                       ),
                     ],
@@ -473,8 +470,8 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
       bgColor = Colors.green.shade50;
     } else {
       icon = Icons.insert_drive_file;
-      iconColor = colors.textMuted;
-      bgColor = colors.bgTertiary;
+      iconColor = colors.mutedForeground;
+      bgColor = colors.muted;
     }
 
     return Container(
@@ -583,12 +580,12 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                           Icon(
                             Icons.broken_image,
                             size: 64,
-                            color: colors.textMuted,
+                            color: colors.mutedForeground,
                           ),
                           const SizedBox(height: 16),
                           Text(
                             'Impossible de charger l\'image',
-                            style: TextStyle(color: colors.textMuted),
+                            style: TextStyle(color: colors.mutedForeground),
                           ),
                         ],
                       ),

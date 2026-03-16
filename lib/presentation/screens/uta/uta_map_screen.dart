@@ -48,10 +48,9 @@ class _UtaMapScreenState extends State<UtaMapScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Carte UTA'),
-        backgroundColor: colors.bgSecondary,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

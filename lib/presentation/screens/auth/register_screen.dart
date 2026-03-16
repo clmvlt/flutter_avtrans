@@ -139,10 +139,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _navigateToLogin() {
     if (!mounted) return;
 
+    final colors = context.colors;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Votre compte a été activé ! Vous pouvez maintenant vous connecter.'),
-        backgroundColor: Colors.green,
+      SnackBar(
+        content: const Text('Votre compte a été activé ! Vous pouvez maintenant vous connecter.'),
+        backgroundColor: colors.success,
       ),
     );
     Navigator.of(context).pop();
@@ -158,10 +159,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Inscription'),
-        backgroundColor: colors.bgPrimary,
         surfaceTintColor: Colors.transparent,
       ),
       body: SafeArea(
@@ -182,7 +182,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+                      color: colors.foreground,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -191,7 +191,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
-                      color: colors.textSecondary,
+                      color: colors.mutedForeground,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xxl),
@@ -200,22 +200,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.xl),
                     decoration: BoxDecoration(
-                      color: colors.bgSecondary,
+                      color: colors.card,
                       borderRadius: BorderRadius.circular(AppRadius.base),
-                      border: Border.all(color: colors.borderPrimary),
+                      border: Border.all(color: colors.border),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         // Message de succès
                         if (_successMessage != null) ...[
-                          _buildSuccessMessage(_successMessage!, colors),
+                          AppAlert(
+                            description: _successMessage!,
+                            variant: AlertVariant.success,
+                          ),
                           const SizedBox(height: AppSpacing.base),
                         ],
 
                         // Message d'erreur
                         if (_errorMessage != null) ...[
-                          _buildErrorMessage(_errorMessage!, colors),
+                          AppAlert(
+                            description: _errorMessage!,
+                            variant: AlertVariant.destructive,
+                          ),
                           const SizedBox(height: AppSpacing.base),
                         ],
 
@@ -302,7 +308,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     children: [
                       Text(
                         'Déjà un compte ?',
-                        style: TextStyle(color: colors.textSecondary),
+                        style: TextStyle(color: colors.mutedForeground),
                       ),
                       AppTextButton(
                         text: 'Se connecter',
@@ -321,10 +327,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildVerificationScreen(AppColors colors) {
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Vérification'),
-        backgroundColor: colors.bgPrimary,
         surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: false,
       ),
@@ -340,7 +345,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 height: 100,
                 decoration: BoxDecoration(
                   color: _isWaitingForAdminActivation
-                      ? colors.warningBg
+                      ? colors.warningMuted
                       : colors.primaryLight,
                   shape: BoxShape.circle,
                 ),
@@ -365,7 +370,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
               const SizedBox(height: AppSpacing.base),
@@ -378,7 +383,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
                   height: 1.5,
                 ),
               ),
@@ -407,7 +412,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         : 'En attente de vérification...',
                     style: TextStyle(
                       fontSize: 13,
-                      color: colors.textSecondary,
+                      color: colors.mutedForeground,
                     ),
                   ),
                 ],
@@ -438,9 +443,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
@@ -485,7 +490,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else if (isActive) {
       iconColor = colors.primary;
     } else {
-      iconColor = colors.textMuted;
+      iconColor = colors.mutedForeground;
     }
 
     return Row(
@@ -503,8 +508,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               fontSize: 14,
               fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
               color: isCompleted || isActive
-                  ? colors.textPrimary
-                  : colors.textMuted,
+                  ? colors.foreground
+                  : colors.mutedForeground,
             ),
           ),
         ),
@@ -518,56 +523,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildErrorMessage(String message, AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: colors.errorBg,
-        borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border(
-          left: BorderSide(color: colors.error, width: 4),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline, color: colors.error, size: 20),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: colors.textPrimary, fontSize: 13),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSuccessMessage(String message, AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: colors.successBg,
-        borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border(
-          left: BorderSide(color: colors.success, width: 4),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.check_circle_outline, color: colors.success, size: 20),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: colors.textPrimary, fontSize: 13),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

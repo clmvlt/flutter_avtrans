@@ -196,7 +196,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
         ),
@@ -206,13 +206,13 @@ class _ServicesScreenState extends State<ServicesScreen> {
             const SizedBox(width: AppSpacing.sm),
             Text(
               'Signature requise',
-              style: TextStyle(color: colors.textPrimary),
+              style: TextStyle(color: colors.foreground),
             ),
           ],
         ),
         content: Text(
           'Vous devez signer vos heures avant de pouvoir pointer.',
-          style: TextStyle(color: colors.textSecondary),
+          style: TextStyle(color: colors.mutedForeground),
         ),
         actions: [
           TextButton(
@@ -222,7 +222,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             },
             child: Text(
               'Plus tard',
-              style: TextStyle(color: colors.textMuted),
+              style: TextStyle(color: colors.mutedForeground),
             ),
           ),
           ElevatedButton.icon(
@@ -246,7 +246,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             label: const Text('Signer maintenant'),
             style: ElevatedButton.styleFrom(
               backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: colors.primaryForeground,
             ),
           ),
         ],
@@ -392,7 +392,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
@@ -651,16 +651,16 @@ class _ServicesScreenState extends State<ServicesScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
+          side: BorderSide(color: colors.destructive),
         ),
       ),
     );
@@ -671,10 +671,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Services'),
-        backgroundColor: colors.bgSecondary,
         actions: [
           IconButton(
             icon: const Icon(Icons.speed, size: 22),
@@ -697,7 +696,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
           : RefreshIndicator(
               onRefresh: _loadData,
               color: colors.primary,
-              backgroundColor: colors.bgSecondary,
+              backgroundColor: colors.card,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(AppSpacing.base),
@@ -753,7 +752,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       margin: const EdgeInsets.only(bottom: AppSpacing.base),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colors.warningBg,
+        color: colors.warningMuted,
         borderRadius: BorderRadius.circular(AppRadius.base),
         border: Border.all(color: colors.warning),
       ),
@@ -766,7 +765,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
               message,
               style: TextStyle(
                 fontSize: 13,
-                color: colors.textPrimary,
+                color: colors.foreground,
               ),
             ),
           ),
@@ -801,7 +800,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       statusIcon = Icons.work;
     } else {
       statusText = 'Hors service';
-      statusColor = colors.textMuted;
+      statusColor = colors.mutedForeground;
       statusIcon = Icons.work_off;
     }
 
@@ -811,9 +810,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
@@ -843,7 +842,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             'Travaillé aujourd\'hui: ${_formatDuration(workedTimeToday)}',
             style: TextStyle(
               fontSize: 13,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
         ],
@@ -855,9 +854,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -871,7 +870,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
             ],
@@ -917,7 +916,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       padding: const EdgeInsets.all(AppSpacing.md),
       margin: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: colors.bgTertiary,
+        color: colors.muted,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: Column(
@@ -936,7 +935,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             label,
             style: TextStyle(
               fontSize: 11,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
             textAlign: TextAlign.center,
           ),
@@ -949,9 +948,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -965,7 +964,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
             ],
@@ -975,19 +974,19 @@ class _ServicesScreenState extends State<ServicesScreen> {
             Container(
               padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
-                color: colors.bgTertiary,
+                color: colors.muted,
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: colors.textMuted, size: 20),
+                  Icon(Icons.info_outline, color: colors.mutedForeground, size: 20),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       'Aucun service aujourd\'hui',
                       style: TextStyle(
                         fontSize: 13,
-                        color: colors.textSecondary,
+                        color: colors.mutedForeground,
                       ),
                     ),
                   ),
@@ -1027,7 +1026,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colors.bgTertiary,
+        color: colors.muted,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: isActive ? Border.all(color: iconColor, width: 2) : null,
       ),
@@ -1051,7 +1050,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1061,7 +1060,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       : 'Depuis $startTime',
                   style: TextStyle(
                     fontSize: 12,
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                   ),
                 ),
               ],
@@ -1132,7 +1131,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             onPressed: _startService,
             isLoading: _isActionLoading,
             backgroundColor: colors.success,
-            foregroundColor: Colors.white,
+            foregroundColor: colors.primaryForeground,
           ),
         ] else if (isOnBreak) ...[
           AppButton(
@@ -1141,7 +1140,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             onPressed: _endBreak,
             isLoading: _isActionLoading,
             backgroundColor: colors.warning,
-            foregroundColor: colors.textInverse,
+            foregroundColor: colors.primaryForeground,
           ),
         ] else if (isServiceActive) ...[
           AppButton(
@@ -1150,7 +1149,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             onPressed: _startBreak,
             isLoading: _isActionLoading,
             backgroundColor: colors.warning,
-            foregroundColor: colors.textInverse,
+            foregroundColor: colors.primaryForeground,
           ),
           const SizedBox(height: AppSpacing.md),
           AppButton(
@@ -1159,7 +1158,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             onPressed: _endService,
             isLoading: _isActionLoading,
             isDanger: true,
-            foregroundColor: Colors.white,
+            foregroundColor: colors.primaryForeground,
           ),
         ],
       ],

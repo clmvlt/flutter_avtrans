@@ -61,12 +61,12 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
       ),
     );
   }
@@ -76,14 +76,14 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
     final colors = context.colors;
 
     return AlertDialog(
-      backgroundColor: colors.bgSecondary,
+      backgroundColor: colors.card,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.base),
       ),
       title: Text(
         'Mettre à jour le kilométrage',
         style: TextStyle(
-          color: colors.textPrimary,
+          color: colors.foreground,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -98,7 +98,7 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+                color: colors.foreground,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -109,12 +109,12 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+                color: colors.foreground,
               ),
               decoration: InputDecoration(
                 hintText: 'Ex: 125000',
                 hintStyle: TextStyle(
-                  color: colors.textMuted,
+                  color: colors.mutedForeground,
                   fontWeight: FontWeight.normal,
                 ),
                 prefixIcon: Icon(Icons.speed, color: colors.primary),
@@ -122,17 +122,17 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
                 suffixStyle: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
                 ),
                 filled: true,
-                fillColor: colors.bgPrimary,
+                fillColor: colors.background,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.borderPrimary),
+                  borderSide: BorderSide(color: colors.border),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.borderPrimary),
+                  borderSide: BorderSide(color: colors.border),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.base),
@@ -140,11 +140,11 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.error),
+                  borderSide: BorderSide(color: colors.destructive),
                 ),
                 focusedErrorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.error, width: 2),
+                  borderSide: BorderSide(color: colors.destructive, width: 2),
                 ),
               ),
               validator: (value) {
@@ -172,26 +172,26 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
           child: Text(
             'Annuler',
-            style: TextStyle(color: colors.textMuted),
+            style: TextStyle(color: colors.mutedForeground),
           ),
         ),
         ElevatedButton(
           onPressed: _isLoading ? null : _submit,
           style: ElevatedButton.styleFrom(
             backgroundColor: colors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: colors.primaryForeground,
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.base,
               vertical: AppSpacing.sm,
             ),
           ),
           child: _isLoading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(colors.primaryForeground),
                   ),
                 )
               : const Text('Valider'),

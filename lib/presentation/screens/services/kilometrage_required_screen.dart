@@ -4,15 +4,11 @@ import 'package:flutter/services.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/vehicule_model.dart';
-import '../../widgets/app_searchable_select.dart';
 import '../../widgets/widgets.dart';
 
-/// Écran affiché quand l'utilisateur doit saisir un kilométrage
+/// Écran de saisie du kilométrage - design shadcn/ui
 class KilometrageRequiredScreen extends StatefulWidget {
-  /// Véhicule pré-sélectionné (dernier utilisé)
   final String? lastVehiculeId;
-
-  /// Si true, l'écran ne peut pas être fermé sans saisir le kilométrage
   final bool isRequired;
 
   const KilometrageRequiredScreen({
@@ -39,7 +35,6 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
   @override
   void initState() {
     super.initState();
-    // Si non obligatoire, permettre la fermeture dès le départ
     _canClose = !widget.isRequired;
     _loadData();
   }
@@ -53,7 +48,6 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
 
-    // Charger les véhicules et le dernier kilométrage en parallèle
     final results = await Future.wait([
       sl.vehiculeRepository.getAllVehicules(),
       sl.vehiculeRepository.getMyLastKilometrage(),
@@ -66,7 +60,6 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
 
     String? lastVehiculeId = widget.lastVehiculeId;
 
-    // Récupérer l'ID du dernier véhicule utilisé
     lastKmResult.fold(
       (_) {},
       (response) {
@@ -84,7 +77,6 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
       (vehicules) {
         setState(() {
           _vehicules = vehicules;
-          // Pré-sélectionner le dernier véhicule utilisé
           if (lastVehiculeId != null) {
             _selectedVehicule = vehicules.cast<Vehicule>().firstWhere(
                   (v) => v.id == lastVehiculeId,
@@ -122,7 +114,6 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
         _showError(failure.message);
       },
       (kilometrage) {
-        // Ne pas faire de setState ici car la page va se fermer
         _canClose = true;
         Navigator.of(context).pop(true);
       },
@@ -130,23 +121,8 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
   }
 
   void _showError(String message) {
-    final colors = context.colors;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.bgSecondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
-        ),
-      ),
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -158,87 +134,53 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
       canPop: _canClose,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && !_canClose) {
-          // L'utilisateur a essayé de fermer sans avoir saisi le kilométrage
           setState(() => _canClose = true);
           Navigator.of(context).pop(false);
         }
       },
       child: Scaffold(
-        backgroundColor: colors.bgPrimary,
+        backgroundColor: colors.background,
         appBar: AppBar(
           title: Text(widget.isRequired ? 'Kilométrage requis' : 'Saisir un kilométrage'),
-          backgroundColor: colors.bgSecondary,
           automaticallyImplyLeading: !widget.isRequired,
           actions: widget.isRequired
               ? null
               : [
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, size: 18, color: colors.mutedForeground),
                     onPressed: () => Navigator.of(context).pop(false),
-                    tooltip: 'Fermer',
                   ),
                 ],
         ),
         body: _isLoading
-          ? const LoadingIndicator(message: 'Chargement des véhicules...')
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildInfoCard(colors),
-                    const SizedBox(height: AppSpacing.xl),
-                    _buildVehiculeSelector(colors),
-                    const SizedBox(height: AppSpacing.base),
-                    _buildKilometrageInput(colors),
-                    const SizedBox(height: AppSpacing.xl),
-                    _buildSubmitButton(colors),
-                  ],
+            ? const LoadingIndicator(message: 'Chargement des véhicules...')
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(AppSpacing.base),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const AppAlert(
+                        title: 'Kilométrage journalier',
+                        description: 'Veuillez renseigner le kilométrage de votre véhicule avant de commencer votre journée.',
+                        variant: AlertVariant.info,
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+                      _buildVehiculeSelector(colors),
+                      const SizedBox(height: AppSpacing.base),
+                      _buildKilometrageInput(colors),
+                      const SizedBox(height: AppSpacing.xl),
+                      AppButton(
+                        text: 'Valider le kilométrage',
+                        icon: Icons.check,
+                        onPressed: _submit,
+                        isLoading: _isSubmitting,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.infoBg,
-        borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.info),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.info_outline, color: colors.info, size: 24),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Kilométrage journalier',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Veuillez renseigner le kilométrage de votre véhicule avant de commencer votre journée.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -251,17 +193,15 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
           'Véhicule',
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            fontWeight: FontWeight.w500,
+            color: colors.foreground,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
         AppSearchableSelect<Vehicule>(
           items: _vehicules,
           selectedItem: _selectedVehicule,
-          onChanged: (value) {
-            setState(() => _selectedVehicule = value);
-          },
+          onChanged: (value) => setState(() => _selectedVehicule = value),
           itemLabel: (v) => v.immat,
           itemSubtitle: (v) => '${v.brand} ${v.model}${v.latestKm != null ? ' • ${v.latestKm} km' : ''}',
           itemIcon: (v) => Icons.directions_car,
@@ -272,9 +212,7 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
           emptyMessage: 'Aucun véhicule trouvé',
           enabled: _vehicules.isNotEmpty,
           validator: (value) {
-            if (value == null) {
-              return 'Veuillez sélectionner un véhicule';
-            }
+            if (value == null) return 'Veuillez sélectionner un véhicule';
             return null;
           },
         ),
@@ -290,8 +228,8 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
           'Kilométrage actuel',
           style: TextStyle(
             fontSize: 14,
-            fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            fontWeight: FontWeight.w500,
+            color: colors.foreground,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -302,38 +240,16 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            color: colors.foreground,
           ),
           decoration: InputDecoration(
             hintText: 'Ex: 125000',
-            hintStyle: TextStyle(
-              color: colors.textMuted,
-              fontWeight: FontWeight.normal,
-            ),
-            prefixIcon: Icon(Icons.speed, color: colors.primary),
+            prefixIcon: Icon(Icons.speed, color: colors.primary, size: 20),
             suffixText: 'km',
             suffixStyle: TextStyle(
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: colors.textSecondary,
-            ),
-            filled: true,
-            fillColor: colors.bgSecondary,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.borderPrimary),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.borderPrimary),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.primary, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.error),
+              color: colors.mutedForeground,
             ),
           ),
           validator: (value) {
@@ -352,17 +268,6 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildSubmitButton(AppColors colors) {
-    return AppButton(
-      text: 'Valider le kilométrage',
-      icon: Icons.check,
-      onPressed: _submit,
-      isLoading: _isSubmitting,
-      backgroundColor: colors.primary,
-      foregroundColor: Colors.white,
     );
   }
 }

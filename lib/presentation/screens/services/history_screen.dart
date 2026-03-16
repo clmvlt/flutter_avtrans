@@ -150,16 +150,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
+          side: BorderSide(color: colors.destructive),
         ),
       ),
     );
@@ -170,7 +170,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: colors.bgSecondary,
+      backgroundColor: colors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -221,10 +221,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Historique'),
-        backgroundColor: colors.bgSecondary,
         actions: [
           // Toggle vue liste/calendrier
           IconButton(
@@ -286,7 +285,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     : RefreshIndicator(
                         onRefresh: _loadHistory,
                         color: colors.primary,
-                        backgroundColor: colors.bgSecondary,
+                        backgroundColor: colors.card,
                         child: _services.isEmpty
                             ? _buildEmptyState(colors)
                             : _buildHistoryList(colors),
@@ -304,9 +303,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
         Container(
           margin: const EdgeInsets.all(AppSpacing.base),
           decoration: BoxDecoration(
-            color: colors.bgSecondary,
+            color: colors.card,
             borderRadius: BorderRadius.circular(AppRadius.base),
-            border: Border.all(color: colors.borderPrimary),
+            border: Border.all(color: colors.border),
           ),
           child: TableCalendar<Service>(
             firstDay: DateTime(2020),
@@ -331,9 +330,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
             },
             calendarStyle: CalendarStyle(
               // Jours normaux
-              defaultTextStyle: TextStyle(color: colors.textPrimary),
-              weekendTextStyle: TextStyle(color: colors.textSecondary),
-              outsideTextStyle: TextStyle(color: colors.textMuted),
+              defaultTextStyle: TextStyle(color: colors.foreground),
+              weekendTextStyle: TextStyle(color: colors.mutedForeground),
+              outsideTextStyle: TextStyle(color: colors.mutedForeground),
               // Jour sélectionné
               selectedDecoration: BoxDecoration(
                 color: colors.primary,
@@ -363,7 +362,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               formatButtonVisible: true,
               formatButtonShowsNext: false,
               titleTextStyle: TextStyle(
-                color: colors.textPrimary,
+                color: colors.foreground,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
               ),
@@ -375,17 +374,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 border: Border.all(color: colors.primary),
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              leftChevronIcon: Icon(Icons.chevron_left, color: colors.textPrimary),
-              rightChevronIcon: Icon(Icons.chevron_right, color: colors.textPrimary),
+              leftChevronIcon: Icon(Icons.chevron_left, color: colors.foreground),
+              rightChevronIcon: Icon(Icons.chevron_right, color: colors.foreground),
             ),
             daysOfWeekStyle: DaysOfWeekStyle(
               weekdayStyle: TextStyle(
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
               weekendStyle: TextStyle(
-                color: colors.textMuted,
+                color: colors.mutedForeground,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -442,7 +441,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 const Spacer(),
@@ -450,7 +449,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   '${_getServicesForDay(_selectedDay!).length} entrée(s)',
                   style: TextStyle(
                     fontSize: 12,
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                   ),
                 ),
               ],
@@ -487,14 +486,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Icon(
             Icons.touch_app,
             size: 48,
-            color: colors.textMuted.withValues(alpha: 0.5),
+            color: colors.mutedForeground.withValues(alpha: 0.5),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
             'Sélectionnez un jour',
             style: TextStyle(
               fontSize: 16,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -502,7 +501,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             'pour voir les services',
             style: TextStyle(
               fontSize: 14,
-              color: colors.textMuted,
+              color: colors.mutedForeground,
             ),
           ),
         ],
@@ -518,14 +517,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Icon(
             Icons.event_busy,
             size: 48,
-            color: colors.textMuted.withValues(alpha: 0.5),
+            color: colors.mutedForeground.withValues(alpha: 0.5),
           ),
           const SizedBox(height: AppSpacing.md),
           Text(
             'Aucun service ce jour',
             style: TextStyle(
               fontSize: 16,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
         ],
@@ -546,8 +545,8 @@ class _HistoryScreenState extends State<HistoryScreen> {
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
-        border: Border(bottom: BorderSide(color: colors.borderPrimary)),
+        color: colors.card,
+        border: Border(bottom: BorderSide(color: colors.border)),
       ),
       child: Row(
         children: [
@@ -598,13 +597,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
             child: Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: colors.error.withValues(alpha: 0.1),
+                color: colors.destructive.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Icon(
                 Icons.close,
                 size: 18,
-                color: colors.error,
+                color: colors.destructive,
               ),
             ),
           ),
@@ -637,7 +636,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             label,
             style: TextStyle(
               fontSize: 12,
-              color: colors.textPrimary,
+              color: colors.foreground,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -659,7 +658,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Icon(
             _hasActiveFilters ? Icons.search_off : Icons.history,
             size: 64,
-            color: colors.textMuted.withValues(alpha: 0.5),
+            color: colors.mutedForeground.withValues(alpha: 0.5),
           ),
           const SizedBox(height: AppSpacing.base),
           Text(
@@ -667,7 +666,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -677,7 +676,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 : 'Vos services apparaîtront ici',
             style: TextStyle(
               fontSize: 14,
-              color: colors.textMuted,
+              color: colors.mutedForeground,
             ),
             textAlign: TextAlign.center,
           ),
@@ -723,9 +722,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -761,7 +760,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       _formatDate(service.debut.toLocal()),
                       style: TextStyle(
                         fontSize: 13,
-                        color: colors.textSecondary,
+                        color: colors.mutedForeground,
                       ),
                     ),
                   ],
@@ -774,7 +773,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: colors.bgTertiary,
+                    color: colors.muted,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Text(
@@ -792,7 +791,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Container(
             padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
-              color: colors.bgTertiary,
+              color: colors.muted,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(
@@ -808,7 +807,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 Container(
                   width: 1,
                   height: 30,
-                  color: colors.borderPrimary,
+                  color: colors.border,
                 ),
                 Expanded(
                   child: _buildTimeInfo(
@@ -830,7 +829,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: 16, color: colors.textMuted),
+        Icon(icon, size: 16, color: colors.mutedForeground),
         const SizedBox(width: AppSpacing.sm),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -839,7 +838,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               label,
               style: TextStyle(
                 fontSize: 11,
-                color: colors.textMuted,
+                color: colors.mutedForeground,
               ),
             ),
             Text(
@@ -847,7 +846,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: colors.textPrimary,
+                color: colors.foreground,
               ),
             ),
           ],
@@ -1017,7 +1016,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: colors.borderSecondary,
+                color: colors.border,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1037,7 +1036,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
-                      color: colors.textPrimary,
+                      color: colors.foreground,
                     ),
                   ),
                 ],
@@ -1046,7 +1045,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                 TextButton(
                   onPressed: _resetAll,
                   style: TextButton.styleFrom(
-                    foregroundColor: colors.error,
+                    foregroundColor: colors.destructive,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
                   ),
                   child: const Text('Réinitialiser'),
@@ -1086,7 +1085,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                child: Icon(Icons.arrow_forward, color: colors.textMuted, size: 20),
+                child: Icon(Icons.arrow_forward, color: colors.mutedForeground, size: 20),
               ),
               Expanded(
                 child: _buildDateSelector(
@@ -1108,9 +1107,9 @@ class _FilterSheetState extends State<_FilterSheet> {
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: colors.bgTertiary,
+              color: colors.muted,
               borderRadius: BorderRadius.circular(AppRadius.base),
-              border: Border.all(color: colors.borderPrimary),
+              border: Border.all(color: colors.border),
             ),
             child: Row(
               children: [
@@ -1127,7 +1126,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                 Container(
                   height: 32,
                   width: 1,
-                  color: colors.borderPrimary,
+                  color: colors.border,
                   margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 ),
                 _buildDirectionButton(colors),
@@ -1150,7 +1149,7 @@ class _FilterSheetState extends State<_FilterSheet> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: colors.primaryForeground,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.base),
@@ -1180,14 +1179,14 @@ class _FilterSheetState extends State<_FilterSheet> {
   Widget _buildSectionHeader(String title, IconData icon, AppColors colors) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: colors.textSecondary),
+        Icon(icon, size: 16, color: colors.mutedForeground),
         const SizedBox(width: AppSpacing.sm),
         Text(
           title,
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: colors.textSecondary,
+            color: colors.mutedForeground,
             letterSpacing: 0.5,
           ),
         ),
@@ -1216,9 +1215,9 @@ class _FilterSheetState extends State<_FilterSheet> {
         contentColor = Colors.white;
       }
     } else {
-      bgColor = colors.bgTertiary;
-      borderColor = colors.borderPrimary;
-      contentColor = colors.textSecondary;
+      bgColor = colors.muted;
+      borderColor = colors.border;
+      contentColor = colors.mutedForeground;
     }
 
     return GestureDetector(
@@ -1264,10 +1263,10 @@ class _FilterSheetState extends State<_FilterSheet> {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          color: hasDate ? colors.info.withValues(alpha: 0.1) : colors.bgTertiary,
+          color: hasDate ? colors.info.withValues(alpha: 0.1) : colors.muted,
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
-            color: hasDate ? colors.info.withValues(alpha: 0.3) : colors.borderPrimary,
+            color: hasDate ? colors.info.withValues(alpha: 0.3) : colors.border,
           ),
         ),
         child: Column(
@@ -1278,14 +1277,14 @@ class _FilterSheetState extends State<_FilterSheet> {
                 Icon(
                   icon,
                   size: 14,
-                  color: hasDate ? colors.info : colors.textMuted,
+                  color: hasDate ? colors.info : colors.mutedForeground,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   label,
                   style: TextStyle(
                     fontSize: 11,
-                    color: colors.textMuted,
+                    color: colors.mutedForeground,
                   ),
                 ),
                 const Spacer(),
@@ -1295,7 +1294,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                     child: Icon(
                       Icons.close,
                       size: 14,
-                      color: colors.textMuted,
+                      color: colors.mutedForeground,
                     ),
                   ),
               ],
@@ -1308,7 +1307,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: hasDate ? FontWeight.w600 : FontWeight.normal,
-                color: hasDate ? colors.textPrimary : colors.textMuted,
+                color: hasDate ? colors.foreground : colors.mutedForeground,
               ),
             ),
           ],
@@ -1336,7 +1335,7 @@ class _FilterSheetState extends State<_FilterSheet> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              color: isSelected ? Colors.white : colors.textSecondary,
+              color: isSelected ? Colors.white : colors.mutedForeground,
             ),
           ),
         ),

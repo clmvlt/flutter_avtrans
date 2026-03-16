@@ -32,6 +32,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _driverLicenseController = TextEditingController();
+  final _streetController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _postalCodeController = TextEditingController();
+  final _countryController = TextEditingController();
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -55,6 +60,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _emailController.dispose();
+    _driverLicenseController.dispose();
+    _streetController.dispose();
+    _cityController.dispose();
+    _postalCodeController.dispose();
+    _countryController.dispose();
     _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
@@ -70,6 +80,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _firstNameController.text = cachedUser.firstName;
         _lastNameController.text = cachedUser.lastName;
         _emailController.text = cachedUser.email;
+        _driverLicenseController.text = cachedUser.driverLicenseNumber ?? '';
+        _streetController.text = cachedUser.address?.street ?? '';
+        _cityController.text = cachedUser.address?.city ?? '';
+        _postalCodeController.text = cachedUser.address?.postalCode ?? '';
+        _countryController.text = cachedUser.address?.country ?? '';
         _isLoading = false;
       });
       return;
@@ -93,6 +108,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _firstNameController.text = user.firstName;
           _lastNameController.text = user.lastName;
           _emailController.text = user.email;
+          _driverLicenseController.text = user.driverLicenseNumber ?? '';
+          _streetController.text = user.address?.street ?? '';
+          _cityController.text = user.address?.city ?? '';
+          _postalCodeController.text = user.address?.postalCode ?? '';
+          _countryController.text = user.address?.country ?? '';
           _isLoading = false;
         });
       },
@@ -102,7 +122,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _pickImage() async {
     showModalBottomSheet(
       context: context,
-      backgroundColor: context.colors.bgSecondary,
+      backgroundColor: context.colors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
@@ -118,7 +138,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: colors.borderPrimary,
+                    color: colors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -128,7 +148,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.base),
@@ -143,7 +163,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   title: Text(
                     'Prendre une photo',
-                    style: TextStyle(color: colors.textPrimary),
+                    style: TextStyle(color: colors.foreground),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -161,7 +181,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                   title: Text(
                     'Choisir depuis la galerie',
-                    style: TextStyle(color: colors.textPrimary),
+                    style: TextStyle(color: colors.foreground),
                   ),
                   onTap: () {
                     Navigator.pop(ctx);
@@ -173,14 +193,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     leading: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: colors.error.withValues(alpha: 0.1),
+                        color: colors.destructive.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppRadius.md),
                       ),
-                      child: Icon(Icons.delete, color: colors.error),
+                      child: Icon(Icons.delete, color: colors.destructive),
                     ),
                     title: Text(
                       'Supprimer la photo',
-                      style: TextStyle(color: colors.error),
+                      style: TextStyle(color: colors.destructive),
                     ),
                     onTap: () {
                       Navigator.pop(ctx);
@@ -248,13 +268,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final newFirstName = _firstNameController.text.trim();
     final newLastName = _lastNameController.text.trim();
     final newEmail = _emailController.text.trim();
+    final newDriverLicense = _driverLicenseController.text.trim();
+    final newStreet = _streetController.text.trim();
+    final newCity = _cityController.text.trim();
+    final newPostalCode = _postalCodeController.text.trim();
+    final newCountry = _countryController.text.trim();
 
     // Détecter si une photo a été ajoutée ou supprimée (chaîne vide = suppression)
     final hasImageChange = _selectedImageBase64 != null;
 
+    final hasAddressChange = newStreet != (_user?.address?.street ?? '') ||
+        newCity != (_user?.address?.city ?? '') ||
+        newPostalCode != (_user?.address?.postalCode ?? '') ||
+        newCountry != (_user?.address?.country ?? '');
+
     final hasChanges = newFirstName != _user?.firstName ||
         newLastName != _user?.lastName ||
         newEmail != _user?.email ||
+        newDriverLicense != (_user?.driverLicenseNumber ?? '') ||
+        hasAddressChange ||
         hasImageChange;
 
     if (!hasChanges) {
@@ -264,12 +296,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     setState(() => _isSaving = true);
 
+    // Construire l'adresse si au moins un champ est renseigné
+    Address? addressUpdate;
+    if (hasAddressChange) {
+      addressUpdate = Address(
+        street: newStreet.isNotEmpty ? newStreet : null,
+        city: newCity.isNotEmpty ? newCity : null,
+        postalCode: newPostalCode.isNotEmpty ? newPostalCode : null,
+        country: newCountry.isNotEmpty ? newCountry : null,
+      );
+    }
+
     // N'envoyer que les champs modifiés pour réduire la taille de la requête
     final request = UpdateProfileRequest(
       firstName: newFirstName != _user?.firstName ? newFirstName : null,
       lastName: newLastName != _user?.lastName ? newLastName : null,
       email: newEmail != _user?.email ? newEmail : null,
       picture: _selectedImageBase64,
+      driverLicenseNumber: newDriverLicense != (_user?.driverLicenseNumber ?? '')
+          ? newDriverLicense
+          : null,
+      address: addressUpdate,
     );
 
     final result = await sl.authRepository.updateProfile(request);
@@ -339,16 +386,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
+          side: BorderSide(color: colors.destructive),
         ),
       ),
     );
@@ -365,7 +412,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
@@ -380,10 +427,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Modifier le profil'),
-        backgroundColor: colors.bgSecondary,
       ),
       body: _isLoading
           ? const LoadingIndicator(message: 'Chargement...')
@@ -397,6 +443,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _buildProfilePicture(colors),
                     const SizedBox(height: AppSpacing.xl),
                     _buildInfoSection(colors),
+                    const SizedBox(height: AppSpacing.base),
+                    _buildAddressSection(colors),
                     const SizedBox(height: AppSpacing.base),
                     _buildPasswordSection(colors),
                     const SizedBox(height: AppSpacing.xl),
@@ -422,8 +470,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             height: 120,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: colors.bgSecondary,
-              border: Border.all(color: colors.borderPrimary, width: 3),
+              color: colors.card,
+              border: Border.all(color: colors.border, width: 3),
               boxShadow: [
                 BoxShadow(
                   color: colors.primary.withValues(alpha: 0.1),
@@ -446,11 +494,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 decoration: BoxDecoration(
                   color: colors.primary,
                   shape: BoxShape.circle,
-                  border: Border.all(color: colors.bgPrimary, width: 2),
+                  border: Border.all(color: colors.background, width: 2),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.camera_alt,
-                  color: Colors.white,
+                  color: colors.primaryForeground,
                   size: 20,
                 ),
               ),
@@ -463,11 +511,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Widget _buildDefaultAvatar(AppColors colors) {
     return Container(
-      color: colors.bgTertiary,
+      color: colors.muted,
       child: Icon(
         Icons.person,
         size: 60,
-        color: colors.textMuted,
+        color: colors.mutedForeground,
       ),
     );
   }
@@ -519,9 +567,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -535,7 +583,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
             ],
@@ -583,6 +631,82 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               return null;
             },
           ),
+          const SizedBox(height: AppSpacing.md),
+          _buildTextField(
+            controller: _driverLicenseController,
+            label: 'Numéro de permis de conduire',
+            icon: Icons.credit_card,
+            colors: colors,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAddressSection(AppColors colors) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadius.base),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.location_on_outlined, color: colors.primary, size: 20),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Adresse',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: colors.foreground,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.base),
+          _buildTextField(
+            controller: _streetController,
+            label: 'Rue et numéro',
+            icon: Icons.home_outlined,
+            colors: colors,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: _buildTextField(
+                  controller: _postalCodeController,
+                  label: 'Code postal',
+                  icon: Icons.pin_drop_outlined,
+                  keyboardType: TextInputType.number,
+                  colors: colors,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                flex: 3,
+                child: _buildTextField(
+                  controller: _cityController,
+                  label: 'Ville',
+                  icon: Icons.location_city_outlined,
+                  colors: colors,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _buildTextField(
+            controller: _countryController,
+            label: 'Pays',
+            icon: Icons.flag_outlined,
+            colors: colors,
+          ),
         ],
       ),
     );
@@ -591,9 +715,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget _buildPasswordSection(AppColors colors) {
     return Container(
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
@@ -612,7 +736,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
+                        color: colors.foreground,
                       ),
                     ),
                   ),
@@ -620,14 +744,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     _showPasswordSection
                         ? Icons.keyboard_arrow_up
                         : Icons.keyboard_arrow_down,
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                   ),
                 ],
               ),
             ),
           ),
           if (_showPasswordSection) ...[
-            Divider(color: colors.borderPrimary, height: 1),
+            Divider(color: colors.border, height: 1),
             Padding(
               padding: const EdgeInsets.all(AppSpacing.base),
               child: Column(
@@ -662,7 +786,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     onPressed: _changePassword,
                     isLoading: _isChangingPassword,
                     backgroundColor: colors.secondary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: colors.primaryForeground,
                   ),
                 ],
               ),
@@ -687,20 +811,20 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       keyboardType: keyboardType,
       obscureText: obscureText,
       validator: validator,
-      style: TextStyle(color: colors.textPrimary),
+      style: TextStyle(color: colors.foreground),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(color: colors.textSecondary),
-        prefixIcon: Icon(icon, color: colors.textMuted, size: 20),
+        labelStyle: TextStyle(color: colors.mutedForeground),
+        prefixIcon: Icon(icon, color: colors.mutedForeground, size: 20),
         filled: true,
-        fillColor: colors.bgTertiary,
+        fillColor: colors.muted,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: colors.borderPrimary),
+          borderSide: BorderSide(color: colors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -708,11 +832,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: colors.error),
+          borderSide: BorderSide(color: colors.destructive),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: colors.error, width: 2),
+          borderSide: BorderSide(color: colors.destructive, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.base,

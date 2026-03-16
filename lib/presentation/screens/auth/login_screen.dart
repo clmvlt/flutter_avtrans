@@ -7,7 +7,7 @@ import '../../widgets/widgets.dart';
 import '../home/home_screen.dart';
 import 'register_screen.dart';
 
-/// Page de connexion
+/// Page de connexion - design shadcn/ui
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -48,13 +48,10 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     if (!mounted) return;
-
     setState(() => _isLoading = false);
 
     result.fold(
-      (failure) {
-        setState(() => _errorMessage = failure.message);
-      },
+      (failure) => setState(() => _errorMessage = failure.message),
       (user) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -74,7 +71,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: LoadingOverlay(
           isLoading: _isLoading,
@@ -94,53 +91,55 @@ class _LoginScreenState extends State<LoginScreen> {
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                         child: Image.asset(
                           'lib/assets/icons/icon-512x512.png',
-                          width: 80,
-                          height: 80,
+                          width: 72,
+                          height: 72,
                           fit: BoxFit.contain,
                         ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // Titre
+                    // Title
                     Text(
                       'Pointage',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        color: colors.foreground,
+                        letterSpacing: -0.5,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       'Connectez-vous pour continuer',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
-                        color: colors.textSecondary,
+                        color: colors.mutedForeground,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xxxl),
+                    const SizedBox(height: AppSpacing.xxl),
 
-                    // Card de connexion
+                    // Login card
                     Container(
                       padding: const EdgeInsets.all(AppSpacing.xl),
                       decoration: BoxDecoration(
-                        color: colors.bgSecondary,
-                        borderRadius: BorderRadius.circular(AppRadius.base),
-                        border: Border.all(color: colors.borderPrimary),
+                        color: colors.card,
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: colors.border),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Message d'erreur
                           if (_errorMessage != null) ...[
-                            _buildErrorMessage(_errorMessage!, colors),
+                            AppAlert(
+                              description: _errorMessage!,
+                              variant: AlertVariant.destructive,
+                            ),
                             const SizedBox(height: AppSpacing.base),
                           ],
 
-                          // Email
                           EmailTextField(
                             controller: _emailController,
                             enabled: !_isLoading,
@@ -148,7 +147,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: AppSpacing.base),
 
-                          // Mot de passe
                           PasswordTextField(
                             controller: _passwordController,
                             focusNode: _passwordFocusNode,
@@ -157,7 +155,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: AppSpacing.xl),
 
-                          // Bouton de connexion
                           AppButton(
                             text: 'Se connecter',
                             onPressed: _login,
@@ -168,13 +165,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: AppSpacing.xl),
 
-                    // Lien vers inscription
+                    // Register link
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
                           'Pas encore de compte ?',
-                          style: TextStyle(color: colors.textSecondary),
+                          style: TextStyle(
+                            color: colors.mutedForeground,
+                            fontSize: 14,
+                          ),
                         ),
                         AppTextButton(
                           text: 'S\'inscrire',
@@ -188,38 +188,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildErrorMessage(String message, AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: colors.errorBg,
-        borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border(
-          left: BorderSide(color: colors.error, width: 4),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.error_outline,
-            color: colors.error,
-            size: 20,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

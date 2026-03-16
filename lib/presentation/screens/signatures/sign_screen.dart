@@ -9,7 +9,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart' as models;
 import '../../widgets/widgets.dart';
 
-/// Page pour signer les heures
+/// Page de signature - design shadcn/ui
 class SignScreen extends StatefulWidget {
   final double? heuresLastMonth;
 
@@ -33,11 +33,9 @@ class _SignScreenState extends State<SignScreen> {
       exportBackgroundColor: Colors.white,
     );
 
-    // Si heuresLastMonth est fourni, l'utiliser directement
     if (widget.heuresLastMonth != null) {
       _heuresController.text = widget.heuresLastMonth!.toStringAsFixed(2);
     } else {
-      // Sinon, charge les heures du mois en cours
       _loadCurrentMonthHours();
     }
   }
@@ -50,7 +48,6 @@ class _SignScreenState extends State<SignScreen> {
   }
 
   Future<void> _loadCurrentMonthHours() async {
-    // Récupère les heures du mois en cours depuis l'API
     final now = DateTime.now();
     final params = models.WorkedHoursParams(
       period: models.WorkedHoursPeriod.month,
@@ -59,11 +56,10 @@ class _SignScreenState extends State<SignScreen> {
     );
 
     final result = await sl.serviceRepository.getWorkedHours(params);
-
     if (!mounted) return;
 
     result.fold(
-      (_) {}, // Ignore les erreurs
+      (_) {},
       (workedHours) {
         setState(() {
           _heuresController.text = (workedHours.month ?? 0).toStringAsFixed(1);
@@ -73,15 +69,11 @@ class _SignScreenState extends State<SignScreen> {
   }
 
   Future<void> _submit() async {
-    final colors = context.colors;
-
-    // Vérifie qu'il y a une signature
     if (_controller.isEmpty) {
       _showError('Veuillez signer avant de valider');
       return;
     }
 
-    // Vérifie le nombre d'heures
     final heures = double.tryParse(_heuresController.text);
     if (heures == null || heures <= 0) {
       _showError('Veuillez saisir un nombre d\'heures valide');
@@ -91,7 +83,6 @@ class _SignScreenState extends State<SignScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Convertit la signature en PNG
       final Uint8List? signatureBytes = await _controller.toPngBytes();
       if (signatureBytes == null) {
         _showError('Erreur lors de la création de la signature');
@@ -99,19 +90,14 @@ class _SignScreenState extends State<SignScreen> {
         return;
       }
 
-      // Convertit en base64
       final signatureBase64 = base64Encode(signatureBytes);
-
-      // Crée la requête
       final request = models.SignatureCreateRequest(
         signatureBase64: signatureBase64,
         date: DateTime.now(),
         heuresSignees: heures,
       );
 
-      // Envoie à l'API
       final result = await sl.signatureRepository.createSignature(request);
-
       if (!mounted) return;
 
       result.fold(
@@ -120,19 +106,11 @@ class _SignScreenState extends State<SignScreen> {
           _showError(failure.message);
         },
         (signature) {
-          // Affiche le succès d'abord
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Signature enregistrée avec succès'),
-              backgroundColor: colors.success,
-              duration: const Duration(seconds: 2),
-            ),
+            const SnackBar(content: Text('Signature enregistrée avec succès')),
           );
-          // Retourne la signature créée après un court délai
           Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted) {
-              Navigator.of(context).pop(signature);
-            }
+            if (mounted) Navigator.of(context).pop(signature);
           });
         },
       );
@@ -143,23 +121,8 @@ class _SignScreenState extends State<SignScreen> {
   }
 
   void _showError(String message) {
-    final colors = context.colors;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.bgSecondary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
-        ),
-      ),
+      SnackBar(content: Text(message)),
     );
   }
 
@@ -168,106 +131,65 @@ class _SignScreenState extends State<SignScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
-      appBar: AppBar(
-        title: const Text('Signer mes heures'),
-        backgroundColor: colors.bgSecondary,
-      ),
+      backgroundColor: colors.background,
+      appBar: AppBar(title: const Text('Signer mes heures')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.base),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Info
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              decoration: BoxDecoration(
-                color: colors.info.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.base),
-                border: Border.all(color: colors.info.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: colors.info),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Signez pour valider vos heures du mois en cours',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colors.info,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            const AppAlert(
+              description: 'Signez pour valider vos heures du mois en cours',
+              variant: AlertVariant.info,
             ),
             const SizedBox(height: AppSpacing.lg),
-            // Champ heures
+
+            // Hours field
             Text(
               'Nombre d\'heures à signer',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: colors.textSecondary,
+                color: colors.foreground,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.sm),
             TextFormField(
               controller: _heuresController,
               enabled: widget.heuresLastMonth == null,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Heures',
+                hintText: 'Heures',
                 suffixText: 'h',
-                prefixIcon: Icon(Icons.schedule, color: colors.primary),
-                filled: true,
-                fillColor: widget.heuresLastMonth != null
-                    ? colors.bgTertiary
-                    : colors.bgSecondary,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.borderPrimary),
-                ),
-                disabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.borderPrimary),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.primary, width: 2),
-                ),
+                prefixIcon: Icon(Icons.schedule, color: colors.primary, size: 18),
               ),
               style: TextStyle(
-                color: colors.textPrimary,
+                color: colors.foreground,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
-            // Zone de signature
+
+            // Signature zone
             Text(
               'Signature',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
-                color: colors.textSecondary,
+                color: colors.foreground,
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
+            const SizedBox(height: AppSpacing.sm),
             Container(
               height: 300,
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(AppRadius.base),
-                border: Border.all(color: colors.borderPrimary, width: 2),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: colors.border, width: 2),
               ),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.base),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 child: Signature(
                   controller: _controller,
                   backgroundColor: Colors.white,
@@ -275,28 +197,19 @@ class _SignScreenState extends State<SignScreen> {
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
-            // Bouton effacer
-            OutlinedButton.icon(
-              onPressed: () {
-                setState(() => _controller.clear());
-              },
-              icon: Icon(Icons.clear, size: 16, color: colors.textSecondary),
-              label: Text(
-                'Effacer',
-                style: TextStyle(color: colors.textSecondary),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: colors.borderPrimary),
-              ),
+
+            AppButton(
+              text: 'Effacer',
+              variant: ButtonVariant.outline,
+              icon: Icons.clear,
+              onPressed: () => setState(() => _controller.clear()),
             ),
             const SizedBox(height: AppSpacing.lg),
-            // Bouton valider
+
             AppButton(
               text: 'Valider la signature',
               onPressed: _isSubmitting ? null : _submit,
               isLoading: _isSubmitting,
-              backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
             ),
           ],
         ),

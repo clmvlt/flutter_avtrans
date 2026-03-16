@@ -7,10 +7,13 @@ import 'package:provider/provider.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../widgets/app_avatar.dart';
+import '../../widgets/app_separator.dart';
 import '../profile/edit_profile_screen.dart';
 import '../updates/updates_screen.dart';
+import 'notification_preferences_screen.dart';
 
-/// Page des paramètres
+/// Page des paramètres - design shadcn/ui
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -42,33 +45,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Paramètres'),
-        backgroundColor: colors.bgSecondary,
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.base),
         children: [
           _buildSection(
             context,
-            title: 'Compte',
-            children: [
-              _buildProfileTile(context),
-            ],
+            title: 'COMPTE',
+            children: [_buildProfileTile(context)],
           ),
-          const SizedBox(height: AppSpacing.base),
+          const SizedBox(height: AppSpacing.xl),
           _buildSection(
             context,
-            title: 'Apparence',
+            title: 'NOTIFICATIONS',
             children: [
-              _buildDarkModeToggle(context),
+              _buildActionTile(
+                context,
+                title: 'Préférences de notification',
+                subtitle: 'Gérer les types de notification',
+                icon: Icons.notifications_outlined,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                        builder: (_) =>
+                            const NotificationPreferencesScreen()),
+                  );
+                },
+              ),
             ],
           ),
-          const SizedBox(height: AppSpacing.base),
+          const SizedBox(height: AppSpacing.xl),
           _buildSection(
             context,
-            title: 'À propos',
+            title: 'APPARENCE',
+            children: [_buildDarkModeToggle(context)],
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          _buildSection(
+            context,
+            title: 'À PROPOS',
             children: [
               _buildInfoTile(
                 context,
@@ -78,9 +96,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : '$_version ($_buildNumber)',
                 icon: Icons.info_outline,
               ),
-              // Mises à jour masquées sur iOS (via App Store uniquement)
               if (!Platform.isIOS) ...[
-                Divider(height: 1, color: context.colors.borderPrimary),
+                AppSeparator(color: colors.border),
                 _buildActionTile(
                   context,
                   title: 'Mises à jour',
@@ -111,29 +128,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.only(
-            left: AppSpacing.sm,
-            bottom: AppSpacing.sm,
-          ),
+          padding: const EdgeInsets.only(left: AppSpacing.xs, bottom: AppSpacing.sm),
           child: Text(
             title,
             style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: colors.textSecondary,
-              letterSpacing: 0.5,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: colors.mutedForeground,
+              letterSpacing: 1,
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: colors.bgSecondary,
-            borderRadius: BorderRadius.circular(AppRadius.base),
-            border: Border.all(color: colors.borderPrimary),
+            color: colors.card,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: colors.border),
           ),
-          child: Column(
-            children: children,
-          ),
+          child: Column(children: children),
         ),
       ],
     );
@@ -144,60 +156,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user = sl.authRepository.getCachedUser();
 
     return ListTile(
-      leading: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: colors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: user?.pictureUrl != null
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Image.network(
-                  user!.pictureUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Icon(
-                    Icons.person,
-                    color: colors.primary,
-                    size: 24,
-                  ),
-                ),
-              )
-            : Icon(
-                Icons.person,
-                color: colors.primary,
-                size: 24,
-              ),
+      leading: AppAvatar(
+        imageUrl: user?.pictureUrl,
+        fallbackText: (user?.fullName ?? 'U').substring(0, 1).toUpperCase(),
+        size: 40,
       ),
       title: Text(
         user?.fullName ?? 'Mon profil',
         style: TextStyle(
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: colors.textPrimary,
+          color: colors.foreground,
         ),
       ),
       subtitle: Text(
         user?.email ?? 'Modifier mes informations',
         style: TextStyle(
           fontSize: 13,
-          color: colors.textSecondary,
+          color: colors.mutedForeground,
         ),
       ),
-      trailing: Icon(
-        Icons.chevron_right,
-        color: colors.textMuted,
-      ),
+      trailing: Icon(Icons.chevron_right, color: colors.mutedForeground, size: 18),
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const EditProfileScreen()),
         );
       },
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.xs,
-      ),
     );
   }
 
@@ -207,39 +191,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return ListTile(
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
-          color: colors.secondary.withValues(alpha: 0.1),
+          color: colors.muted,
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Icon(
           themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-          color: colors.secondary,
-          size: 20,
+          color: colors.foreground,
+          size: 18,
         ),
       ),
       title: Text(
         'Mode sombre',
         style: TextStyle(
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: colors.textPrimary,
+          color: colors.foreground,
         ),
       ),
       subtitle: Text(
         themeProvider.isDarkMode ? 'Activé' : 'Désactivé',
         style: TextStyle(
           fontSize: 13,
-          color: colors.textSecondary,
+          color: colors.mutedForeground,
         ),
       ),
       trailing: Switch(
         value: themeProvider.isDarkMode,
         onChanged: (_) => themeProvider.toggleTheme(),
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.xs,
       ),
     );
   }
@@ -254,35 +235,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return ListTile(
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
-          color: colors.primary.withValues(alpha: 0.1),
+          color: colors.muted,
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        child: Icon(
-          icon,
-          color: colors.primary,
-          size: 20,
-        ),
+        child: Icon(icon, color: colors.foreground, size: 18),
       ),
       title: Text(
         title,
         style: TextStyle(
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: colors.textPrimary,
+          color: colors.foreground,
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
           fontSize: 13,
-          color: colors.textSecondary,
+          color: colors.mutedForeground,
         ),
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.xs,
       ),
     );
   }
@@ -298,41 +272,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return ListTile(
       leading: Container(
-        padding: const EdgeInsets.all(8),
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
-          color: colors.primary.withValues(alpha: 0.1),
+          color: colors.muted,
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
-        child: Icon(
-          icon,
-          color: colors.primary,
-          size: 20,
-        ),
+        child: Icon(icon, color: colors.foreground, size: 18),
       ),
       title: Text(
         title,
         style: TextStyle(
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: colors.textPrimary,
+          color: colors.foreground,
         ),
       ),
       subtitle: Text(
         subtitle,
         style: TextStyle(
           fontSize: 13,
-          color: colors.textSecondary,
+          color: colors.mutedForeground,
         ),
       ),
-      trailing: Icon(
-        Icons.chevron_right,
-        color: colors.textMuted,
-      ),
+      trailing: Icon(Icons.chevron_right, color: colors.mutedForeground, size: 18),
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.xs,
-      ),
     );
   }
 }

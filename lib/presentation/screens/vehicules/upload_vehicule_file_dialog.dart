@@ -135,12 +135,12 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
       ),
     );
   }
@@ -150,13 +150,13 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
         ),
         title: Text(
           'Choisir une source',
-          style: TextStyle(color: colors.textPrimary),
+          style: TextStyle(color: colors.foreground),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -204,13 +204,13 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
     final colors = context.colors;
 
     return AlertDialog(
-      backgroundColor: colors.bgSecondary,
+      backgroundColor: colors.card,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.base),
       ),
       title: Text(
         'Ajouter un fichier',
-        style: TextStyle(color: colors.textPrimary),
+        style: TextStyle(color: colors.foreground),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -219,9 +219,9 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
             Container(
               padding: const EdgeInsets.all(AppSpacing.base),
               decoration: BoxDecoration(
-                color: colors.bgTertiary,
+                color: colors.muted,
                 borderRadius: BorderRadius.circular(AppRadius.base),
-                border: Border.all(color: colors.borderPrimary),
+                border: Border.all(color: colors.border),
               ),
               child: Row(
                 children: [
@@ -239,13 +239,13 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
                   Expanded(
                     child: Text(
                       _fileName ?? '',
-                      style: TextStyle(color: colors.textPrimary),
+                      style: TextStyle(color: colors.foreground),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: colors.error),
+                    icon: Icon(Icons.close, color: colors.destructive),
                     onPressed: _clearSelection,
                   ),
                 ],
@@ -258,27 +258,27 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.xl),
                 decoration: BoxDecoration(
-                  color: colors.bgTertiary,
+                  color: colors.muted,
                   borderRadius: BorderRadius.circular(AppRadius.base),
-                  border: Border.all(color: colors.borderPrimary),
+                  border: Border.all(color: colors.border),
                 ),
                 child: Column(
                   children: [
                     Icon(
                       Icons.cloud_upload,
                       size: 48,
-                      color: colors.textMuted,
+                      color: colors.mutedForeground,
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       'Appuyez pour sélectionner',
-                      style: TextStyle(color: colors.textMuted),
+                      style: TextStyle(color: colors.mutedForeground),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       'Images, PDF, Documents',
                       style: TextStyle(
-                        color: colors.textMuted,
+                        color: colors.mutedForeground,
                         fontSize: 12,
                       ),
                     ),
@@ -294,22 +294,22 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
           child: Text(
             'Annuler',
-            style: TextStyle(color: colors.textMuted),
+            style: TextStyle(color: colors.mutedForeground),
           ),
         ),
         ElevatedButton(
           onPressed: _isLoading || _selectedFile == null ? null : _submit,
           style: ElevatedButton.styleFrom(
             backgroundColor: colors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: colors.primaryForeground,
           ),
           child: _isLoading
-              ? const SizedBox(
+              ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(colors.primaryForeground),
                   ),
                 )
               : const Text('Uploader'),

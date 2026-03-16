@@ -76,16 +76,16 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
+          side: BorderSide(color: colors.destructive),
         ),
       ),
     );
@@ -96,10 +96,9 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Véhicules'),
-        backgroundColor: colors.bgSecondary,
       ),
       body: _isLoading
           ? const LoadingIndicator(message: 'Chargement...')
@@ -113,11 +112,11 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                     onChanged: _filterVehicules,
                     decoration: InputDecoration(
                       hintText: 'Rechercher un véhicule...',
-                      hintStyle: TextStyle(color: colors.textMuted),
-                      prefixIcon: Icon(Icons.search, color: colors.textMuted),
+                      hintStyle: TextStyle(color: colors.mutedForeground),
+                      prefixIcon: Icon(Icons.search, color: colors.mutedForeground),
                       suffixIcon: _searchQuery.isNotEmpty
                           ? IconButton(
-                              icon: Icon(Icons.clear, color: colors.textMuted),
+                              icon: Icon(Icons.clear, color: colors.mutedForeground),
                               onPressed: () {
                                 _searchController.clear();
                                 _filterVehicules('');
@@ -125,14 +124,14 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                             )
                           : null,
                       filled: true,
-                      fillColor: colors.bgSecondary,
+                      fillColor: colors.card,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.base),
-                        borderSide: BorderSide(color: colors.borderPrimary),
+                        borderSide: BorderSide(color: colors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.base),
-                        borderSide: BorderSide(color: colors.borderPrimary),
+                        borderSide: BorderSide(color: colors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.base),
@@ -143,7 +142,7 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                         vertical: AppSpacing.sm,
                       ),
                     ),
-                    style: TextStyle(color: colors.textPrimary),
+                    style: TextStyle(color: colors.foreground),
                   ),
                 ),
                 // Liste des véhicules
@@ -151,7 +150,7 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                   child: RefreshIndicator(
                     onRefresh: _loadVehicules,
                     color: colors.primary,
-                    backgroundColor: colors.bgSecondary,
+                    backgroundColor: colors.card,
                     child: _filteredVehicules.isEmpty
                         ? Center(
                             child: Text(
@@ -160,7 +159,7 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                                   : 'Aucun véhicule',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: colors.textMuted,
+                                color: colors.mutedForeground,
                               ),
                             ),
                           )
@@ -185,9 +184,9 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: InkWell(
         onTap: () {
@@ -225,7 +224,7 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
+                        color: colors.foreground,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -233,7 +232,7 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                       '${vehicule.brand} ${vehicule.model}',
                       style: TextStyle(
                         fontSize: 14,
-                        color: colors.textSecondary,
+                        color: colors.mutedForeground,
                       ),
                     ),
                     if (vehicule.latestKm != null) ...[
@@ -243,14 +242,14 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                           Icon(
                             Icons.speed,
                             size: 14,
-                            color: colors.textMuted,
+                            color: colors.mutedForeground,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '${vehicule.latestKm} km',
                             style: TextStyle(
                               fontSize: 12,
-                              color: colors.textMuted,
+                              color: colors.mutedForeground,
                             ),
                           ),
                         ],
@@ -261,7 +260,7 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
               ),
               Icon(
                 Icons.chevron_right,
-                color: colors.textMuted,
+                color: colors.mutedForeground,
               ),
             ],
           ),

@@ -189,29 +189,29 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
         ),
         title: Text(
           'Annuler la demande',
-          style: TextStyle(color: colors.textPrimary),
+          style: TextStyle(color: colors.foreground),
         ),
         content: Text(
           'Voulez-vous vraiment annuler cette demande d\'absence ?',
-          style: TextStyle(color: colors.textSecondary),
+          style: TextStyle(color: colors.mutedForeground),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Non',
-              style: TextStyle(color: colors.textSecondary),
+              style: TextStyle(color: colors.mutedForeground),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colors.error),
+            style: TextButton.styleFrom(foregroundColor: colors.destructive),
             child: const Text('Oui, annuler'),
           ),
         ],
@@ -296,16 +296,16 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
+          side: BorderSide(color: colors.destructive),
         ),
       ),
     );
@@ -322,7 +322,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
@@ -337,10 +337,9 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Mes absences'),
-        backgroundColor: colors.bgSecondary,
         actions: [
           // Toggle vue calendrier / liste
           IconButton(
@@ -380,7 +379,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _showCreateDialog,
         backgroundColor: colors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: Icon(Icons.add, color: colors.primaryForeground),
       ),
       body: _buildBody(colors),
     );
@@ -396,11 +395,11 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: colors.error),
+            Icon(Icons.error_outline, size: 48, color: colors.destructive),
             const SizedBox(height: AppSpacing.base),
             Text(
               _error!,
-              style: TextStyle(color: colors.textSecondary),
+              style: TextStyle(color: colors.mutedForeground),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.base),
@@ -408,7 +407,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               text: 'Réessayer',
               onPressed: _loadAbsences,
               backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: colors.primaryForeground,
             ),
           ],
         ),
@@ -429,7 +428,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             Icon(
               Icons.event_busy,
               size: 64,
-              color: colors.textMuted,
+              color: colors.mutedForeground,
             ),
             const SizedBox(height: AppSpacing.base),
             Text(
@@ -438,7 +437,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                   : 'Aucune demande d\'absence',
               style: TextStyle(
                 fontSize: 16,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
               textAlign: TextAlign.center,
             ),
@@ -466,7 +465,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                 'Appuyez sur + pour créer une demande',
                 style: TextStyle(
                   fontSize: 13,
-                  color: colors.textMuted,
+                  color: colors.mutedForeground,
                 ),
               ),
           ],
@@ -483,7 +482,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
           child: RefreshIndicator(
             onRefresh: _loadAbsences,
             color: colors.primary,
-            backgroundColor: colors.bgSecondary,
+            backgroundColor: colors.card,
             child: ListView.builder(
               controller: _scrollController,
               padding: const EdgeInsets.all(AppSpacing.base),
@@ -535,7 +534,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                 vertical: AppSpacing.sm,
               ),
               decoration: BoxDecoration(
-                color: colors.warningBg,
+                color: colors.warningMuted,
                 borderRadius: BorderRadius.circular(AppRadius.base),
                 border: Border.all(color: colors.warning.withValues(alpha: 0.5)),
               ),
@@ -597,9 +596,9 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             _focusedDay = focusedDay;
           },
           calendarStyle: CalendarStyle(
-            defaultTextStyle: TextStyle(color: colors.textPrimary),
-            weekendTextStyle: TextStyle(color: colors.textSecondary),
-            outsideTextStyle: TextStyle(color: colors.textMuted),
+            defaultTextStyle: TextStyle(color: colors.foreground),
+            weekendTextStyle: TextStyle(color: colors.mutedForeground),
+            outsideTextStyle: TextStyle(color: colors.mutedForeground),
             selectedDecoration: BoxDecoration(
               color: colors.primary,
               shape: BoxShape.circle,
@@ -626,7 +625,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             formatButtonVisible: true,
             formatButtonShowsNext: false,
             titleTextStyle: TextStyle(
-              color: colors.textPrimary,
+              color: colors.foreground,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
@@ -638,17 +637,17 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               border: Border.all(color: colors.primary),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            leftChevronIcon: Icon(Icons.chevron_left, color: colors.textPrimary),
-            rightChevronIcon: Icon(Icons.chevron_right, color: colors.textPrimary),
+            leftChevronIcon: Icon(Icons.chevron_left, color: colors.foreground),
+            rightChevronIcon: Icon(Icons.chevron_right, color: colors.foreground),
           ),
           daysOfWeekStyle: DaysOfWeekStyle(
             weekdayStyle: TextStyle(
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
             weekendStyle: TextStyle(
-              color: colors.textMuted,
+              color: colors.mutedForeground,
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -659,7 +658,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
 
               // Rouge pour les absences approuvées, gris pour tout le reste
               final hasApproved = events.any((e) => e.status == AbsenceStatus.approved);
-              final markerColor = hasApproved ? colors.error : colors.textMuted;
+              final markerColor = hasApproved ? colors.destructive : colors.mutedForeground;
 
               return Positioned(
                 bottom: 1,
@@ -689,7 +688,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 const Spacer(),
@@ -697,7 +696,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                   '${_getAbsencesForDay(_selectedDay!).length} absence(s)',
                   style: TextStyle(
                     fontSize: 12,
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                   ),
                 ),
               ],
@@ -734,7 +733,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
           Icon(
             Icons.touch_app,
             size: 48,
-            color: colors.textMuted,
+            color: colors.mutedForeground,
           ),
           const SizedBox(height: AppSpacing.base),
           Text(
@@ -742,7 +741,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -750,7 +749,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             'pour voir les absences',
             style: TextStyle(
               fontSize: 13,
-              color: colors.textMuted,
+              color: colors.mutedForeground,
             ),
           ),
         ],
@@ -766,7 +765,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
           Icon(
             Icons.event_busy,
             size: 48,
-            color: colors.textMuted,
+            color: colors.mutedForeground,
           ),
           const SizedBox(height: AppSpacing.base),
           Text(
@@ -774,7 +773,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: colors.textSecondary,
+              color: colors.mutedForeground,
             ),
           ),
         ],
@@ -832,9 +831,9 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         vertical: AppSpacing.sm,
       ),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         border: Border(
-          bottom: BorderSide(color: colors.borderPrimary),
+          bottom: BorderSide(color: colors.border),
         ),
       ),
       child: SingleChildScrollView(
@@ -845,7 +844,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               'Filtres:',
               style: TextStyle(
                 fontSize: 12,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -897,9 +896,9 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -951,7 +950,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                   icon: Icon(
                     Icons.close,
                     size: 20,
-                    color: colors.error,
+                    color: colors.destructive,
                   ),
                   onPressed: () => _cancelAbsence(absence),
                   tooltip: 'Annuler',
@@ -973,7 +972,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -981,9 +980,27 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                 '(${absence.durationInDays} jour${absence.durationInDays > 1 ? 's' : ''})',
                 style: TextStyle(
                   fontSize: 12,
-                  color: colors.textMuted,
+                  color: colors.mutedForeground,
                 ),
               ),
+              if (absence.period != null && absence.period!.isNotEmpty) ...[
+                const SizedBox(width: AppSpacing.sm),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: colors.info.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    absence.period == 'matin' ? 'Matin' : 'Après-midi',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: colors.info,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           if (absence.reason.isNotEmpty) ...[
@@ -992,7 +1009,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               absence.reason,
               style: TextStyle(
                 fontSize: 13,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
             ),
           ],
@@ -1001,20 +1018,20 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             Container(
               padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
-                color: colors.error.withValues(alpha: 0.1),
+                color: colors.destructive.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, size: 14, color: colors.error),
+                  Icon(Icons.info_outline, size: 14, color: colors.destructive),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       'Motif du refus : ${absence.rejectionReason}',
                       style: TextStyle(
                         fontSize: 12,
-                        color: colors.error,
+                        color: colors.destructive,
                       ),
                     ),
                   ),
@@ -1034,9 +1051,9 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       case AbsenceStatus.approved:
         return colors.success;
       case AbsenceStatus.rejected:
-        return colors.error;
+        return colors.destructive;
       case AbsenceStatus.cancelled:
-        return colors.textMuted;
+        return colors.mutedForeground;
     }
   }
 
@@ -1113,13 +1130,13 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             colorScheme: isDark
                 ? ColorScheme.dark(
                     primary: colors.primary,
-                    surface: colors.bgSecondary,
-                    onSurface: colors.textPrimary,
+                    surface: colors.card,
+                    onSurface: colors.foreground,
                   )
                 : ColorScheme.light(
                     primary: colors.primary,
-                    surface: colors.bgSecondary,
-                    onSurface: colors.textPrimary,
+                    surface: colors.card,
+                    onSurface: colors.foreground,
                   ),
           ),
           child: child!,
@@ -1151,13 +1168,13 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             colorScheme: isDark
                 ? ColorScheme.dark(
                     primary: colors.primary,
-                    surface: colors.bgSecondary,
-                    onSurface: colors.textPrimary,
+                    surface: colors.card,
+                    onSurface: colors.foreground,
                   )
                 : ColorScheme.light(
                     primary: colors.primary,
-                    surface: colors.bgSecondary,
-                    onSurface: colors.textPrimary,
+                    surface: colors.card,
+                    onSurface: colors.foreground,
                   ),
           ),
           child: child!,
@@ -1177,7 +1194,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppRadius.lg),
         ),
@@ -1193,7 +1210,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: colors.borderPrimary,
+                  color: colors.border,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1207,7 +1224,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 TextButton(
@@ -1217,7 +1234,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                   },
                   child: Text(
                     'Effacer tout',
-                    style: TextStyle(color: colors.error),
+                    style: TextStyle(color: colors.destructive),
                   ),
                 ),
               ],
@@ -1230,7 +1247,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -1243,9 +1260,9 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     child: Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
-                        color: colors.bgTertiary,
+                        color: colors.muted,
                         borderRadius: BorderRadius.circular(AppRadius.base),
-                        border: Border.all(color: colors.borderPrimary),
+                        border: Border.all(color: colors.border),
                       ),
                       child: Row(
                         children: [
@@ -1259,15 +1276,15 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: _startDate != null
-                                    ? colors.textPrimary
-                                    : colors.textMuted,
+                                    ? colors.foreground
+                                    : colors.mutedForeground,
                               ),
                             ),
                           ),
                           if (_startDate != null)
                             GestureDetector(
                               onTap: () => setState(() => _startDate = null),
-                              child: Icon(Icons.close, size: 16, color: colors.textMuted),
+                              child: Icon(Icons.close, size: 16, color: colors.mutedForeground),
                             ),
                         ],
                       ),
@@ -1276,7 +1293,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                  child: Text('-', style: TextStyle(color: colors.textMuted)),
+                  child: Text('-', style: TextStyle(color: colors.mutedForeground)),
                 ),
                 Expanded(
                   child: InkWell(
@@ -1285,9 +1302,9 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     child: Container(
                       padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(
-                        color: colors.bgTertiary,
+                        color: colors.muted,
                         borderRadius: BorderRadius.circular(AppRadius.base),
-                        border: Border.all(color: colors.borderPrimary),
+                        border: Border.all(color: colors.border),
                       ),
                       child: Row(
                         children: [
@@ -1301,15 +1318,15 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                               style: TextStyle(
                                 fontSize: 13,
                                 color: _endDate != null
-                                    ? colors.textPrimary
-                                    : colors.textMuted,
+                                    ? colors.foreground
+                                    : colors.mutedForeground,
                               ),
                             ),
                           ),
                           if (_endDate != null)
                             GestureDetector(
                               onTap: () => setState(() => _endDate = null),
-                              child: Icon(Icons.close, size: 16, color: colors.textMuted),
+                              child: Icon(Icons.close, size: 16, color: colors.mutedForeground),
                             ),
                         ],
                       ),
@@ -1326,7 +1343,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -1349,10 +1366,10 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     decoration: BoxDecoration(
                       color: isSelected
                           ? colors.primary.withValues(alpha: 0.2)
-                          : colors.bgTertiary,
+                          : colors.muted,
                       borderRadius: BorderRadius.circular(AppRadius.base),
                       border: Border.all(
-                        color: isSelected ? colors.primary : colors.borderPrimary,
+                        color: isSelected ? colors.primary : colors.border,
                         width: isSelected ? 2 : 1,
                       ),
                     ),
@@ -1361,7 +1378,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                        color: isSelected ? colors.primary : colors.textPrimary,
+                        color: isSelected ? colors.primary : colors.foreground,
                       ),
                     ),
                   ),
@@ -1377,7 +1394,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -1401,10 +1418,10 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                       decoration: BoxDecoration(
                         color: isSelected
                             ? typeColor.withValues(alpha: 0.2)
-                            : colors.bgTertiary,
+                            : colors.muted,
                         borderRadius: BorderRadius.circular(AppRadius.base),
                         border: Border.all(
-                          color: isSelected ? typeColor : colors.borderPrimary,
+                          color: isSelected ? typeColor : colors.border,
                           width: isSelected ? 2 : 1,
                         ),
                       ),
@@ -1413,7 +1430,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                          color: isSelected ? typeColor : colors.textPrimary,
+                          color: isSelected ? typeColor : colors.foreground,
                         ),
                       ),
                     ),
@@ -1431,7 +1448,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                 Navigator.pop(context);
               },
               backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: colors.primaryForeground,
             ),
             const SizedBox(height: AppSpacing.base),
           ],
@@ -1470,6 +1487,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
 
   DateTime? _startDate;
   DateTime? _endDate;
+  String? _selectedPeriod;
   bool _isLoading = false;
   bool _isLoadingTypes = true;
   List<AbsenceType> _absenceTypes = [];
@@ -1521,13 +1539,13 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
             colorScheme: isDark
                 ? ColorScheme.dark(
                     primary: colors.primary,
-                    surface: colors.bgSecondary,
-                    onSurface: colors.textPrimary,
+                    surface: colors.card,
+                    onSurface: colors.foreground,
                   )
                 : ColorScheme.light(
                     primary: colors.primary,
-                    surface: colors.bgSecondary,
-                    onSurface: colors.textPrimary,
+                    surface: colors.card,
+                    onSurface: colors.foreground,
                   ),
           ),
           child: child!,
@@ -1564,13 +1582,13 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
             colorScheme: isDark
                 ? ColorScheme.dark(
                     primary: colors.primary,
-                    surface: colors.bgSecondary,
-                    onSurface: colors.textPrimary,
+                    surface: colors.card,
+                    onSurface: colors.foreground,
                   )
                 : ColorScheme.light(
                     primary: colors.primary,
-                    surface: colors.bgSecondary,
-                    onSurface: colors.textPrimary,
+                    surface: colors.card,
+                    onSurface: colors.foreground,
                   ),
           ),
           child: child!,
@@ -1607,6 +1625,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
         reason: _reasonController.text.trim(),
         absenceTypeUuid: _useCustomType ? null : _selectedType?.uuid,
         customType: _useCustomType ? _customTypeController.text.trim() : null,
+        period: _selectedPeriod,
       ),
     );
 
@@ -1636,16 +1655,44 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
+          side: BorderSide(color: colors.destructive),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPeriodChip(String? value, String label, AppColors colors) {
+    final isSelected = _selectedPeriod == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedPeriod = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colors.primary.withValues(alpha: 0.2)
+              : colors.muted,
+          borderRadius: BorderRadius.circular(AppRadius.base),
+          border: Border.all(
+            color: isSelected ? colors.primary : colors.border,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            color: isSelected ? colors.primary : colors.foreground,
+          ),
         ),
       ),
     );
@@ -1670,7 +1717,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(AppRadius.lg),
         ),
@@ -1693,7 +1740,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: colors.borderPrimary,
+                    color: colors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -1704,7 +1751,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -1716,7 +1763,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -1758,10 +1805,10 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? typeColor.withValues(alpha: 0.2)
-                                : colors.bgTertiary,
+                                : colors.muted,
                             borderRadius: BorderRadius.circular(AppRadius.base),
                             border: Border.all(
-                              color: isSelected ? typeColor : colors.borderPrimary,
+                              color: isSelected ? typeColor : colors.border,
                               width: isSelected ? 2 : 1,
                             ),
                           ),
@@ -1770,7 +1817,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                              color: isSelected ? typeColor : colors.textPrimary,
+                              color: isSelected ? typeColor : colors.foreground,
                             ),
                           ),
                         ),
@@ -1792,10 +1839,10 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                         decoration: BoxDecoration(
                           color: _useCustomType
                               ? colors.primary.withValues(alpha: 0.2)
-                              : colors.bgTertiary,
+                              : colors.muted,
                           borderRadius: BorderRadius.circular(AppRadius.base),
                           border: Border.all(
-                            color: _useCustomType ? colors.primary : colors.borderPrimary,
+                            color: _useCustomType ? colors.primary : colors.border,
                             width: _useCustomType ? 2 : 1,
                           ),
                         ),
@@ -1805,7 +1852,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                             Icon(
                               Icons.add,
                               size: 16,
-                              color: _useCustomType ? colors.primary : colors.textSecondary,
+                              color: _useCustomType ? colors.primary : colors.mutedForeground,
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -1813,7 +1860,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: _useCustomType ? FontWeight.w600 : FontWeight.w400,
-                                color: _useCustomType ? colors.primary : colors.textPrimary,
+                                color: _useCustomType ? colors.primary : colors.foreground,
                               ),
                             ),
                           ],
@@ -1828,16 +1875,16 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                     controller: _customTypeController,
                     decoration: InputDecoration(
                       hintText: 'Type personnalisé...',
-                      hintStyle: TextStyle(color: colors.textMuted),
+                      hintStyle: TextStyle(color: colors.mutedForeground),
                       filled: true,
-                      fillColor: colors.bgTertiary,
+                      fillColor: colors.muted,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.base),
-                        borderSide: BorderSide(color: colors.borderPrimary),
+                        borderSide: BorderSide(color: colors.border),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.base),
-                        borderSide: BorderSide(color: colors.borderPrimary),
+                        borderSide: BorderSide(color: colors.border),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(AppRadius.base),
@@ -1848,7 +1895,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                         vertical: AppSpacing.md,
                       ),
                     ),
-                    style: TextStyle(color: colors.textPrimary),
+                    style: TextStyle(color: colors.foreground),
                   ),
                 ],
               ],
@@ -1860,7 +1907,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -1870,9 +1917,9 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 child: Container(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: colors.bgTertiary,
+                    color: colors.muted,
                     borderRadius: BorderRadius.circular(AppRadius.base),
-                    border: Border.all(color: colors.borderPrimary),
+                    border: Border.all(color: colors.border),
                   ),
                   child: Row(
                     children: [
@@ -1885,8 +1932,8 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                         style: TextStyle(
                           fontSize: 14,
                           color: _startDate != null
-                              ? colors.textPrimary
-                              : colors.textMuted,
+                              ? colors.foreground
+                              : colors.mutedForeground,
                         ),
                       ),
                     ],
@@ -1901,7 +1948,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -1911,9 +1958,9 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 child: Container(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
-                    color: colors.bgTertiary,
+                    color: colors.muted,
                     borderRadius: BorderRadius.circular(AppRadius.base),
-                    border: Border.all(color: colors.borderPrimary),
+                    border: Border.all(color: colors.border),
                   ),
                   child: Row(
                     children: [
@@ -1926,13 +1973,33 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                         style: TextStyle(
                           fontSize: 14,
                           color: _endDate != null
-                              ? colors.textPrimary
-                              : colors.textMuted,
+                              ? colors.foreground
+                              : colors.mutedForeground,
                         ),
                       ),
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: AppSpacing.base),
+
+              // Période (demi-journée)
+              Text(
+                'Période (optionnel)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: colors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.sm,
+                children: [
+                  _buildPeriodChip(null, 'Journée complète', colors),
+                  _buildPeriodChip('matin', 'Matin', colors),
+                  _buildPeriodChip('apres-midi', 'Après-midi', colors),
+                ],
               ),
               const SizedBox(height: AppSpacing.base),
 
@@ -1942,7 +2009,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -1951,23 +2018,23 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 maxLines: 3,
                 decoration: InputDecoration(
                   hintText: 'Décrivez le motif de votre absence...',
-                  hintStyle: TextStyle(color: colors.textMuted),
+                  hintStyle: TextStyle(color: colors.mutedForeground),
                   filled: true,
-                  fillColor: colors.bgTertiary,
+                  fillColor: colors.muted,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.base),
-                    borderSide: BorderSide(color: colors.borderPrimary),
+                    borderSide: BorderSide(color: colors.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.base),
-                    borderSide: BorderSide(color: colors.borderPrimary),
+                    borderSide: BorderSide(color: colors.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadius.base),
                     borderSide: BorderSide(color: colors.primary),
                   ),
                 ),
-                style: TextStyle(color: colors.textPrimary),
+                style: TextStyle(color: colors.foreground),
               ),
               const SizedBox(height: AppSpacing.xl),
 
@@ -1977,7 +2044,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 onPressed: _submit,
                 isLoading: _isLoading,
                 backgroundColor: colors.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: colors.primaryForeground,
               ),
               const SizedBox(height: AppSpacing.base),
             ],

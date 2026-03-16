@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../../core/di/service_locator.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../data/models/rapport_vehicule_model.dart';
 import '../../../data/models/vehicule_model.dart';
 import '../../widgets/app_button.dart';
@@ -209,10 +210,11 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
     result.fold(
       (failure) => _showError(failure.message),
       (rapport) {
+        final colors = context.colors;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Rapport créé avec succès'),
-            backgroundColor: Colors.green,
+          SnackBar(
+            content: const Text('Rapport créé avec succès'),
+            backgroundColor: colors.success,
           ),
         );
         Navigator.pop(context, true);
@@ -221,16 +223,19 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
   }
 
   void _showError(String message) {
+    final colors = context.colors;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: colors.destructive,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Créer un rapport'),
@@ -242,12 +247,12 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                      Icon(Icons.error_outline, size: 64, color: colors.destructive),
                       const SizedBox(height: 16),
                       Text(
                         _errorMessage!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.red),
+                        style: TextStyle(color: colors.destructive),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
@@ -335,7 +340,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                       'Minimum 2 photos (avant et arrière)',
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.grey[600],
+                                        color: colors.mutedForeground,
                                       ),
                                     ),
                                   ],
@@ -354,15 +359,15 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 margin: const EdgeInsets.only(bottom: 12),
                                 decoration: BoxDecoration(
-                                  color: Colors.orange[50],
+                                  color: colors.warningMuted,
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.orange.shade200),
+                                  border: Border.all(color: colors.warning.withValues(alpha: 0.3)),
                                 ),
                                 child: Row(
                                   children: [
                                     Icon(
                                       Icons.info_outline,
-                                      color: Colors.orange[700],
+                                      color: colors.warning,
                                       size: 20,
                                     ),
                                     const SizedBox(width: 8),
@@ -372,7 +377,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                             ? 'Ajoutez 2 photos (avant et arrière du véhicule)'
                                             : 'Ajoutez encore ${2 - _images.length} photo(s)',
                                         style: TextStyle(
-                                          color: Colors.orange[700],
+                                          color: colors.warning,
                                           fontSize: 13,
                                         ),
                                       ),
@@ -398,10 +403,10 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                     onTap: _showImageSourceBottomSheet,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Colors.grey[100],
+                                        color: colors.muted,
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: Colors.grey[300]!,
+                                          color: colors.border,
                                           width: 2,
                                           style: BorderStyle.solid,
                                         ),
@@ -412,13 +417,13 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                           Icon(
                                             Icons.add_photo_alternate_outlined,
                                             size: 40,
-                                            color: Colors.grey[600],
+                                            color: colors.mutedForeground,
                                           ),
                                           const SizedBox(height: 8),
                                           Text(
                                             'Ajouter une photo',
                                             style: TextStyle(
-                                              color: Colors.grey[600],
+                                              color: colors.mutedForeground,
                                               fontSize: 13,
                                               fontWeight: FontWeight.w500,
                                             ),
@@ -458,7 +463,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                             child: Container(
                                               padding: const EdgeInsets.all(6),
                                               decoration: BoxDecoration(
-                                                color: Colors.red,
+                                                color: colors.destructive,
                                                 shape: BoxShape.circle,
                                                 boxShadow: [
                                                   BoxShadow(
@@ -468,9 +473,9 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                                   ),
                                                 ],
                                               ),
-                                              child: const Icon(
+                                              child: Icon(
                                                 Icons.delete_outline,
-                                                color: Colors.white,
+                                                color: colors.destructiveForeground,
                                                 size: 18,
                                               ),
                                             ),

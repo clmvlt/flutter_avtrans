@@ -119,16 +119,16 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.error),
+          side: BorderSide(color: colors.destructive),
         ),
       ),
     );
@@ -138,7 +138,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
     final colors = context.colors;
     showModalBottomSheet(
       context: context,
-      backgroundColor: colors.bgSecondary,
+      backgroundColor: colors.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
@@ -158,7 +158,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: colors.borderPrimary,
+                    color: colors.border,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -168,7 +168,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -186,12 +186,12 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                   'Prendre une photo',
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 subtitle: Text(
                   'Utiliser l\'appareil photo',
-                  style: TextStyle(color: colors.textMuted, fontSize: 12),
+                  style: TextStyle(color: colors.mutedForeground, fontSize: 12),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -212,12 +212,12 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                   'Choisir depuis la galerie',
                   style: TextStyle(
                     fontWeight: FontWeight.w500,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 subtitle: Text(
                   'Sélectionner une image existante',
-                  style: TextStyle(color: colors.textMuted, fontSize: 12),
+                  style: TextStyle(color: colors.mutedForeground, fontSize: 12),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -237,10 +237,9 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: Text(widget.vehiculeImmat ?? 'Ajouter des informations'),
-        backgroundColor: colors.bgSecondary,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.base),
@@ -267,7 +266,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.warningBg,
+        color: colors.warningMuted,
         borderRadius: BorderRadius.circular(AppRadius.base),
         border: Border.all(color: colors.warning),
       ),
@@ -284,7 +283,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -292,7 +291,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                   'Décrivez le problème ou l\'ajustement nécessaire pour ce véhicule. Vous pouvez ajouter des photos pour illustrer.',
                   style: TextStyle(
                     fontSize: 13,
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                   ),
                 ),
               ],
@@ -312,7 +311,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            color: colors.foreground,
           ),
         ),
         const SizedBox(height: AppSpacing.sm),
@@ -321,22 +320,22 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
           maxLines: 5,
           style: TextStyle(
             fontSize: 15,
-            color: colors.textPrimary,
+            color: colors.foreground,
           ),
           decoration: InputDecoration(
             hintText: 'Décrivez le problème ou l\'ajustement nécessaire...',
             hintStyle: TextStyle(
-              color: colors.textMuted,
+              color: colors.mutedForeground,
             ),
             filled: true,
-            fillColor: colors.bgSecondary,
+            fillColor: colors.card,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.borderPrimary),
+              borderSide: BorderSide(color: colors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.borderPrimary),
+              borderSide: BorderSide(color: colors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.base),
@@ -344,11 +343,11 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.error),
+              borderSide: BorderSide(color: colors.destructive),
             ),
             focusedErrorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.error, width: 2),
+              borderSide: BorderSide(color: colors.destructive, width: 2),
             ),
           ),
           validator: (value) {
@@ -373,7 +372,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: colors.textPrimary,
+                color: colors.foreground,
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -383,14 +382,14 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                 vertical: 2,
               ),
               decoration: BoxDecoration(
-                color: colors.bgTertiary,
+                color: colors.muted,
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Text(
                 'Optionnel',
                 style: TextStyle(
                   fontSize: 11,
-                  color: colors.textMuted,
+                  color: colors.mutedForeground,
                 ),
               ),
             ),
@@ -399,7 +398,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
               '${_images.length}/5',
               style: TextStyle(
                 fontSize: 13,
-                color: colors.textMuted,
+                color: colors.mutedForeground,
               ),
             ),
           ],
@@ -441,7 +440,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
             child: Container(
               padding: const EdgeInsets.all(4),
               decoration: BoxDecoration(
-                color: colors.error,
+                color: colors.destructive,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -451,9 +450,9 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.close,
-                color: Colors.white,
+                color: colors.primaryForeground,
                 size: 16,
               ),
             ),
@@ -470,10 +469,10 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
         width: 100,
         height: 100,
         decoration: BoxDecoration(
-          color: colors.bgSecondary,
+          color: colors.card,
           borderRadius: BorderRadius.circular(AppRadius.base),
           border: Border.all(
-            color: colors.borderPrimary,
+            color: colors.border,
             width: 2,
             style: BorderStyle.solid,
           ),
@@ -491,7 +490,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
               'Ajouter',
               style: TextStyle(
                 fontSize: 12,
-                color: colors.textMuted,
+                color: colors.mutedForeground,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -508,7 +507,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
       onPressed: _submit,
       isLoading: _isSubmitting,
       backgroundColor: colors.warning,
-      foregroundColor: Colors.white,
+      foregroundColor: colors.primaryForeground,
     );
   }
 }

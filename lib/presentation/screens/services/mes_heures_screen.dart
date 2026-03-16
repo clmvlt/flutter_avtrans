@@ -406,10 +406,9 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Mes heures'),
-        backgroundColor: colors.bgSecondary,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, size: 22),
@@ -432,11 +431,11 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: colors.error),
+            Icon(Icons.error_outline, size: 48, color: colors.destructive),
             const SizedBox(height: AppSpacing.base),
             Text(
               _error!,
-              style: TextStyle(color: colors.textSecondary),
+              style: TextStyle(color: colors.mutedForeground),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.base),
@@ -444,7 +443,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
               text: 'Réessayer',
               onPressed: _loadWorkedHours,
               backgroundColor: colors.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: colors.primaryForeground,
             ),
           ],
         ),
@@ -454,7 +453,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     return RefreshIndicator(
       onRefresh: _loadWorkedHours,
       color: colors.primary,
-      backgroundColor: colors.bgSecondary,
+      backgroundColor: colors.card,
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.base),
         children: [
@@ -478,7 +477,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                         'Total des heures travaillées (pauses déduites)',
                         style: TextStyle(
                           fontSize: 13,
-                          color: colors.textPrimary,
+                          color: colors.foreground,
                         ),
                       ),
                     ),
@@ -500,10 +499,10 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                       ),
                       TextButton.icon(
                         onPressed: _loadWorkedHours,
-                        icon: Icon(Icons.close, size: 16, color: colors.error),
+                        icon: Icon(Icons.close, size: 16, color: colors.destructive),
                         label: Text(
                           'Réinitialiser',
-                          style: TextStyle(fontSize: 12, color: colors.error),
+                          style: TextStyle(fontSize: 12, color: colors.destructive),
                         ),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -676,9 +675,9 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
@@ -715,7 +714,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: colors.textPrimary,
+                        color: colors.foreground,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -723,7 +722,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                       _formatWeekRange(),
                       style: TextStyle(
                         fontSize: 12,
-                        color: colors.textMuted,
+                        color: colors.mutedForeground,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -742,7 +741,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                     decoration: BoxDecoration(
                       color: _canNavigateForward
                           ? colors.success.withValues(alpha: 0.1)
-                          : colors.bgTertiary,
+                          : colors.muted,
                       borderRadius: BorderRadius.circular(AppRadius.base),
                     ),
                     child: Icon(
@@ -750,7 +749,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                       size: 28,
                       color: _canNavigateForward
                           ? colors.success
-                          : colors.textMuted,
+                          : colors.mutedForeground,
                     ),
                   ),
                 ),
@@ -795,14 +794,14 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
-                        color: colors.textPrimary,
+                        color: colors.foreground,
                       ),
                     ),
                     Text(
                       'heures travaillées',
                       style: TextStyle(
                         fontSize: 12,
-                        color: colors.textSecondary,
+                        color: colors.mutedForeground,
                       ),
                     ),
                   ],
@@ -826,9 +825,9 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
@@ -854,7 +853,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -862,7 +861,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                   subtitle,
                   style: TextStyle(
                     fontSize: 11,
-                    color: colors.textMuted,
+                    color: colors.mutedForeground,
                   ),
                 ),
               ],
@@ -876,14 +875,14 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
               Text(
                 'heures',
                 style: TextStyle(
                   fontSize: 11,
-                  color: colors.textSecondary,
+                  color: colors.mutedForeground,
                 ),
               ),
             ],
@@ -1070,7 +1069,7 @@ class _SearchButton extends StatelessWidget {
     final colors = context.colors;
 
     return Material(
-      color: colors.bgSecondary,
+      color: colors.card,
       borderRadius: BorderRadius.circular(AppRadius.base),
       child: InkWell(
         onTap: onPressed,
@@ -1094,7 +1093,7 @@ class _SearchButton extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: colors.textPrimary,
+                  color: colors.foreground,
                 ),
               ),
             ],
@@ -1131,10 +1130,10 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: widget.colors.bgSecondary,
+      backgroundColor: widget.colors.card,
       title: Text(
         'Sélectionner une semaine',
-        style: TextStyle(color: widget.colors.textPrimary),
+        style: TextStyle(color: widget.colors.foreground),
       ),
       content: SizedBox(
         width: 300,
@@ -1154,7 +1153,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
             return Material(
               color: isSelected
                   ? widget.colors.primary
-                  : widget.colors.bgPrimary,
+                  : widget.colors.background,
               borderRadius: BorderRadius.circular(AppRadius.sm),
               child: InkWell(
                 onTap: () => setState(() => _selectedWeek = week),
@@ -1165,7 +1164,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
                     style: TextStyle(
                       color: isSelected
                           ? Colors.white
-                          : widget.colors.textPrimary,
+                          : widget.colors.foreground,
                       fontWeight:
                           isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
@@ -1179,7 +1178,7 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Annuler', style: TextStyle(color: widget.colors.error)),
+          child: Text('Annuler', style: TextStyle(color: widget.colors.destructive)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, _selectedWeek),
@@ -1231,10 +1230,10 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
     ).reversed.toList();
 
     return AlertDialog(
-      backgroundColor: widget.colors.bgSecondary,
+      backgroundColor: widget.colors.card,
       title: Text(
         'Sélectionner un mois et une année',
-        style: TextStyle(color: widget.colors.textPrimary),
+        style: TextStyle(color: widget.colors.foreground),
       ),
       content: SizedBox(
         width: 300,
@@ -1248,14 +1247,14 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: widget.colors.textPrimary,
+                color: widget.colors.foreground,
               ),
             ),
             const SizedBox(height: 8),
             Container(
               height: 50,
               decoration: BoxDecoration(
-                color: widget.colors.bgPrimary,
+                color: widget.colors.background,
                 borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: ListView.builder(
@@ -1270,7 +1269,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                     child: Material(
                       color: isSelected
                           ? widget.colors.primary
-                          : widget.colors.bgSecondary,
+                          : widget.colors.card,
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                       child: InkWell(
                         onTap: () => setState(() => _selectedYear = year),
@@ -1286,7 +1285,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                               style: TextStyle(
                                 color: isSelected
                                     ? Colors.white
-                                    : widget.colors.textPrimary,
+                                    : widget.colors.foreground,
                                 fontWeight: isSelected
                                     ? FontWeight.bold
                                     : FontWeight.normal,
@@ -1308,7 +1307,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: widget.colors.textPrimary,
+                color: widget.colors.foreground,
               ),
             ),
             const SizedBox(height: 8),
@@ -1324,7 +1323,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                     child: Material(
                       color: isSelected
                           ? widget.colors.primary
-                          : widget.colors.bgPrimary,
+                          : widget.colors.background,
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                       child: InkWell(
                         onTap: () => setState(() => _selectedMonth = month),
@@ -1339,7 +1338,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                             style: TextStyle(
                               color: isSelected
                                   ? Colors.white
-                                  : widget.colors.textPrimary,
+                                  : widget.colors.foreground,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
@@ -1359,7 +1358,7 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Annuler', style: TextStyle(color: widget.colors.error)),
+          child: Text('Annuler', style: TextStyle(color: widget.colors.destructive)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, {
@@ -1405,10 +1404,10 @@ class _YearPickerDialogState extends State<_YearPickerDialog> {
     ).reversed.toList();
 
     return AlertDialog(
-      backgroundColor: widget.colors.bgSecondary,
+      backgroundColor: widget.colors.card,
       title: Text(
         'Sélectionner une année',
-        style: TextStyle(color: widget.colors.textPrimary),
+        style: TextStyle(color: widget.colors.foreground),
       ),
       content: SizedBox(
         width: 300,
@@ -1424,7 +1423,7 @@ class _YearPickerDialogState extends State<_YearPickerDialog> {
               child: Material(
                 color: isSelected
                     ? widget.colors.primary
-                    : widget.colors.bgPrimary,
+                    : widget.colors.background,
                 borderRadius: BorderRadius.circular(AppRadius.sm),
                 child: InkWell(
                   onTap: () => setState(() => _selectedYear = year),
@@ -1439,7 +1438,7 @@ class _YearPickerDialogState extends State<_YearPickerDialog> {
                       style: TextStyle(
                         color: isSelected
                             ? Colors.white
-                            : widget.colors.textPrimary,
+                            : widget.colors.foreground,
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.normal,
                         fontSize: 16,
@@ -1455,7 +1454,7 @@ class _YearPickerDialogState extends State<_YearPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: Text('Annuler', style: TextStyle(color: widget.colors.error)),
+          child: Text('Annuler', style: TextStyle(color: widget.colors.destructive)),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, _selectedYear),

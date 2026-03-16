@@ -134,12 +134,12 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.error_outline, color: colors.error, size: 20),
+            Icon(Icons.error_outline, color: colors.destructive, size: 20),
             const SizedBox(width: 8),
             Expanded(child: Text(message)),
           ],
         ),
-        backgroundColor: colors.bgSecondary,
+        backgroundColor: colors.card,
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -150,10 +150,9 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     final colors = context.colors;
 
     return Scaffold(
-      backgroundColor: colors.bgPrimary,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Mises à jour'),
-        backgroundColor: colors.bgSecondary,
         actions: [
           IconButton(
             icon: _isChecking
@@ -189,7 +188,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
             const SizedBox(height: AppSpacing.base),
             Text(
               'Vérification des mises à jour...',
-              style: TextStyle(color: colors.textSecondary),
+              style: TextStyle(color: colors.mutedForeground),
             ),
           ],
         ),
@@ -203,11 +202,11 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline, size: 48, color: colors.error),
+              Icon(Icons.error_outline, size: 48, color: colors.destructive),
               const SizedBox(height: AppSpacing.base),
               Text(
                 _error!,
-                style: TextStyle(color: colors.textSecondary),
+                style: TextStyle(color: colors.mutedForeground),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppSpacing.base),
@@ -247,9 +246,9 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
-        border: Border.all(color: colors.borderPrimary),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
@@ -270,7 +269,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   'Version actuelle',
                   style: TextStyle(
                     fontSize: 13,
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                   ),
                 ),
                 Text(
@@ -278,7 +277,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: colors.textPrimary,
+                    color: colors.foreground,
                   ),
                 ),
               ],
@@ -349,10 +348,10 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 ),
                 child: Text(
                   'v${latestVersion.versionName}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: colors.primaryForeground,
                   ),
                 ),
               ),
@@ -361,11 +360,11 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Icon(Icons.storage, size: 16, color: colors.textSecondary),
+              Icon(Icons.storage, size: 16, color: colors.mutedForeground),
               const SizedBox(width: 4),
               Text(
                 latestVersion.formattedFileSize,
-                style: TextStyle(fontSize: 13, color: colors.textSecondary),
+                style: TextStyle(fontSize: 13, color: colors.mutedForeground),
               ),
             ],
           ),
@@ -377,7 +376,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: colors.textPrimary,
+                color: colors.foreground,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
@@ -385,7 +384,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               latestVersion.changelog!,
               style: TextStyle(
                 fontSize: 13,
-                color: colors.textSecondary,
+                color: colors.mutedForeground,
               ),
             ),
           ],
@@ -395,7 +394,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               children: [
                 LinearProgressIndicator(
                   value: _downloadProgress,
-                  backgroundColor: colors.bgTertiary,
+                  backgroundColor: colors.muted,
                   valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -403,7 +402,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   '${(_downloadProgress * 100).toStringAsFixed(0)}%',
                   style: TextStyle(
                     fontSize: 13,
-                    color: colors.textSecondary,
+                    color: colors.mutedForeground,
                   ),
                 ),
               ],
@@ -431,7 +430,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
-            color: colors.textPrimary,
+            color: colors.foreground,
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -448,10 +447,10 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: colors.bgSecondary,
+        color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.base),
         border: Border.all(
-          color: isCurrentVersion ? colors.primary : colors.borderPrimary,
+          color: isCurrentVersion ? colors.primary : colors.border,
         ),
       ),
       child: Row(
@@ -467,7 +466,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: colors.textPrimary,
+                        color: colors.foreground,
                       ),
                     ),
                     if (isCurrentVersion) ...[
@@ -495,7 +494,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   '${version.formattedFileSize} - ${_formatDate(version.createdAt)}',
                   style: TextStyle(
                     fontSize: 12,
-                    color: colors.textMuted,
+                    color: colors.mutedForeground,
                   ),
                 ),
                 if (version.changelog != null &&
@@ -505,10 +504,8 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                     version.changelog!,
                     style: TextStyle(
                       fontSize: 12,
-                      color: colors.textSecondary,
+                      color: colors.mutedForeground,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ],
