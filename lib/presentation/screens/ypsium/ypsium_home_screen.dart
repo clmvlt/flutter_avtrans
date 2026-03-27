@@ -1,0 +1,650 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
+import '../../../core/di/service_locator.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../data/models/ypsium_models.dart';
+import '../../widgets/app_badge.dart';
+import '../../widgets/app_button.dart';
+import '../../widgets/app_skeleton.dart';
+import 'ypsium_transport_detail_screen.dart';
+import 'ypsium_vehicule_screen.dart';
+
+/// Écran principal Ypsium après connexion
+/// Affiche la liste des ordres de transport du jour
+class YpsiumHomeScreen extends StatefulWidget {
+  const YpsiumHomeScreen({super.key});
+
+  @override
+  State<YpsiumHomeScreen> createState() => _YpsiumHomeScreenState();
+}
+
+class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
+  List<YpsiumTransportOrder> _orders = [];
+  bool _isLoading = true;
+  bool _isLoadingReferentiels = true;
+  String? _errorMessage;
+  DateTime _selectedDate = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReferentiels();
+    _loadTransports();
+  }
+
+  Future<void> _loadReferentiels() async {
+    final result = await sl.ypsiumReferentielRepository.loadAll();
+    if (!mounted) return;
+    result.fold(
+      (_) {},
+      (_) {},
+    );
+    setState(() => _isLoadingReferentiels = false);
+  }
+
+  Future<void> _loadTransports() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final dateStr = DateFormat('yyyyMMdd').format(_selectedDate);
+    final result = await sl.ypsiumTransportRepository.getListeTransport(
+      date: dateStr,
+    );
+
+    if (!mounted) return;
+    result.fold(
+      (failure) => setState(() {
+        _errorMessage = failure.message;
+        _isLoading = false;
+      }),
+      (orders) => setState(() {
+        _orders = orders;
+        _isLoading = false;
+      }),
+    );
+  }
+
+  void _changeDate(int days) {
+    setState(() => _selectedDate = _selectedDate.add(Duration(days: days)));
+    _loadTransports();
+  }
+
+  void _openDetail(YpsiumTransportOrder order) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => YpsiumTransportDetailScreen(order: order),
+      ),
+    );
+    if (mounted) _loadTransports();
+  }
+
+  void _openVehicules() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const YpsiumVehiculeScreen()),
+    );
+  }
+
+  Future<void> _logout() async {
+    await sl.ypsiumAuthRepository.logout();
+    if (!mounted) return;
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final session = sl.ypsiumAuthRepository.currentSession;
+
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          'Ypsium',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+            letterSpacing: -0.3,
+            color: colors.foreground,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.directions_car, size: 20, color: colors.mutedForeground),
+            onPressed: _openVehicules,
+            tooltip: 'Véhicules',
+          ),
+          IconButton(
+            icon: Icon(Icons.logout, size: 18, color: colors.mutedForeground),
+            onPressed: _logout,
+            tooltip: 'Déconnexion Ypsium',
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _loadTransports,
+        color: colors.primary,
+        backgroundColor: colors.card,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(AppSpacing.base),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header chauffeur
+              _buildChauffeurHeader(colors, session),
+              const SizedBox(height: AppSpacing.base),
+
+              // Date picker
+              _buildDateSelector(colors),
+              const SizedBox(height: AppSpacing.base),
+
+              // Referentiels loading indicator
+              if (_isLoadingReferentiels)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.mutedForeground,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'Chargement des référentiels...',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+              if (_isLoading)
+                _buildLoadingSkeleton(colors)
+              else if (_errorMessage != null)
+                _buildError(colors)
+              else if (_orders.isEmpty)
+                _buildEmpty(colors)
+              else
+                ..._buildGroupedOrders(colors),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChauffeurHeader(AppColors colors, dynamic session) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: colors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: colors.chart4.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(Icons.local_shipping, size: 22, color: colors.chart4),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  session?.login ?? '',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: colors.foreground,
+                  ),
+                ),
+                Text(
+                  'Chauffeur ${session?.idChauffeur ?? ''}',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: colors.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AppBadge(
+            text: '${_orders.length} ordres',
+            variant: BadgeVariant.secondary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      locale: const Locale('fr', 'FR'),
+      builder: (context, child) {
+        final colors = context.colors;
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: colors.primary,
+              brightness: colors.isDarkMode ? Brightness.dark : Brightness.light,
+            ),
+            datePickerTheme: DatePickerThemeData(
+              backgroundColor: colors.card,
+              surfaceTintColor: Colors.transparent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+              dayStyle: TextStyle(fontSize: 14, color: colors.foreground),
+              headerBackgroundColor: colors.primary,
+              headerForegroundColor: colors.primaryForeground,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null && !DateUtils.isSameDay(picked, _selectedDate)) {
+      setState(() => _selectedDate = picked);
+      _loadTransports();
+    }
+  }
+
+  Widget _buildDateSelector(AppColors colors) {
+    final isToday = DateUtils.isSameDay(_selectedDate, DateTime.now());
+    final dateLabel = isToday
+        ? "Aujourd'hui"
+        : DateFormat('EEEE d MMMM', 'fr_FR').format(_selectedDate);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: colors.border),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(Icons.chevron_left, size: 22, color: colors.foreground),
+            onPressed: () => _changeDate(-1),
+            visualDensity: VisualDensity.compact,
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: _pickDate,
+              child: Text(
+                dateLabel,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: colors.foreground,
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.chevron_right, size: 22, color: colors.foreground),
+            onPressed: () => _changeDate(1),
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildGroupedOrders(AppColors colors) {
+    final aEnlever = _orders.where((o) => o.isAEnlever).toList();
+    final enleves = _orders.where((o) => o.isEnleve).toList();
+    final livres = _orders.where((o) => o.isLivre).toList();
+
+    final widgets = <Widget>[];
+
+    if (aEnlever.isNotEmpty) {
+      widgets.add(_buildSectionHeader(
+        colors,
+        'À enlever',
+        aEnlever.length,
+        Icons.upload_outlined,
+        colors.info,
+      ));
+      for (final order in aEnlever) {
+        widgets.add(_buildOrderCard(order, colors));
+      }
+    }
+
+    if (enleves.isNotEmpty) {
+      widgets.add(_buildSectionHeader(
+        colors,
+        'À livrer',
+        enleves.length,
+        Icons.download_outlined,
+        colors.warning,
+      ));
+      for (final order in enleves) {
+        widgets.add(_buildOrderCard(order, colors));
+      }
+    }
+
+    if (livres.isNotEmpty) {
+      widgets.add(_buildSectionHeader(
+        colors,
+        'Livrés',
+        livres.length,
+        Icons.check_circle_outline,
+        colors.success,
+      ));
+      for (final order in livres) {
+        widgets.add(_buildOrderCard(order, colors));
+      }
+    }
+
+    return widgets;
+  }
+
+  Widget _buildSectionHeader(
+    AppColors colors,
+    String title,
+    int count,
+    IconData icon,
+    Color iconColor,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.sm),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: iconColor),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colors.foreground,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              '$count',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: iconColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderCard(YpsiumTransportOrder order, AppColors colors) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Material(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: InkWell(
+          onTap: () => _openDetail(order),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.base),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: colors.border),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header: client + état
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        order.client,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: colors.foreground,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    _buildEtatBadge(order, colors),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.md),
+
+                // Enlèvement
+                _buildStopRow(
+                  colors: colors,
+                  icon: Icons.upload_outlined,
+                  iconColor: colors.info,
+                  label: 'Enlèvement',
+                  name: order.eNom,
+                  ville: '${order.eCodePostal} ${order.eVille}'.trim(),
+                  heure: order.eHeureFormatted,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(left: 14),
+                  child: Container(
+                    width: 1,
+                    height: 12,
+                    color: colors.border,
+                  ),
+                ),
+
+                // Livraison
+                _buildStopRow(
+                  colors: colors,
+                  icon: Icons.download_outlined,
+                  iconColor: colors.success,
+                  label: 'Livraison',
+                  name: order.lNom,
+                  ville: '${order.lCodePostal} ${order.lVille}'.trim(),
+                  heure: order.lHeureFormatted,
+                ),
+
+                // N° ordre
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Ordre #${order.idOrdre}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colors.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStopRow({
+    required AppColors colors,
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String name,
+    required String ville,
+    required String heure,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, size: 14, color: iconColor),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name.isNotEmpty ? name : label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: colors.foreground,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (ville.isNotEmpty)
+                Text(
+                  ville,
+                  style: TextStyle(fontSize: 12, color: colors.mutedForeground),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+          ),
+        ),
+        if (heure.isNotEmpty)
+          Text(
+            heure,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: colors.foreground,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildEtatBadge(YpsiumTransportOrder order, AppColors colors) {
+    BadgeVariant variant;
+    switch (order.idEtat) {
+      case 4:
+      case 5:
+        variant = BadgeVariant.success;
+        break;
+      case 2:
+        variant = BadgeVariant.warning;
+        break;
+      default:
+        variant = BadgeVariant.secondary;
+    }
+    return AppBadge(text: order.etatLabel, variant: variant);
+  }
+
+  Widget _buildLoadingSkeleton(AppColors colors) {
+    return Column(
+      children: List.generate(
+        3,
+        (_) => Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: AppSkeleton(
+            height: 140,
+            borderRadius: AppRadius.lg,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildError(AppColors colors) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.error_outline, size: 40, color: colors.destructive),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            _errorMessage!,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 14, color: colors.foreground),
+          ),
+          const SizedBox(height: AppSpacing.base),
+          AppButton(
+            text: 'Réessayer',
+            variant: ButtonVariant.outline,
+            onPressed: _loadTransports,
+            fullWidth: false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmpty(AppColors colors) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppSpacing.xxl),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.inbox_outlined, size: 40, color: colors.mutedForeground),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'Aucun ordre de transport',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+              color: colors.foreground,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'Pas de commande prévue pour cette date',
+            style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+          ),
+        ],
+      ),
+    );
+  }
+}
