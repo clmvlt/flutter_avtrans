@@ -118,6 +118,7 @@ class UpdateCheckerService {
 
     try {
       final versionCode = await currentVersionCode;
+      final versionName = await currentVersionName;
       final result = await sl.appVersionRepository.checkForUpdate(versionCode);
 
       // Sauvegarde le timestamp du check
@@ -130,6 +131,13 @@ class UpdateCheckerService {
           // Ne pas afficher si la version actuelle est >= à la dernière version
           if (!response.updateAvailable ||
               response.latestVersionCode <= response.currentVersionCode) {
+            return null;
+          }
+
+          // Comparaison par versionName : si le nom de version est identique,
+          // pas de mise à jour (contourne le problème de buildNumber manquant)
+          if (response.latestVersion != null &&
+              response.latestVersion!.versionName == versionName) {
             return null;
           }
 
