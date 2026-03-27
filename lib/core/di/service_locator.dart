@@ -1,3 +1,5 @@
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../data/repositories/absence_repository.dart';
 import '../../data/repositories/acompte_repository.dart';
 import '../../data/repositories/app_version_repository.dart';
@@ -9,9 +11,14 @@ import '../../data/repositories/service_repository.dart';
 import '../../data/repositories/signature_repository.dart';
 import '../../data/repositories/todo_repository.dart';
 import '../../data/repositories/vehicule_repository.dart';
+import '../../data/repositories/ypsium_auth_repository.dart';
+import '../../data/repositories/ypsium_referentiel_repository.dart';
+import '../../data/repositories/ypsium_transport_repository.dart';
+import '../../data/repositories/ypsium_vehicule_repository.dart';
 import '../../data/services/download_service.dart';
 import '../../data/services/http_service.dart';
 import '../../data/services/token_storage_service.dart';
+import '../../data/services/ypsium_http_service.dart';
 import '../services/location_service.dart';
 import '../services/update_checker_service.dart';
 
@@ -38,6 +45,11 @@ class ServiceLocator {
   DownloadService? _downloadService;
   AppVersionRepository? _appVersionRepository;
   UpdateCheckerService? _updateCheckerService;
+  YpsiumHttpService? _ypsiumHttpService;
+  YpsiumAuthRepository? _ypsiumAuthRepository;
+  YpsiumTransportRepository? _ypsiumTransportRepository;
+  YpsiumVehiculeRepository? _ypsiumVehiculeRepository;
+  YpsiumReferentielRepository? _ypsiumReferentielRepository;
 
   bool _isInitialized = false;
 
@@ -105,6 +117,26 @@ class ServiceLocator {
 
     // Initialise le service de vérification des mises à jour
     _updateCheckerService = await UpdateCheckerService.create();
+
+    // Initialise les services Ypsium
+    final prefs = await SharedPreferences.getInstance();
+    _ypsiumHttpService = YpsiumHttpService();
+    _ypsiumAuthRepository = YpsiumAuthRepository(
+      httpService: _ypsiumHttpService!,
+      prefs: prefs,
+    );
+    _ypsiumTransportRepository = YpsiumTransportRepository(
+      httpService: _ypsiumHttpService!,
+      authRepository: _ypsiumAuthRepository!,
+    );
+    _ypsiumVehiculeRepository = YpsiumVehiculeRepository(
+      httpService: _ypsiumHttpService!,
+      authRepository: _ypsiumAuthRepository!,
+    );
+    _ypsiumReferentielRepository = YpsiumReferentielRepository(
+      httpService: _ypsiumHttpService!,
+      authRepository: _ypsiumAuthRepository!,
+    );
 
     _isInitialized = true;
   }
@@ -205,6 +237,36 @@ class ServiceLocator {
     return _updateCheckerService!;
   }
 
+  /// Récupère le service HTTP Ypsium
+  YpsiumHttpService get ypsiumHttpService {
+    _ensureInitialized();
+    return _ypsiumHttpService!;
+  }
+
+  /// Récupère le repository d'authentification Ypsium
+  YpsiumAuthRepository get ypsiumAuthRepository {
+    _ensureInitialized();
+    return _ypsiumAuthRepository!;
+  }
+
+  /// Récupère le repository de transport Ypsium
+  YpsiumTransportRepository get ypsiumTransportRepository {
+    _ensureInitialized();
+    return _ypsiumTransportRepository!;
+  }
+
+  /// Récupère le repository de véhicules Ypsium
+  YpsiumVehiculeRepository get ypsiumVehiculeRepository {
+    _ensureInitialized();
+    return _ypsiumVehiculeRepository!;
+  }
+
+  /// Récupère le repository des référentiels Ypsium
+  YpsiumReferentielRepository get ypsiumReferentielRepository {
+    _ensureInitialized();
+    return _ypsiumReferentielRepository!;
+  }
+
   /// Vérifie que les services sont initialisés
   void _ensureInitialized() {
     if (!_isInitialized) {
@@ -234,6 +296,12 @@ class ServiceLocator {
     _downloadService = null;
     _appVersionRepository = null;
     _updateCheckerService = null;
+    _ypsiumHttpService?.dispose();
+    _ypsiumHttpService = null;
+    _ypsiumAuthRepository = null;
+    _ypsiumTransportRepository = null;
+    _ypsiumVehiculeRepository = null;
+    _ypsiumReferentielRepository = null;
     _isInitialized = false;
   }
 }

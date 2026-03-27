@@ -22,3 +22,5 @@ export 'todo_request_models.dart';
 export 'update_check_response.dart';
 export 'user_model.dart';
 export 'vehicule_model.dart';
+export 'ypsium_auth_models.dart';
+export 'ypsium_models.dart';

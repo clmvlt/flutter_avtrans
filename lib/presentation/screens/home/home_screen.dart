@@ -23,6 +23,7 @@ import '../signatures/signatures_screen.dart';
 import '../todos/todos_screen.dart';
 import '../uta/uta_map_screen.dart';
 import '../vehicules/vehicules_list_screen.dart';
+import '../ypsium/ypsium_login_screen.dart';
 
 /// Page d'accueil - design shadcn/ui
 class HomeScreen extends StatefulWidget {
@@ -178,6 +179,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (mounted) _loadUnreadCount();
   }
   void _openCouchettes() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CouchettesScreen()));
+  void _openYpsium() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const YpsiumLoginScreen()));
 
   void _openSettings() async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
@@ -362,6 +364,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _ToolItem(title: 'Rapport', subtitle: 'Créer un rapport', icon: Icons.description, color: colors.chart3, onTap: _openRapportVehicule),
       _ToolItem(title: 'Tâches', subtitle: 'Gérer les todos', icon: Icons.checklist, color: colors.chart3, onTap: _openTodos),
       _ToolItem(title: 'Carte UTA', subtitle: 'Trouver une station', icon: Icons.map, color: colors.info, onTap: _openUtaMap),
+      _ToolItem(title: 'Ypsium', subtitle: 'Transport / Commandes', icon: Icons.local_shipping, color: colors.chart4, onTap: _openYpsium),
       if (_user?.isCouchette == true)
         _ToolItem(title: 'Couchettes', subtitle: 'Gérer les couchettes', icon: Icons.hotel, color: colors.info, onTap: _openCouchettes),
       _ToolItem(title: 'Paramètres', subtitle: 'Personnaliser', icon: Icons.settings, color: colors.mutedForeground, onTap: _openSettings),
