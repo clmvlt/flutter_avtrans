@@ -145,9 +145,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: AppSpacing.base),
                 Text(
                   'Choisir une photo',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
@@ -441,13 +439,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     _buildProfilePicture(colors),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
                     _buildInfoSection(colors),
                     const SizedBox(height: AppSpacing.base),
                     _buildAddressSection(colors),
                     const SizedBox(height: AppSpacing.base),
                     _buildPasswordSection(colors),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
                     AppButton(
                       text: 'Enregistrer les modifications',
                       icon: Icons.save,
@@ -564,11 +562,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildInfoSection(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -580,9 +579,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 'Informations personnelles',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                style: textTheme.titleMedium?.copyWith(
                   color: colors.foreground,
                 ),
               ),
@@ -644,11 +641,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildAddressSection(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -660,9 +658,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 'Adresse',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                style: textTheme.titleMedium?.copyWith(
                   color: colors.foreground,
                 ),
               ),
@@ -713,17 +709,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildPasswordSection(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
           InkWell(
             onTap: () => setState(() => _showPasswordSection = !_showPasswordSection),
-            borderRadius: BorderRadius.circular(AppRadius.base),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.base),
               child: Row(
@@ -733,9 +730,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   Expanded(
                     child: Text(
                       'Modifier le mot de passe',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      style: textTheme.titleMedium?.copyWith(
                         color: colors.foreground,
                       ),
                     ),

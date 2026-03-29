@@ -145,12 +145,12 @@ class _TodosScreenState extends State<TodosScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        title: Text('Supprimer', style: TextStyle(color: colors.foreground)),
+        title: Text('Supprimer', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.foreground)),
         content: Text(
           'Voulez-vous vraiment supprimer cette tâche ?',
-          style: TextStyle(color: colors.mutedForeground),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
         ),
         actions: [
           TextButton(
@@ -306,27 +306,14 @@ class _TodosScreenState extends State<TodosScreen> {
     }
 
     if (_todos.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.checklist_outlined, size: 64, color: colors.mutedForeground),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              _hasActiveFilters
-                  ? 'Aucune tâche ne correspond aux filtres'
-                  : 'Aucune tâche',
-              style: TextStyle(fontSize: 16, color: colors.mutedForeground),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            if (!_hasActiveFilters)
-              Text(
-                'Appuyez sur + pour créer une tâche',
-                style: TextStyle(fontSize: 13, color: colors.mutedForeground),
-              ),
-          ],
-        ),
+      return AppEmptyState(
+        icon: Icons.checklist_outlined,
+        title: _hasActiveFilters
+            ? 'Aucune tâche ne correspond aux filtres'
+            : 'Aucune tâche',
+        subtitle: !_hasActiveFilters
+            ? 'Appuyez sur + pour créer une tâche'
+            : null,
       );
     }
 
@@ -355,46 +342,53 @@ class _TodosScreenState extends State<TodosScreen> {
 
   Widget _buildTodoCard(Todo todo, AppColors colors) {
     final dateFormat = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR');
+    final textTheme = Theme.of(context).textTheme;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       color: colors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         onLongPress: () => _deleteTodo(todo),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.base),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Checkbox
+              // Checkbox — wrapped in SizedBox for 48dp touch target
               GestureDetector(
+                behavior: HitTestBehavior.opaque,
                 onTap: () => _toggleTodo(todo),
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  margin: const EdgeInsets.only(top: 2),
-                  decoration: BoxDecoration(
-                    color: todo.isDone
-                        ? colors.primary
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: todo.isDone
-                          ? colors.primary
-                          : colors.border,
-                      width: 2,
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Center(
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        color: todo.isDone
+                            ? colors.primary
+                            : Colors.transparent,
+                        border: Border.all(
+                          color: todo.isDone
+                              ? colors.primary
+                              : colors.border,
+                          width: 2,
+                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: todo.isDone
+                          ? Icon(Icons.check, size: 16, color: colors.primaryForeground)
+                          : null,
                     ),
-                    borderRadius: BorderRadius.circular(6),
                   ),
-                  child: todo.isDone
-                      ? Icon(Icons.check, size: 16, color: colors.primaryForeground)
-                      : null,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              const SizedBox(width: AppSpacing.sm),
               // Contenu
               Expanded(
                 child: Column(
@@ -402,8 +396,7 @@ class _TodosScreenState extends State<TodosScreen> {
                   children: [
                     Text(
                       todo.title,
-                      style: TextStyle(
-                        fontSize: 15,
+                      style: textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w500,
                         color: todo.isDone
                             ? colors.mutedForeground
@@ -414,11 +407,10 @@ class _TodosScreenState extends State<TodosScreen> {
                     ),
                     if (todo.description != null &&
                         todo.description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         todo.description!,
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: textTheme.bodySmall?.copyWith(
                           color: colors.mutedForeground,
                         ),
                         maxLines: 2,
@@ -431,19 +423,17 @@ class _TodosScreenState extends State<TodosScreen> {
                         if (todo.category != null) ...[
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
+                              horizontal: AppSpacing.sm,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
                               color: _parseColor(todo.category!.color)
                                   .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
                             child: Text(
                               todo.category!.name,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500,
+                              style: textTheme.labelSmall?.copyWith(
                                 color: _parseColor(todo.category!.color),
                               ),
                             ),
@@ -453,8 +443,7 @@ class _TodosScreenState extends State<TodosScreen> {
                         if (todo.createdAt != null)
                           Text(
                             dateFormat.format(todo.createdAt!),
-                            style: TextStyle(
-                              fontSize: 11,
+                            style: textTheme.labelSmall?.copyWith(
                               color: colors.mutedForeground,
                             ),
                           ),
@@ -465,10 +454,10 @@ class _TodosScreenState extends State<TodosScreen> {
               ),
               // Delete button
               IconButton(
-                icon: Icon(Icons.delete_outline, size: 18, color: colors.mutedForeground),
+                icon: Icon(Icons.delete_outline, size: 20, color: colors.mutedForeground),
                 onPressed: () => _deleteTodo(todo),
                 padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               ),
             ],
           ),
@@ -574,9 +563,7 @@ class _CreateTodoSheetState extends State<_CreateTodoSheet> {
               children: [
                 Text(
                   'Nouvelle tâche',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
@@ -706,9 +693,7 @@ class _FilterTodoSheetState extends State<_FilterTodoSheet> {
             children: [
               Text(
                 'Filtres',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: colors.foreground,
                 ),
               ),
@@ -721,9 +706,7 @@ class _FilterTodoSheetState extends State<_FilterTodoSheet> {
           const SizedBox(height: AppSpacing.base),
           Text(
             'Statut',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: colors.mutedForeground,
             ),
           ),
@@ -753,9 +736,7 @@ class _FilterTodoSheetState extends State<_FilterTodoSheet> {
             const SizedBox(height: AppSpacing.base),
             Text(
               'Catégorie',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: colors.mutedForeground,
               ),
             ),

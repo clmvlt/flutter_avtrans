@@ -57,31 +57,32 @@ class _YpsiumSignatureFullscreenState extends State<YpsiumSignatureFullscreen> {
                 children: [
                   IconButton(
                     icon: Icon(Icons.close, size: 22, color: colors.foreground),
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     onPressed: () => Navigator.of(context).pop(false),
                     tooltip: 'Fermer',
                   ),
                   Text(
                     'Signature',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: colors.foreground,
                     ),
                   ),
                   const Spacer(),
                   IconButton(
                     icon: Icon(Icons.refresh, size: 20, color: colors.mutedForeground),
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     onPressed: () => widget.controller.clear(),
                     tooltip: 'Effacer',
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   ElevatedButton.icon(
                     onPressed: () => Navigator.of(context).pop(true),
-                    icon: const Icon(Icons.check, size: 18),
-                    label: const Text('OK'),
+                    icon: const Icon(Icons.check, size: 20),
+                    label: Text('OK', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: colors.primaryForeground)),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.primary,
                       foregroundColor: colors.primaryForeground,
+                      minimumSize: const Size(0, 48),
                       padding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.base,
                         vertical: AppSpacing.sm,

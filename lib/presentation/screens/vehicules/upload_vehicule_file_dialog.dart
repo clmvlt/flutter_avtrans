@@ -152,11 +152,11 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
       builder: (context) => AlertDialog(
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         title: Text(
           'Choisir une source',
-          style: TextStyle(color: colors.foreground),
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.foreground),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -203,14 +203,16 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
+    final textTheme = Theme.of(context).textTheme;
+
     return AlertDialog(
       backgroundColor: colors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       title: Text(
         'Ajouter un fichier',
-        style: TextStyle(color: colors.foreground),
+        style: textTheme.titleLarge?.copyWith(color: colors.foreground),
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -220,7 +222,7 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
               padding: const EdgeInsets.all(AppSpacing.base),
               decoration: BoxDecoration(
                 color: colors.muted,
-                borderRadius: BorderRadius.circular(AppRadius.base),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 border: Border.all(color: colors.border),
               ),
               child: Row(
@@ -234,18 +236,20 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
                     color: _mimeType == 'application/pdf'
                         ? Colors.red
                         : colors.primary,
+                    size: 22,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       _fileName ?? '',
-                      style: TextStyle(color: colors.foreground),
+                      style: textTheme.bodyMedium?.copyWith(color: colors.foreground),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(
-                    icon: Icon(Icons.close, color: colors.destructive),
+                    icon: Icon(Icons.close, color: colors.destructive, size: 20),
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     onPressed: _clearSelection,
                   ),
                 ],
@@ -256,10 +260,10 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
               onTap: _showSourceDialog,
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.xl),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
                   color: colors.muted,
-                  borderRadius: BorderRadius.circular(AppRadius.base),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   border: Border.all(color: colors.border),
                 ),
                 child: Column(
@@ -272,14 +276,13 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
                     const SizedBox(height: AppSpacing.sm),
                     Text(
                       'Appuyez pour sélectionner',
-                      style: TextStyle(color: colors.mutedForeground),
+                      style: textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
                     ),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       'Images, PDF, Documents',
-                      style: TextStyle(
+                      style: textTheme.labelSmall?.copyWith(
                         color: colors.mutedForeground,
-                        fontSize: 12,
                       ),
                     ),
                   ],
@@ -292,9 +295,10 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           child: Text(
             'Annuler',
-            style: TextStyle(color: colors.mutedForeground),
+            style: textTheme.labelLarge?.copyWith(color: colors.mutedForeground),
           ),
         ),
         ElevatedButton(
@@ -302,6 +306,7 @@ class _UploadVehiculeFileDialogState extends State<UploadVehiculeFileDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: colors.primary,
             foregroundColor: colors.primaryForeground,
+            minimumSize: const Size(48, 48),
           ),
           child: _isLoading
               ? SizedBox(

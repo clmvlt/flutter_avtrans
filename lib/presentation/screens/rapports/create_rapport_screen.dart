@@ -8,9 +8,7 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/rapport_vehicule_model.dart';
 import '../../../data/models/vehicule_model.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/app_searchable_select.dart';
-import '../../widgets/app_text_field.dart';
+import '../../widgets/widgets.dart';
 
 /// Écran pour créer un rapport de véhicule
 class CreateRapportScreen extends StatefulWidget {
@@ -247,41 +245,40 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.error_outline, size: 64, color: colors.destructive),
-                      const SizedBox(height: 16),
+                      Icon(Icons.error_outline, size: 48, color: colors.destructive),
+                      const SizedBox(height: AppSpacing.base),
                       Text(
                         _errorMessage!,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.destructive),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.destructive),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: AppSpacing.base),
                       ElevatedButton(
                         onPressed: _loadVehicules,
+                        style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
                         child: const Text('Réessayer'),
                       ),
                     ],
                   ),
                 )
               : _vehicules.isEmpty
-                  ? const Center(
-                      child: Text('Aucun véhicule disponible'),
+                  ? const AppEmptyState(
+                      icon: Icons.directions_car_outlined,
+                      title: 'Aucun véhicule disponible',
                     )
                   : SingleChildScrollView(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(AppSpacing.base),
                       child: Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             // Sélection du véhicule
-                            const Text(
+                            Text(
                               'Véhicule',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppSpacing.sm),
                             AppSearchableSelect<Vehicule>(
                               items: _vehicules,
                               selectedItem: _selectedVehicule,
@@ -304,23 +301,20 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: AppSpacing.lg),
 
                             // Commentaire
-                            const Text(
+                            Text(
                               'Commentaire (optionnel)',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                              style: Theme.of(context).textTheme.titleMedium,
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: AppSpacing.sm),
                             AppTextField(
                               controller: _commentaireController,
                               hint: 'État du véhicule, remarques...',
                               maxLines: 5,
                             ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: AppSpacing.lg),
 
                             // Photos
                             Row(
@@ -329,17 +323,13 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                 Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text(
+                                    Text(
                                       'Photos *',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      style: Theme.of(context).textTheme.titleMedium,
                                     ),
                                     Text(
                                       'Minimum 2 photos (avant et arrière)',
-                                      style: TextStyle(
-                                        fontSize: 12,
+                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                         color: colors.mutedForeground,
                                       ),
                                     ),
@@ -352,15 +342,15 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: AppSpacing.md),
                             // Message d'avertissement si moins de 2 photos
                             if (_images.length < 2)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                                margin: const EdgeInsets.only(bottom: AppSpacing.md),
                                 decoration: BoxDecoration(
                                   color: colors.warningMuted,
-                                  borderRadius: BorderRadius.circular(8),
+                                  borderRadius: BorderRadius.circular(AppRadius.lg),
                                   border: Border.all(color: colors.warning.withValues(alpha: 0.3)),
                                 ),
                                 child: Row(
@@ -370,15 +360,14 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                       color: colors.warning,
                                       size: 20,
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: AppSpacing.sm),
                                     Expanded(
                                       child: Text(
                                         _images.isEmpty
                                             ? 'Ajoutez 2 photos (avant et arrière du véhicule)'
                                             : 'Ajoutez encore ${2 - _images.length} photo(s)',
-                                        style: TextStyle(
+                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                           color: colors.warning,
-                                          fontSize: 13,
                                         ),
                                       ),
                                     ),
@@ -391,8 +380,8 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                               physics: const NeverScrollableScrollPhysics(),
                               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
+                                crossAxisSpacing: AppSpacing.md,
+                                mainAxisSpacing: AppSpacing.md,
                                 childAspectRatio: 1,
                               ),
                               itemCount: _images.length + 1, // +1 pour le bouton ajouter
@@ -404,7 +393,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                     child: Container(
                                       decoration: BoxDecoration(
                                         color: colors.muted,
-                                        borderRadius: BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(AppRadius.lg),
                                         border: Border.all(
                                           color: colors.border,
                                           width: 2,
@@ -419,12 +408,11 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                             size: 40,
                                             color: colors.mutedForeground,
                                           ),
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: AppSpacing.sm),
                                           Text(
                                             'Ajouter une photo',
-                                            style: TextStyle(
+                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                               color: colors.mutedForeground,
-                                              fontSize: 13,
                                               fontWeight: FontWeight.w500,
                                             ),
                                           ),
@@ -436,7 +424,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                 // Afficher les photos existantes
                                 return Container(
                                   decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
                                     boxShadow: [
                                       BoxShadow(
                                         color: Colors.black.withValues(alpha: 0.1),
@@ -446,7 +434,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                     ],
                                   ),
                                   child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(AppRadius.lg),
                                     child: Stack(
                                       fit: StackFit.expand,
                                       children: [
@@ -461,7 +449,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                           child: GestureDetector(
                                             onTap: () => _removeImage(index),
                                             child: Container(
-                                              padding: const EdgeInsets.all(6),
+                                              padding: const EdgeInsets.all(AppSpacing.sm),
                                               decoration: BoxDecoration(
                                                 color: colors.destructive,
                                                 shape: BoxShape.circle,
@@ -501,10 +489,8 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                             child: Text(
                                               index == 0 ? 'Photo avant' : index == 1 ? 'Photo arrière' : 'Photo ${index + 1}',
                                               textAlign: TextAlign.center,
-                                              style: const TextStyle(
+                                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                                 color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w500,
                                               ),
                                             ),
                                           ),
@@ -515,7 +501,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                 );
                               },
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: AppSpacing.xl),
 
                             // Bouton de soumission
                             AppButton(

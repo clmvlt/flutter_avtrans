@@ -147,7 +147,8 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
               ? null
               : [
                   IconButton(
-                    icon: Icon(Icons.close, size: 18, color: colors.mutedForeground),
+                    icon: Icon(Icons.close, size: 20, color: colors.mutedForeground),
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     onPressed: () => Navigator.of(context).pop(false),
                   ),
                 ],
@@ -166,11 +167,11 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
                         description: 'Veuillez renseigner le kilométrage de votre véhicule avant de commencer votre journée.',
                         variant: AlertVariant.info,
                       ),
-                      const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: AppSpacing.lg),
                       _buildVehiculeSelector(colors),
                       const SizedBox(height: AppSpacing.base),
                       _buildKilometrageInput(colors),
-                      const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: AppSpacing.lg),
                       AppButton(
                         text: 'Valider le kilométrage',
                         icon: Icons.check,
@@ -186,14 +187,13 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
   }
 
   Widget _buildVehiculeSelector(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Véhicule',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+          style: textTheme.titleSmall?.copyWith(
             color: colors.foreground,
           ),
         ),
@@ -221,14 +221,13 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
   }
 
   Widget _buildKilometrageInput(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Kilométrage actuel',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+          style: textTheme.titleSmall?.copyWith(
             color: colors.foreground,
           ),
         ),
@@ -237,18 +236,14 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen> {
           controller: _kmController,
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+          style: textTheme.titleLarge?.copyWith(
             color: colors.foreground,
           ),
           decoration: InputDecoration(
             hintText: 'Ex: 125000',
             prefixIcon: Icon(Icons.speed, color: colors.primary, size: 20),
             suffixText: 'km',
-            suffixStyle: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+            suffixStyle: textTheme.labelMedium?.copyWith(
               color: colors.mutedForeground,
             ),
           ),

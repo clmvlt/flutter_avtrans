@@ -165,6 +165,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                     ),
                   )
                 : const Icon(Icons.refresh),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: _isChecking
                 ? null
                 : () {
@@ -198,7 +199,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     if (_error != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -212,6 +213,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               const SizedBox(height: AppSpacing.base),
               ElevatedButton(
                 onPressed: _initialize,
+                style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
                 child: const Text('Réessayer'),
               ),
             ],
@@ -234,7 +236,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           if (_updateCheck?.updateAvailable == true)
             _buildUpdateAvailableCard(colors),
           if (_allVersions.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
             _buildVersionHistorySection(colors),
           ],
         ],
@@ -243,22 +245,23 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   }
 
   Widget _buildCurrentVersionCard(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: colors.primary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
-            child: Icon(Icons.phone_android, color: colors.primary, size: 24),
+            child: Icon(Icons.phone_android, color: colors.primary, size: 22),
           ),
           const SizedBox(width: AppSpacing.base),
           Expanded(
@@ -267,16 +270,13 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               children: [
                 Text(
                   'Version actuelle',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: textTheme.bodySmall?.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
                 Text(
                   '$_currentVersion ($_currentVersionCode)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: textTheme.titleMedium?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
@@ -285,7 +285,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           ),
           if (_updateCheck?.updateAvailable == false)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               decoration: BoxDecoration(
                 color: colors.success.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(AppRadius.md),
@@ -294,12 +294,10 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.check_circle, color: colors.success, size: 16),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     'À jour',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                    style: textTheme.labelSmall?.copyWith(
                       color: colors.success,
                     ),
                   ),
@@ -314,12 +312,13 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   Widget _buildUpdateAvailableCard(AppColors colors) {
     final latestVersion = _updateCheck!.latestVersion!;
     final isDownloading = _downloadingVersionId == latestVersion.id;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
       ),
       child: Column(
@@ -327,14 +326,12 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.system_update, color: colors.primary, size: 24),
+              Icon(Icons.system_update, color: colors.primary, size: 22),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   'Mise à jour disponible',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: textTheme.titleMedium?.copyWith(
                     color: colors.primary,
                   ),
                 ),
@@ -348,8 +345,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 ),
                 child: Text(
                   'v${latestVersion.versionName}',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: colors.primaryForeground,
                   ),
@@ -361,10 +357,10 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           Row(
             children: [
               Icon(Icons.storage, size: 16, color: colors.mutedForeground),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               Text(
                 latestVersion.formattedFileSize,
-                style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+                style: textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
               ),
             ],
           ),
@@ -373,17 +369,14 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
             const SizedBox(height: AppSpacing.md),
             Text(
               'Nouveautés:',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+              style: textTheme.labelMedium?.copyWith(
                 color: colors.foreground,
               ),
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
               latestVersion.changelog!,
-              style: TextStyle(
-                fontSize: 13,
+              style: textTheme.bodySmall?.copyWith(
                 color: colors.mutedForeground,
               ),
             ),
@@ -400,8 +393,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   '${(_downloadProgress * 100).toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: textTheme.bodySmall?.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
@@ -412,8 +404,9 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => _downloadAndInstall(latestVersion),
-                icon: const Icon(Icons.download),
+                icon: const Icon(Icons.download, size: 20),
                 label: const Text('Télécharger et installer'),
+                style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
               ),
             ),
         ],
@@ -427,9 +420,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
       children: [
         Text(
           'Historique des versions',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
             color: colors.foreground,
           ),
         ),
@@ -442,13 +433,14 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   Widget _buildVersionItem(AppVersion version, AppColors colors) {
     final isCurrentVersion = version.versionCode == _currentVersionCode;
     final isDownloading = _downloadingVersionId == version.id;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(
           color: isCurrentVersion ? colors.primary : colors.border,
         ),
@@ -463,9 +455,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                   children: [
                     Text(
                       'v${version.versionName}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                      style: textTheme.titleSmall?.copyWith(
                         color: colors.foreground,
                       ),
                     ),
@@ -473,15 +463,14 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                       const SizedBox(width: AppSpacing.sm),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                            horizontal: AppSpacing.sm, vertical: 2),
                         decoration: BoxDecoration(
                           color: colors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(4),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                         child: Text(
                           'Installée',
-                          style: TextStyle(
-                            fontSize: 10,
+                          style: textTheme.labelSmall?.copyWith(
                             color: colors.primary,
                           ),
                         ),
@@ -489,21 +478,19 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                     ],
                   ],
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   '${version.formattedFileSize} - ${_formatDate(version.createdAt)}',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: textTheme.labelSmall?.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
                 if (version.changelog != null &&
                     version.changelog!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   Text(
                     version.changelog!,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: textTheme.labelSmall?.copyWith(
                       color: colors.mutedForeground,
                     ),
                   ),
@@ -523,7 +510,8 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
                     ),
                   )
                 : IconButton(
-                    icon: Icon(Icons.download, color: colors.primary),
+                    icon: Icon(Icons.download, color: colors.primary, size: 22),
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                     onPressed: () => _downloadAndInstall(version),
                   ),
         ],

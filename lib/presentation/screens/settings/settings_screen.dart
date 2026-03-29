@@ -13,7 +13,7 @@ import '../profile/edit_profile_screen.dart';
 import '../updates/updates_screen.dart';
 import 'notification_preferences_screen.dart';
 
-/// Page des paramètres - design shadcn/ui
+/// Page des parametres — sections groupees, touch targets 48dp
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -43,11 +43,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Paramètres'),
+        title: const Text('Parametres'),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.base),
@@ -55,17 +56,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _buildSection(
             context,
             title: 'COMPTE',
-            children: [_buildProfileTile(context)],
+            children: [_buildProfileTile(context, textTheme)],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
           _buildSection(
             context,
             title: 'NOTIFICATIONS',
             children: [
               _buildActionTile(
                 context,
-                title: 'Préférences de notification',
-                subtitle: 'Gérer les types de notification',
+                textTheme: textTheme,
+                title: 'Preferences de notification',
+                subtitle: 'Gerer les types de notification',
                 icon: Icons.notifications_outlined,
                 onTap: () {
                   Navigator.of(context).push(
@@ -77,19 +79,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
           _buildSection(
             context,
             title: 'APPARENCE',
-            children: [_buildDarkModeToggle(context)],
+            children: [_buildDarkModeToggle(context, textTheme)],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
           _buildSection(
             context,
-            title: 'À PROPOS',
+            title: 'A PROPOS',
             children: [
               _buildInfoTile(
                 context,
+                textTheme: textTheme,
                 title: 'Version',
                 subtitle: _version.isEmpty
                     ? 'Chargement...'
@@ -100,8 +103,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 AppSeparator(color: colors.border),
                 _buildActionTile(
                   context,
-                  title: 'Mises à jour',
-                  subtitle: 'Vérifier les nouvelles versions',
+                  textTheme: textTheme,
+                  title: 'Mises a jour',
+                  subtitle: 'Verifier les nouvelles versions',
                   icon: Icons.system_update,
                   onTap: () {
                     Navigator.of(context).push(
@@ -123,6 +127,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required List<Widget> children,
   }) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,10 +136,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           padding: const EdgeInsets.only(left: AppSpacing.xs, bottom: AppSpacing.sm),
           child: Text(
             title,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: colors.mutedForeground,
+            style: textTheme.labelSmall?.copyWith(
               letterSpacing: 1,
             ),
           ),
@@ -151,32 +153,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildProfileTile(BuildContext context) {
+  Widget _buildProfileTile(BuildContext context, TextTheme textTheme) {
     final colors = context.colors;
     final user = sl.authRepository.getCachedUser();
 
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.sm,
+      ),
       leading: AppAvatar(
         imageUrl: user?.pictureUrl,
         fallbackText: (user?.fullName ?? 'U').substring(0, 1).toUpperCase(),
-        size: 40,
+        size: 44,
       ),
       title: Text(
         user?.fullName ?? 'Mon profil',
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: colors.foreground,
-        ),
+        style: textTheme.titleSmall,
       ),
       subtitle: Text(
         user?.email ?? 'Modifier mes informations',
-        style: TextStyle(
-          fontSize: 13,
-          color: colors.mutedForeground,
-        ),
+        style: textTheme.bodySmall,
       ),
-      trailing: Icon(Icons.chevron_right, color: colors.mutedForeground, size: 18),
+      trailing: Icon(Icons.chevron_right, color: colors.mutedForeground, size: 20),
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => const EditProfileScreen()),
@@ -185,38 +184,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildDarkModeToggle(BuildContext context) {
+  Widget _buildDarkModeToggle(BuildContext context, TextTheme textTheme) {
     final colors = context.colors;
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.xs,
+      ),
       leading: Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: colors.muted,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: Icon(
           themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
           color: colors.foreground,
-          size: 18,
+          size: 20,
         ),
       ),
       title: Text(
         'Mode sombre',
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: colors.foreground,
-        ),
+        style: textTheme.titleSmall,
       ),
       subtitle: Text(
-        themeProvider.isDarkMode ? 'Activé' : 'Désactivé',
-        style: TextStyle(
-          fontSize: 13,
-          color: colors.mutedForeground,
-        ),
+        themeProvider.isDarkMode ? 'Active' : 'Desactive',
+        style: textTheme.bodySmall,
       ),
       trailing: Switch(
         value: themeProvider.isDarkMode,
@@ -227,6 +223,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildInfoTile(
     BuildContext context, {
+    required TextTheme textTheme,
     required String title,
     required String subtitle,
     required IconData icon,
@@ -234,35 +231,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final colors = context.colors;
 
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.xs,
+      ),
       leading: Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: colors.muted,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: Icon(icon, color: colors.foreground, size: 18),
+        child: Icon(icon, color: colors.foreground, size: 20),
       ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: colors.foreground,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          fontSize: 13,
-          color: colors.mutedForeground,
-        ),
-      ),
+      title: Text(title, style: textTheme.titleSmall),
+      subtitle: Text(subtitle, style: textTheme.bodySmall),
     );
   }
 
   Widget _buildActionTile(
     BuildContext context, {
+    required TextTheme textTheme,
     required String title,
     required String subtitle,
     required IconData icon,
@@ -271,31 +260,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final colors = context.colors;
 
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.xs,
+      ),
       leading: Container(
-        width: 36,
-        height: 36,
+        width: 40,
+        height: 40,
         decoration: BoxDecoration(
           color: colors.muted,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        child: Icon(icon, color: colors.foreground, size: 18),
+        child: Icon(icon, color: colors.foreground, size: 20),
       ),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: colors.foreground,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          fontSize: 13,
-          color: colors.mutedForeground,
-        ),
-      ),
-      trailing: Icon(Icons.chevron_right, color: colors.mutedForeground, size: 18),
+      title: Text(title, style: textTheme.titleSmall),
+      subtitle: Text(subtitle, style: textTheme.bodySmall),
+      trailing: Icon(Icons.chevron_right, color: colors.mutedForeground, size: 20),
       onTap: onTap,
     );
   }

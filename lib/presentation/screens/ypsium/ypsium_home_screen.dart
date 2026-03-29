@@ -5,8 +5,8 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/ypsium_models.dart';
 import '../../widgets/app_badge.dart';
-import '../../widgets/app_button.dart';
 import '../../widgets/app_skeleton.dart';
+import '../../widgets/widgets.dart';
 import 'ypsium_transport_detail_screen.dart';
 import 'ypsium_vehicule_screen.dart';
 
@@ -103,25 +103,27 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Ypsium',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            fontSize: 18,
             letterSpacing: -0.3,
             color: colors.foreground,
           ),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.directions_car, size: 20, color: colors.mutedForeground),
+            icon: Icon(Icons.directions_car, size: 22, color: colors.mutedForeground),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: _openVehicules,
             tooltip: 'Véhicules',
           ),
           IconButton(
-            icon: Icon(Icons.logout, size: 18, color: colors.mutedForeground),
+            icon: Icon(Icons.logout, size: 20, color: colors.mutedForeground),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: _logout,
             tooltip: 'Déconnexion Ypsium',
           ),
@@ -162,8 +164,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
                       const SizedBox(width: AppSpacing.sm),
                       Text(
                         'Chargement des référentiels...',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: colors.mutedForeground,
                         ),
                       ),
@@ -212,16 +213,13 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
               children: [
                 Text(
                   session?.login ?? '',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
                 Text(
                   'Chauffeur ${session?.idChauffeur ?? ''}',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
@@ -258,7 +256,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
-              dayStyle: TextStyle(fontSize: 14, color: colors.foreground),
+              dayStyle: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.foreground),
               headerBackgroundColor: colors.primary,
               headerForegroundColor: colors.primaryForeground,
             ),
@@ -293,6 +291,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
         children: [
           IconButton(
             icon: Icon(Icons.chevron_left, size: 22, color: colors.foreground),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: () => _changeDate(-1),
             visualDensity: VisualDensity.compact,
           ),
@@ -302,9 +301,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
               child: Text(
                 dateLabel,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.foreground,
                 ),
               ),
@@ -312,6 +309,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
           ),
           IconButton(
             icon: Icon(Icons.chevron_right, size: 22, color: colors.foreground),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: () => _changeDate(1),
             visualDensity: VisualDensity.compact,
           ),
@@ -380,13 +378,11 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
       padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.sm),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: iconColor),
+          Icon(icon, size: 20, color: iconColor),
           const SizedBox(width: AppSpacing.sm),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: colors.foreground,
               letterSpacing: 0.3,
             ),
@@ -400,8 +396,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
             ),
             child: Text(
               '$count',
-              style: TextStyle(
-                fontSize: 11,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 color: iconColor,
               ),
@@ -436,9 +431,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
                     Expanded(
                       child: Text(
                         order.client,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           color: colors.foreground,
                         ),
                         maxLines: 1,
@@ -485,8 +478,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
                 const SizedBox(height: AppSpacing.sm),
                 Text(
                   'Ordre #${order.idOrdre}',
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
@@ -526,9 +518,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
             children: [
               Text(
                 name.isNotEmpty ? name : label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.foreground,
                 ),
                 maxLines: 1,
@@ -537,7 +527,9 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
               if (ville.isNotEmpty)
                 Text(
                   ville,
-                  style: TextStyle(fontSize: 12, color: colors.mutedForeground),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: colors.mutedForeground,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -547,9 +539,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
         if (heure.isNotEmpty)
           Text(
             heure,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: colors.foreground,
             ),
           ),
@@ -589,62 +579,19 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
   }
 
   Widget _buildError(AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.error_outline, size: 40, color: colors.destructive),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            _errorMessage!,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, color: colors.foreground),
-          ),
-          const SizedBox(height: AppSpacing.base),
-          AppButton(
-            text: 'Réessayer',
-            variant: ButtonVariant.outline,
-            onPressed: _loadTransports,
-            fullWidth: false,
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.error_outline,
+      title: _errorMessage!,
+      actionText: 'Réessayer',
+      onAction: _loadTransports,
     );
   }
 
   Widget _buildEmpty(AppColors colors) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xxl),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.inbox_outlined, size: 40, color: colors.mutedForeground),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Aucun ordre de transport',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: colors.foreground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Pas de commande prévue pour cette date',
-            style: TextStyle(fontSize: 13, color: colors.mutedForeground),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.inbox_outlined,
+      title: 'Aucun ordre de transport',
+      subtitle: 'Pas de commande prévue pour cette date',
     );
   }
 }

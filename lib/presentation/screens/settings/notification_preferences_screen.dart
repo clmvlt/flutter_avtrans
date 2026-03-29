@@ -170,9 +170,9 @@ class _NotificationPreferencesScreenState
       children: [
         Text(
           'Choisissez comment recevoir vos notifications pour chaque type d\'événement.',
-          style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
         _buildPreferenceCard(
           colors,
           title: 'Acomptes',
@@ -231,11 +231,12 @@ class _NotificationPreferencesScreenState
     required NotificationPreference currentValue,
     required ValueChanged<NotificationPreference> onChanged,
   }) {
+    final textTheme = Theme.of(context).textTheme;
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       color: colors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.base),
@@ -245,12 +246,12 @@ class _NotificationPreferencesScreenState
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(AppSpacing.sm),
                   decoration: BoxDecoration(
                     color: iconColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
-                  child: Icon(icon, color: iconColor, size: 20),
+                  child: Icon(icon, color: iconColor, size: 22),
                 ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
@@ -259,16 +260,13 @@ class _NotificationPreferencesScreenState
                     children: [
                       Text(
                         title,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                        style: textTheme.labelMedium?.copyWith(
                           color: colors.foreground,
                         ),
                       ),
                       Text(
                         subtitle,
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: textTheme.labelSmall?.copyWith(
                           color: colors.mutedForeground,
                         ),
                       ),
@@ -308,7 +306,7 @@ class _NotificationPreferencesScreenState
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        constraints: const BoxConstraints(minHeight: 48),
         decoration: BoxDecoration(
           color: isSelected ? colors.primary : colors.muted,
           borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -316,9 +314,7 @@ class _NotificationPreferencesScreenState
         child: Center(
           child: Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: isSelected ? colors.primaryForeground : colors.foreground,
             ),
           ),

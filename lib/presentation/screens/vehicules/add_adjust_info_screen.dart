@@ -165,9 +165,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
               ),
               Text(
                 'Ajouter une photo',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: colors.foreground,
                 ),
                 textAlign: TextAlign.center,
@@ -191,7 +189,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                 ),
                 subtitle: Text(
                   'Utiliser l\'appareil photo',
-                  style: TextStyle(color: colors.mutedForeground, fontSize: 12),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -217,7 +215,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
                 ),
                 subtitle: Text(
                   'Sélectionner une image existante',
-                  style: TextStyle(color: colors.mutedForeground, fontSize: 12),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
                 ),
                 onTap: () {
                   Navigator.pop(context);
@@ -249,11 +247,11 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildInfoCard(colors),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
               _buildCommentField(colors),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
               _buildImageSection(colors),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
               _buildSubmitButton(colors),
             ],
           ),
@@ -263,16 +261,17 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
   }
 
   Widget _buildInfoCard(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.warningMuted,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.warning),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: colors.warning, size: 24),
+          Icon(Icons.info_outline, color: colors.warning, size: 22),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -280,17 +279,14 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
               children: [
                 Text(
                   'Signaler un ajustement',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: textTheme.titleMedium?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Décrivez le problème ou l\'ajustement nécessaire pour ce véhicule. Vous pouvez ajouter des photos pour illustrer.',
-                  style: TextStyle(
-                    fontSize: 13,
+                  style: textTheme.bodySmall?.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
@@ -303,14 +299,13 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
   }
 
   Widget _buildCommentField(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Description',
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w600,
+          style: textTheme.titleSmall?.copyWith(
             color: colors.foreground,
           ),
         ),
@@ -318,8 +313,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
         TextFormField(
           controller: _commentController,
           maxLines: 5,
-          style: TextStyle(
-            fontSize: 15,
+          style: textTheme.bodyMedium?.copyWith(
             color: colors.foreground,
           ),
           decoration: InputDecoration(
@@ -362,6 +356,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
   }
 
   Widget _buildImageSection(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -369,9 +364,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
           children: [
             Text(
               'Photos',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: textTheme.titleSmall?.copyWith(
                 color: colors.foreground,
               ),
             ),
@@ -387,8 +380,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
               ),
               child: Text(
                 'Optionnel',
-                style: TextStyle(
-                  fontSize: 11,
+                style: textTheme.labelSmall?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
@@ -396,8 +388,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
             const Spacer(),
             Text(
               '${_images.length}/5',
-              style: TextStyle(
-                fontSize: 13,
+              style: textTheme.bodySmall?.copyWith(
                 color: colors.mutedForeground,
               ),
             ),
@@ -424,7 +415,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.base),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Image.file(
             image,
             width: 100,
@@ -470,7 +461,7 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
         height: 100,
         decoration: BoxDecoration(
           color: colors.card,
-          borderRadius: BorderRadius.circular(AppRadius.base),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
             color: colors.border,
             width: 2,
@@ -485,13 +476,11 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
               color: colors.primary,
               size: 32,
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Ajouter',
-              style: TextStyle(
-                fontSize: 12,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: colors.mutedForeground,
-                fontWeight: FontWeight.w500,
               ),
             ),
           ],

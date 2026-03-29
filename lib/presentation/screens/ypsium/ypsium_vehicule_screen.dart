@@ -3,11 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/ypsium_models.dart';
-import '../../widgets/app_alert.dart';
-import '../../widgets/app_button.dart';
-import '../../widgets/app_skeleton.dart';
-import '../../widgets/app_text_field.dart';
-import '../../widgets/loading_overlay.dart';
+import '../../widgets/widgets.dart';
 
 /// Écran de sélection de véhicule Ypsium
 class YpsiumVehiculeScreen extends StatefulWidget {
@@ -75,9 +71,7 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
           ),
           title: Text(
             vehicule.immatriculation,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: colors.foreground,
             ),
           ),
@@ -95,9 +89,7 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
                 const SizedBox(height: AppSpacing.base),
                 Text(
                   'État du véhicule',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
@@ -209,13 +201,13 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Véhicules',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            fontSize: 18,
             letterSpacing: -0.3,
             color: colors.foreground,
           ),
@@ -248,9 +240,7 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
 
                 Text(
                   'Sélectionnez votre véhicule',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: colors.mutedForeground,
                     letterSpacing: 0.5,
                   ),
@@ -322,17 +312,14 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
                     children: [
                       Text(
                         vehicule.immatriculation,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: colors.foreground,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${_formatKm(vehicule.kilometrage)} km',
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colors.mutedForeground,
                         ),
                       ),
@@ -356,35 +343,11 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
   }
 
   Widget _buildEmpty(AppColors colors) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xxl),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        children: [
-          Icon(Icons.directions_car_outlined, size: 40, color: colors.mutedForeground),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Aucun véhicule disponible',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: colors.foreground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.base),
-          AppButton(
-            text: 'Réessayer',
-            variant: ButtonVariant.outline,
-            onPressed: _loadVehicules,
-            fullWidth: false,
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.directions_car_outlined,
+      title: 'Aucun véhicule disponible',
+      actionText: 'Réessayer',
+      onAction: _loadVehicules,
     );
   }
 

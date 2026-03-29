@@ -75,16 +75,17 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
+    final textTheme = Theme.of(context).textTheme;
+
     return AlertDialog(
       backgroundColor: colors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       title: Text(
         'Mettre à jour le kilométrage',
-        style: TextStyle(
+        style: textTheme.titleLarge?.copyWith(
           color: colors.foreground,
-          fontWeight: FontWeight.w600,
         ),
       ),
       content: Form(
@@ -95,9 +96,7 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
           children: [
             Text(
               'Kilométrage actuel',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: textTheme.titleSmall?.copyWith(
                 color: colors.foreground,
               ),
             ),
@@ -106,9 +105,7 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
               controller: _kmController,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+              style: textTheme.titleLarge?.copyWith(
                 color: colors.foreground,
               ),
               decoration: InputDecoration(
@@ -119,9 +116,7 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
                 ),
                 prefixIcon: Icon(Icons.speed, color: colors.primary),
                 suffixText: 'km',
-                suffixStyle: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
+                suffixStyle: textTheme.labelLarge?.copyWith(
                   color: colors.mutedForeground,
                 ),
                 filled: true,
@@ -170,9 +165,12 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
       actions: [
         TextButton(
           onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(48, 48),
+          ),
           child: Text(
             'Annuler',
-            style: TextStyle(color: colors.mutedForeground),
+            style: textTheme.labelLarge?.copyWith(color: colors.mutedForeground),
           ),
         ),
         ElevatedButton(
@@ -180,6 +178,7 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
           style: ElevatedButton.styleFrom(
             backgroundColor: colors.primary,
             foregroundColor: colors.primaryForeground,
+            minimumSize: const Size(48, 48),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.base,
               vertical: AppSpacing.sm,

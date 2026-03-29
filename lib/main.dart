@@ -54,7 +54,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
-/// Écran de démarrage
+/// Ecran de demarrage — animation fade-in + navigation
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -62,24 +62,37 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   bool _hasNavigated = false;
+  late final AnimationController _fadeController;
+  late final Animation<double> _fadeAnimation;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fadeAnimation = CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeOut,
+    );
+    _fadeController.forward();
     _checkAuthAndUpdate();
   }
 
   @override
   void dispose() {
+    _fadeController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   Future<void> _checkAuthAndUpdate() async {
-    await Future.delayed(const Duration(milliseconds: 500));
+    await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     await _checkForUpdate();
     if (!mounted) return;
@@ -141,50 +154,51 @@ class _SplashScreenState extends State<SplashScreen> with WidgetsBindingObserver
 
     return Scaffold(
       backgroundColor: colors.background,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colors.primary,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Logo avec app icon
+              ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.xl),
+                child: Image.asset(
+                  'lib/assets/icons/icon-512x512.png',
+                  width: 88,
+                  height: 88,
+                  fit: BoxFit.contain,
+                ),
               ),
-              child: Icon(
-                Icons.access_time_filled,
-                size: 48,
-                color: colors.primaryForeground,
+              const SizedBox(height: AppSpacing.lg),
+              Text(
+                'AVTRANS',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: colors.foreground,
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Pointage AVTRANS',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w700,
-                color: colors.foreground,
-                letterSpacing: -0.5,
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                'Gestion du temps de travail',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: colors.mutedForeground,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Gestion du temps de travail',
-              style: TextStyle(
-                fontSize: 14,
-                color: colors.mutedForeground,
+              const SizedBox(height: AppSpacing.xxl),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: colors.primary,
+                ),
               ),
-            ),
-            const SizedBox(height: 48),
-            SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colors.primary,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -152,16 +152,14 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                     color: colors.primary,
                     backgroundColor: colors.card,
                     child: _filteredVehicules.isEmpty
-                        ? Center(
-                            child: Text(
-                              _searchQuery.isNotEmpty
-                                  ? 'Aucun véhicule trouvé'
-                                  : 'Aucun véhicule',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: colors.mutedForeground,
-                              ),
-                            ),
+                        ? AppEmptyState(
+                            icon: Icons.directions_car_outlined,
+                            title: _searchQuery.isNotEmpty
+                                ? 'Aucun véhicule trouvé'
+                                : 'Aucun véhicule',
+                            subtitle: _searchQuery.isNotEmpty
+                                ? 'Essayez avec un autre terme de recherche'
+                                : null,
                           )
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(
@@ -181,11 +179,12 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
   }
 
   Widget _buildVehiculeCard(Vehicule vehicule, AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: InkWell(
@@ -197,13 +196,13 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
             ),
           ).then((_) => _loadVehicules());
         },
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.base),
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: colors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -211,7 +210,7 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                 child: Icon(
                   Icons.directions_car,
                   color: colors.primary,
-                  size: 28,
+                  size: 22,
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -221,22 +220,19 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                   children: [
                     Text(
                       vehicule.immat,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                      style: textTheme.titleMedium?.copyWith(
                         color: colors.foreground,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       '${vehicule.brand} ${vehicule.model}',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: textTheme.bodySmall?.copyWith(
                         color: colors.mutedForeground,
                       ),
                     ),
                     if (vehicule.latestKm != null) ...[
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xs),
                       Row(
                         children: [
                           Icon(
@@ -244,11 +240,10 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
                             size: 14,
                             color: colors.mutedForeground,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: AppSpacing.xs),
                           Text(
                             '${vehicule.latestKm} km',
-                            style: TextStyle(
-                              fontSize: 12,
+                            style: textTheme.labelSmall?.copyWith(
                               color: colors.mutedForeground,
                             ),
                           ),
@@ -261,6 +256,7 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
               Icon(
                 Icons.chevron_right,
                 color: colors.mutedForeground,
+                size: 22,
               ),
             ],
           ),

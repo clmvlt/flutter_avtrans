@@ -462,7 +462,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
             padding: const EdgeInsets.all(AppSpacing.base),
             decoration: BoxDecoration(
               color: colors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.base),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
             ),
             child: Column(
@@ -475,8 +475,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                     Expanded(
                       child: Text(
                         'Total des heures travaillées (pauses déduites)',
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: colors.foreground,
                         ),
                       ),
@@ -490,27 +489,26 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                       Expanded(
                         child: Text(
                           'Période : ${_getSearchTitle()}',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             color: colors.primary,
                           ),
                         ),
                       ),
                       TextButton.icon(
                         onPressed: _loadWorkedHours,
-                        icon: Icon(Icons.close, size: 16, color: colors.destructive),
+                        icon: Icon(Icons.close, size: 20, color: colors.destructive),
                         label: Text(
                           'Réinitialiser',
-                          style: TextStyle(fontSize: 12, color: colors.destructive),
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: colors.destructive,
+                          ),
                         ),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 4,
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xs,
                           ),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          minimumSize: const Size(48, 48),
                         ),
                       ),
                     ],
@@ -523,7 +521,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
 
           // Boutons de recherche
           _buildSearchButtons(colors),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
 
           // Carte principale
           if (_isSearchMode)
@@ -541,6 +539,8 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
   }
 
   Widget _buildTodayCard(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
@@ -567,11 +567,11 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppRadius.base),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 child: const Icon(
                   Icons.today,
-                  size: 24,
+                  size: 22,
                   color: Colors.white,
                 ),
               ),
@@ -582,17 +582,14 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                   children: [
                     Text(
                       'Aujourd\'hui',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: textTheme.labelMedium?.copyWith(
                         color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       DateFormat('EEEE d MMMM', 'fr_FR').format(DateTime.now()),
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: textTheme.labelSmall?.copyWith(
                         color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
@@ -611,11 +608,10 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
               height: 1,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'de travail effectuées',
-            style: TextStyle(
-              fontSize: 13,
+            style: textTheme.bodySmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
@@ -672,29 +668,32 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
 
   /// Carte de la semaine avec navigation par flèches
   Widget _buildWeekCard(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
-          // En-tête avec navigation
+          // En-tete avec navigation
           Row(
             children: [
-              // Flèche gauche
+              // Fleche gauche
               Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: () => _navigateWeek(-1),
-                  borderRadius: BorderRadius.circular(AppRadius.base),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       color: colors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.base),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
                     ),
                     child: Icon(
                       Icons.chevron_left,
@@ -711,17 +710,14 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                   children: [
                     Text(
                       'Semaine $_displayedWeekNumber',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                      style: textTheme.titleMedium?.copyWith(
                         color: colors.foreground,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _formatWeekRange(),
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: textTheme.labelSmall?.copyWith(
                         color: colors.mutedForeground,
                       ),
                       textAlign: TextAlign.center,
@@ -730,19 +726,20 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                 ),
               ),
 
-              // Flèche droite
+              // Fleche droite
               Material(
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: _canNavigateForward ? () => _navigateWeek(1) : null,
-                  borderRadius: BorderRadius.circular(AppRadius.base),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       color: _canNavigateForward
                           ? colors.success.withValues(alpha: 0.1)
                           : colors.muted,
-                      borderRadius: BorderRadius.circular(AppRadius.base),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
                     ),
                     child: Icon(
                       Icons.chevron_right,
@@ -759,19 +756,19 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
 
           const SizedBox(height: AppSpacing.base),
 
-          // Heures travaillées
+          // Heures travaillees
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: colors.success.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.base),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 child: Icon(
                   Icons.calendar_view_week,
-                  size: 28,
+                  size: 22,
                   color: colors.success,
                 ),
               ),
@@ -791,16 +788,14 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                   children: [
                     Text(
                       _formatHours(_displayedWeekHours),
-                      style: TextStyle(
-                        fontSize: 28,
+                      style: textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: colors.foreground,
                       ),
                     ),
                     Text(
                       'heures travaillées',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: textTheme.labelSmall?.copyWith(
                         color: colors.mutedForeground,
                       ),
                     ),
@@ -813,7 +808,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     );
   }
 
-  /// Widget générique pour les cartes de période (mois, année)
+  /// Widget generique pour les cartes de periode (mois, annee)
   Widget _buildPeriodCard({
     required AppColors colors,
     required String title,
@@ -822,24 +817,26 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     required IconData icon,
     required Color color,
   }) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppRadius.base),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Icon(
               icon,
-              size: 28,
+              size: 22,
               color: color,
             ),
           ),
@@ -850,17 +847,14 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  style: textTheme.titleSmall?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: textTheme.labelSmall?.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
@@ -872,16 +866,14 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
             children: [
               Text(
                 value,
-                style: TextStyle(
-                  fontSize: 24,
+                style: textTheme.headlineSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: colors.foreground,
                 ),
               ),
               Text(
                 'heures',
-                style: TextStyle(
-                  fontSize: 11,
+                style: textTheme.labelSmall?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
@@ -992,11 +984,11 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppRadius.base),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 child: Icon(
                   icon,
-                  size: 24,
+                  size: 22,
                   color: Colors.white,
                 ),
               ),
@@ -1007,17 +999,14 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
                   children: [
                     Text(
                       'Heures travaillées',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: Colors.white.withValues(alpha: 0.9),
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: Colors.white.withValues(alpha: 0.7),
                       ),
                     ),
@@ -1036,11 +1025,10 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
               height: 1,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             'de travail effectuées',
-            style: TextStyle(
-              fontSize: 13,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
               color: Colors.white.withValues(alpha: 0.8),
             ),
           ),
@@ -1070,28 +1058,28 @@ class _SearchButton extends StatelessWidget {
 
     return Material(
       color: colors.card,
-      borderRadius: BorderRadius.circular(AppRadius.base),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
           padding: const EdgeInsets.symmetric(
             vertical: AppSpacing.md,
             horizontal: AppSpacing.sm,
           ),
           decoration: BoxDecoration(
             border: Border.all(color: color.withValues(alpha: 0.3)),
-            borderRadius: BorderRadius.circular(AppRadius.base),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 24, color: color),
+              Icon(icon, size: 22, color: color),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: colors.foreground,
                 ),
@@ -1131,9 +1119,14 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: widget.colors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
       title: Text(
         'Sélectionner une semaine',
-        style: TextStyle(color: widget.colors.foreground),
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: widget.colors.foreground,
+        ),
       ),
       content: SizedBox(
         width: 300,
@@ -1142,8 +1135,8 @@ class _WeekPickerDialogState extends State<_WeekPickerDialog> {
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 4,
             childAspectRatio: 1.5,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
+            crossAxisSpacing: AppSpacing.sm,
+            mainAxisSpacing: AppSpacing.sm,
           ),
           itemCount: 53,
           itemBuilder: (context, index) {
@@ -1231,9 +1224,14 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
 
     return AlertDialog(
       backgroundColor: widget.colors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
       title: Text(
         'Sélectionner un mois et une année',
-        style: TextStyle(color: widget.colors.foreground),
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: widget.colors.foreground,
+        ),
       ),
       content: SizedBox(
         width: 300,
@@ -1241,16 +1239,14 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Sélecteur d'année
+            // Selecteur d'annee
             Text(
               'Année',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: widget.colors.foreground,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Container(
               height: 50,
               decoration: BoxDecoration(
@@ -1282,14 +1278,13 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                           child: Center(
                             child: Text(
                               year.toString(),
-                              style: TextStyle(
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: isSelected
                                     ? Colors.white
                                     : widget.colors.foreground,
                                 fontWeight: isSelected
                                     ? FontWeight.bold
                                     : FontWeight.normal,
-                                fontSize: 16,
                               ),
                             ),
                           ),
@@ -1300,17 +1295,15 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                 },
               ),
             ),
-            const SizedBox(height: 20),
-            // Sélecteur de mois
+            const SizedBox(height: AppSpacing.lg),
+            // Selecteur de mois
             Text(
               'Mois',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: widget.colors.foreground,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Expanded(
               child: ListView.builder(
                 itemCount: 12,
@@ -1335,14 +1328,13 @@ class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
                           ),
                           child: Text(
                             _monthNames[index],
-                            style: TextStyle(
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               color: isSelected
                                   ? Colors.white
                                   : widget.colors.foreground,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
-                              fontSize: 16,
                             ),
                           ),
                         ),
@@ -1405,9 +1397,14 @@ class _YearPickerDialogState extends State<_YearPickerDialog> {
 
     return AlertDialog(
       backgroundColor: widget.colors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
       title: Text(
         'Sélectionner une année',
-        style: TextStyle(color: widget.colors.foreground),
+        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          color: widget.colors.foreground,
+        ),
       ),
       content: SizedBox(
         width: 300,
@@ -1435,13 +1432,12 @@ class _YearPickerDialogState extends State<_YearPickerDialog> {
                     ),
                     child: Text(
                       year.toString(),
-                      style: TextStyle(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: isSelected
                             ? Colors.white
                             : widget.colors.foreground,
                         fontWeight:
                             isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 16,
                       ),
                     ),
                   ),

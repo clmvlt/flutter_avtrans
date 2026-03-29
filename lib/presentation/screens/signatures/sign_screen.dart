@@ -147,9 +147,7 @@ class _SignScreenState extends State<SignScreen> {
             // Hours field
             Text(
               'Nombre d\'heures à signer',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: colors.foreground,
               ),
             ),
@@ -161,12 +159,10 @@ class _SignScreenState extends State<SignScreen> {
               decoration: InputDecoration(
                 hintText: 'Heures',
                 suffixText: 'h',
-                prefixIcon: Icon(Icons.schedule, color: colors.primary, size: 18),
+                prefixIcon: Icon(Icons.schedule, color: colors.primary, size: 20),
               ),
-              style: TextStyle(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: colors.foreground,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: AppSpacing.lg),
@@ -174,9 +170,7 @@ class _SignScreenState extends State<SignScreen> {
             // Signature zone
             Text(
               'Signature',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: colors.foreground,
               ),
             ),

@@ -151,8 +151,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         content: Row(
           children: [
             Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
           ],
         ),
         backgroundColor: colors.card,
@@ -172,7 +177,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       context: context,
       backgroundColor: colors.card,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       isScrollControlled: true,
       builder: (context) => _FilterSheet(
@@ -260,8 +265,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                       ),
                       child: Text(
                         '$_activeFiltersCount',
-                        style: const TextStyle(
-                          fontSize: 10,
+                        style: Theme.of(context).textTheme.labelSmall!.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
                         ),
@@ -304,7 +308,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           margin: const EdgeInsets.all(AppSpacing.base),
           decoration: BoxDecoration(
             color: colors.card,
-            borderRadius: BorderRadius.circular(AppRadius.base),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: colors.border),
           ),
           child: TableCalendar<Service>(
@@ -361,14 +365,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               titleCentered: true,
               formatButtonVisible: true,
               formatButtonShowsNext: false,
-              titleTextStyle: TextStyle(
+              titleTextStyle: Theme.of(context).textTheme.titleMedium!.copyWith(
                 color: colors.foreground,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
               ),
-              formatButtonTextStyle: TextStyle(
+              formatButtonTextStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: colors.primary,
-                fontSize: 12,
               ),
               formatButtonDecoration: BoxDecoration(
                 border: Border.all(color: colors.primary),
@@ -378,15 +379,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
               rightChevronIcon: Icon(Icons.chevron_right, color: colors.foreground),
             ),
             daysOfWeekStyle: DaysOfWeekStyle(
-              weekdayStyle: TextStyle(
+              weekdayStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: colors.mutedForeground,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
               ),
-              weekendStyle: TextStyle(
+              weekendStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: colors.mutedForeground,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
               ),
             ),
             calendarBuilders: CalendarBuilders(
@@ -434,21 +431,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
             child: Row(
               children: [
-                Icon(Icons.event, size: 18, color: colors.primary),
+                Icon(Icons.event, size: 20, color: colors.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   _formatDateLong(_selectedDay!),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleSmall!.copyWith(
                     color: colors.foreground,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '${_getServicesForDay(_selectedDay!).length} entrée(s)',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: Theme.of(context).textTheme.labelSmall!.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
@@ -479,56 +473,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildSelectDayHint(AppColors colors) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.touch_app,
-            size: 48,
-            color: colors.mutedForeground.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Sélectionnez un jour',
-            style: TextStyle(
-              fontSize: 16,
-              color: colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'pour voir les services',
-            style: TextStyle(
-              fontSize: 14,
-              color: colors.mutedForeground,
-            ),
-          ),
-        ],
-      ),
+    return const AppEmptyState(
+      icon: Icons.touch_app,
+      title: 'Sélectionnez un jour',
+      subtitle: 'pour voir les services',
     );
   }
 
   Widget _buildNoDayServices(AppColors colors) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.event_busy,
-            size: 48,
-            color: colors.mutedForeground.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            'Aucun service ce jour',
-            style: TextStyle(
-              fontSize: 16,
-              color: colors.mutedForeground,
-            ),
-          ),
-        ],
-      ),
+    return const AppEmptyState(
+      icon: Icons.event_busy,
+      title: 'Aucun service ce jour',
     );
   }
 
@@ -592,18 +547,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           // Bouton effacer tout
           const SizedBox(width: AppSpacing.sm),
-          GestureDetector(
-            onTap: _clearFilters,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: colors.destructive.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Icon(
-                Icons.close,
-                size: 18,
-                color: colors.destructive,
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: GestureDetector(
+              onTap: _clearFilters,
+              behavior: HitTestBehavior.opaque,
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: colors.destructive.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: Icon(
+                    Icons.close,
+                    size: 20,
+                    color: colors.destructive,
+                  ),
+                ),
               ),
             ),
           ),
@@ -630,20 +592,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: AppSpacing.sm),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
+            style: Theme.of(context).textTheme.labelSmall!.copyWith(
               color: colors.foreground,
-              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.sm),
           GestureDetector(
             onTap: onRemove,
-            child: Icon(Icons.close, size: 14, color: color),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: Icon(Icons.close, size: 16, color: color),
+            ),
           ),
         ],
       ),
@@ -651,50 +615,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildEmptyState(AppColors colors) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _hasActiveFilters ? Icons.search_off : Icons.history,
-            size: 64,
-            color: colors.mutedForeground.withValues(alpha: 0.5),
-          ),
-          const SizedBox(height: AppSpacing.base),
-          Text(
-            _hasActiveFilters ? 'Aucun résultat' : 'Aucun historique',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            _hasActiveFilters
-                ? 'Modifiez vos filtres pour voir plus de résultats'
-                : 'Vos services apparaîtront ici',
-            style: TextStyle(
-              fontSize: 14,
-              color: colors.mutedForeground,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          if (_hasActiveFilters) ...[
-            const SizedBox(height: AppSpacing.xl),
-            OutlinedButton.icon(
-              onPressed: _clearFilters,
-              icon: const Icon(Icons.filter_list_off, size: 18),
-              label: const Text('Effacer les filtres'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colors.primary,
-                side: BorderSide(color: colors.primary),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return AppEmptyState(
+      icon: _hasActiveFilters ? Icons.search_off : Icons.history,
+      title: _hasActiveFilters ? 'Aucun résultat' : 'Aucun historique',
+      subtitle: _hasActiveFilters
+          ? 'Modifiez vos filtres pour voir plus de résultats'
+          : 'Vos services apparaîtront ici',
+      actionText: _hasActiveFilters ? 'Effacer les filtres' : null,
+      onAction: _hasActiveFilters ? _clearFilters : null,
     );
   }
 
@@ -723,7 +651,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -732,14 +660,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Icon(
                   statusIcon,
-                  size: 20,
+                  size: 22,
                   color: statusColor,
                 ),
               ),
@@ -750,16 +678,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   children: [
                     Text(
                       statusText,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                      style: Theme.of(context).textTheme.titleMedium!.copyWith(
                         color: statusColor,
                       ),
                     ),
                     Text(
                       _formatDate(service.debut.toLocal()),
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
                         color: colors.mutedForeground,
                       ),
                     ),
@@ -778,9 +703,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   ),
                   child: Text(
                     _formatDuration(service.debut, service.fin!),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    style: Theme.of(context).textTheme.labelMedium!.copyWith(
                       color: colors.primary,
                     ),
                   ),
@@ -829,23 +752,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(icon, size: 16, color: colors.mutedForeground),
+        Icon(icon, size: 20, color: colors.mutedForeground),
         const SizedBox(width: AppSpacing.sm),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               label,
-              style: TextStyle(
-                fontSize: 11,
+              style: Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: colors.mutedForeground,
               ),
             ),
             Text(
               time,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelMedium!.copyWith(
                 color: colors.foreground,
               ),
             ),
@@ -1001,10 +921,10 @@ class _FilterSheetState extends State<_FilterSheet> {
 
     return Container(
       padding: EdgeInsets.only(
-        left: AppSpacing.xl,
-        right: AppSpacing.xl,
+        left: AppSpacing.lg,
+        right: AppSpacing.lg,
         top: AppSpacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.xl,
+        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1029,13 +949,11 @@ class _FilterSheetState extends State<_FilterSheet> {
             children: [
               Row(
                 children: [
-                  Icon(Icons.tune, color: colors.primary, size: 24),
+                  Icon(Icons.tune, color: colors.primary, size: 22),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     'Filtres & Tri',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
+                    style: Theme.of(context).textTheme.titleLarge!.copyWith(
                       color: colors.foreground,
                     ),
                   ),
@@ -1052,7 +970,7 @@ class _FilterSheetState extends State<_FilterSheet> {
                 ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
 
           // Section Type
           _buildSectionHeader('Type d\'entrée', Icons.category, colors),
@@ -1066,7 +984,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               Expanded(child: _buildTypeOption(true, 'Pauses', Icons.coffee, colors)),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
 
           // Section Période
           _buildSectionHeader('Période', Icons.date_range, colors),
@@ -1099,7 +1017,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.lg),
 
           // Section Tri
           _buildSectionHeader('Tri', Icons.sort, colors),
@@ -1108,12 +1026,11 @@ class _FilterSheetState extends State<_FilterSheet> {
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: colors.muted,
-              borderRadius: BorderRadius.circular(AppRadius.base),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(color: colors.border),
             ),
             child: Row(
               children: [
-                // Options de tri
                 Expanded(
                   child: Row(
                     children: [
@@ -1133,7 +1050,7 @@ class _FilterSheetState extends State<_FilterSheet> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.xxl),
+          const SizedBox(height: AppSpacing.xl),
 
           // Bouton Appliquer
           ElevatedButton(
@@ -1150,9 +1067,9 @@ class _FilterSheetState extends State<_FilterSheet> {
             style: ElevatedButton.styleFrom(
               backgroundColor: colors.primary,
               foregroundColor: colors.primaryForeground,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.base),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
               elevation: 0,
             ),
@@ -1160,12 +1077,11 @@ class _FilterSheetState extends State<_FilterSheet> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.check, size: 20),
-                const SizedBox(width: 8),
-                const Text(
+                const SizedBox(width: AppSpacing.sm),
+                Text(
                   'Appliquer les filtres',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
+                    color: colors.primaryForeground,
                   ),
                 ),
               ],
@@ -1179,14 +1095,13 @@ class _FilterSheetState extends State<_FilterSheet> {
   Widget _buildSectionHeader(String title, IconData icon, AppColors colors) {
     return Row(
       children: [
-        Icon(icon, size: 16, color: colors.mutedForeground),
+        Icon(icon, size: 20, color: colors.mutedForeground),
         const SizedBox(width: AppSpacing.sm),
         Text(
           title,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
+          style: Theme.of(context).textTheme.labelSmall!.copyWith(
             color: colors.mutedForeground,
+            fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
         ),
@@ -1224,7 +1139,8 @@ class _FilterSheetState extends State<_FilterSheet> {
       onTap: () => setState(() => _isBreak = value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(AppRadius.md),
@@ -1233,12 +1149,10 @@ class _FilterSheetState extends State<_FilterSheet> {
         child: Column(
           children: [
             Icon(icon, size: 22, color: contentColor),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: contentColor,
               ),
             ),
@@ -1261,6 +1175,7 @@ class _FilterSheetState extends State<_FilterSheet> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: hasDate ? colors.info.withValues(alpha: 0.1) : colors.muted,
@@ -1276,14 +1191,13 @@ class _FilterSheetState extends State<_FilterSheet> {
               children: [
                 Icon(
                   icon,
-                  size: 14,
+                  size: 16,
                   color: hasDate ? colors.info : colors.mutedForeground,
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   label,
-                  style: TextStyle(
-                    fontSize: 11,
+                  style: Theme.of(context).textTheme.labelSmall!.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
@@ -1291,24 +1205,30 @@ class _FilterSheetState extends State<_FilterSheet> {
                 if (hasDate)
                   GestureDetector(
                     onTap: onClear,
-                    child: Icon(
-                      Icons.close,
-                      size: 14,
-                      color: colors.mutedForeground,
+                    behavior: HitTestBehavior.opaque,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppSpacing.xs),
+                      child: Icon(
+                        Icons.close,
+                        size: 16,
+                        color: colors.mutedForeground,
+                      ),
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               hasDate
                   ? '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}'
                   : 'Sélectionner',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: hasDate ? FontWeight.w600 : FontWeight.normal,
-                color: hasDate ? colors.foreground : colors.mutedForeground,
-              ),
+              style: hasDate
+                  ? Theme.of(context).textTheme.titleSmall!.copyWith(
+                      color: colors.foreground,
+                    )
+                  : Theme.of(context).textTheme.bodySmall!.copyWith(
+                      color: colors.mutedForeground,
+                    ),
             ),
           ],
         ),
@@ -1323,7 +1243,8 @@ class _FilterSheetState extends State<_FilterSheet> {
       child: GestureDetector(
         onTap: () => setState(() => _sortBy = value),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          constraints: const BoxConstraints(minHeight: 48),
+          alignment: Alignment.center,
           margin: const EdgeInsets.symmetric(horizontal: 2),
           decoration: BoxDecoration(
             color: isSelected ? colors.primary : Colors.transparent,
@@ -1332,11 +1253,13 @@ class _FilterSheetState extends State<_FilterSheet> {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              color: isSelected ? Colors.white : colors.mutedForeground,
-            ),
+            style: isSelected
+                ? Theme.of(context).textTheme.titleSmall!.copyWith(
+                    color: Colors.white,
+                  )
+                : Theme.of(context).textTheme.bodySmall!.copyWith(
+                    color: colors.mutedForeground,
+                  ),
           ),
         ),
       ),
@@ -1351,7 +1274,8 @@ class _FilterSheetState extends State<_FilterSheet> {
         _sortDirection = isDesc ? SortDirection.asc : SortDirection.desc;
       }),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: colors.primary.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -1361,15 +1285,13 @@ class _FilterSheetState extends State<_FilterSheet> {
           children: [
             Icon(
               isDesc ? Icons.arrow_downward : Icons.arrow_upward,
-              size: 16,
+              size: 20,
               color: colors.primary,
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             Text(
               isDesc ? 'Récent' : 'Ancien',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: colors.primary,
               ),
             ),

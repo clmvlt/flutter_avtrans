@@ -195,18 +195,18 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         ),
         title: Text(
           'Annuler la demande',
-          style: TextStyle(color: colors.foreground),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colors.foreground),
         ),
         content: Text(
           'Voulez-vous vraiment annuler cette demande d\'absence ?',
-          style: TextStyle(color: colors.mutedForeground),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Non',
-              style: TextStyle(color: colors.mutedForeground),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colors.mutedForeground),
             ),
           ),
           TextButton(
@@ -297,7 +297,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         content: Row(
           children: [
             Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
@@ -318,7 +318,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         content: Row(
           children: [
             Icon(Icons.check_circle_outline, color: colors.success, size: 20),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
@@ -349,6 +349,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             ),
             onPressed: () => setState(() => _isCalendarView = !_isCalendarView),
             tooltip: _isCalendarView ? 'Vue liste' : 'Vue calendrier',
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           ),
           // Filtres (seulement en vue liste)
           if (!_isCalendarView)
@@ -358,6 +359,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                   icon: const Icon(Icons.filter_list, size: 22),
                   onPressed: _showFiltersDialog,
                   tooltip: 'Filtres',
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 ),
                 if (_hasActiveFilters)
                   Positioned(
@@ -391,26 +393,11 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: colors.destructive),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              _error!,
-              style: TextStyle(color: colors.mutedForeground),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.base),
-            AppButton(
-              text: 'Réessayer',
-              onPressed: _loadAbsences,
-              backgroundColor: colors.primary,
-              foregroundColor: colors.primaryForeground,
-            ),
-          ],
-        ),
+      return AppEmptyState(
+        icon: Icons.error_outline,
+        title: _error!,
+        actionText: 'Réessayer',
+        onAction: _loadAbsences,
       );
     }
 
@@ -421,55 +408,27 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
 
     // Vue liste
     if (_absences.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.event_busy,
-              size: 64,
-              color: colors.mutedForeground,
-            ),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              _hasActiveFilters
-                  ? 'Aucune absence ne correspond aux filtres'
-                  : 'Aucune demande d\'absence',
-              style: TextStyle(
-                fontSize: 16,
-                color: colors.mutedForeground,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            if (_hasActiveFilters)
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _filterStartDate = null;
-                    _filterEndDate = null;
-                    _filterStatus = null;
-                    _filterType = null;
-                    _hasActiveFilters = false;
-                  });
-                  _loadAbsences();
-                },
-                icon: Icon(Icons.clear, size: 18, color: colors.primary),
-                label: Text(
-                  'Effacer les filtres',
-                  style: TextStyle(color: colors.primary),
-                ),
-              )
-            else
-              Text(
-                'Appuyez sur + pour créer une demande',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colors.mutedForeground,
-                ),
-              ),
-          ],
-        ),
+      return AppEmptyState(
+        icon: Icons.event_busy,
+        title: _hasActiveFilters
+            ? 'Aucune absence ne correspond aux filtres'
+            : 'Aucune demande d\'absence',
+        subtitle: _hasActiveFilters
+            ? null
+            : 'Appuyez sur + pour créer une demande',
+        actionText: _hasActiveFilters ? 'Effacer les filtres' : null,
+        onAction: _hasActiveFilters
+            ? () {
+                setState(() {
+                  _filterStartDate = null;
+                  _filterEndDate = null;
+                  _filterStatus = null;
+                  _filterType = null;
+                  _hasActiveFilters = false;
+                });
+                _loadAbsences();
+              }
+            : null,
       );
     }
 
@@ -548,9 +507,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                     ),
                     child: Text(
                       '$pendingCount',
-                      style: const TextStyle(
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: Colors.white,
-                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -561,9 +519,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                       pendingCount == 1
                           ? 'Vous avez 1 demande en attente de validation'
                           : 'Vous avez $pendingCount demandes en attente de validation',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: colors.warning,
                       ),
                     ),
@@ -624,14 +580,11 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             titleCentered: true,
             formatButtonVisible: true,
             formatButtonShowsNext: false,
-            titleTextStyle: TextStyle(
+            titleTextStyle: Theme.of(context).textTheme.titleMedium!.copyWith(
               color: colors.foreground,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
             ),
-            formatButtonTextStyle: TextStyle(
+            formatButtonTextStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
               color: colors.primary,
-              fontSize: 12,
             ),
             formatButtonDecoration: BoxDecoration(
               border: Border.all(color: colors.primary),
@@ -641,15 +594,11 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             rightChevronIcon: Icon(Icons.chevron_right, color: colors.foreground),
           ),
           daysOfWeekStyle: DaysOfWeekStyle(
-            weekdayStyle: TextStyle(
+            weekdayStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
               color: colors.mutedForeground,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
             ),
-            weekendStyle: TextStyle(
+            weekendStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
               color: colors.mutedForeground,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
             ),
           ),
           calendarBuilders: CalendarBuilders(
@@ -681,21 +630,18 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
             child: Row(
               children: [
-                Icon(Icons.event, size: 18, color: colors.primary),
+                Icon(Icons.event, size: 20, color: colors.primary),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   _formatDateLong(_selectedDay!),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '${_getAbsencesForDay(_selectedDay!).length} absence(s)',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: colors.mutedForeground,
                   ),
                 ),
@@ -726,58 +672,17 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
   }
 
   Widget _buildSelectDayHint(AppColors colors) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.touch_app,
-            size: 48,
-            color: colors.mutedForeground,
-          ),
-          const SizedBox(height: AppSpacing.base),
-          Text(
-            'Sélectionnez un jour',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'pour voir les absences',
-            style: TextStyle(
-              fontSize: 13,
-              color: colors.mutedForeground,
-            ),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.touch_app,
+      title: 'Sélectionnez un jour',
+      subtitle: 'pour voir les absences',
     );
   }
 
   Widget _buildNoDayAbsences(AppColors colors) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.event_busy,
-            size: 48,
-            color: colors.mutedForeground,
-          ),
-          const SizedBox(height: AppSpacing.base),
-          Text(
-            'Aucune absence ce jour',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: colors.mutedForeground,
-            ),
-          ),
-        ],
-      ),
+    return AppEmptyState(
+      icon: Icons.event_busy,
+      title: 'Aucune absence ce jour',
     );
   }
 
@@ -842,8 +747,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
           children: [
             Text(
               'Filtres:',
-              style: TextStyle(
-                fontSize: 12,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: colors.mutedForeground,
               ),
             ),
@@ -858,7 +762,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
   Widget _buildFilterChip(String label, IconData icon, AppColors colors, VoidCallback onRemove) {
     return Container(
       margin: const EdgeInsets.only(right: AppSpacing.sm),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
       decoration: BoxDecoration(
         color: colors.primary.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -868,19 +772,21 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: colors.primary),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 12,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: colors.primary,
-              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           GestureDetector(
             onTap: onRemove,
-            child: Icon(Icons.close, size: 14, color: colors.primary),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.xs),
+              child: Icon(Icons.close, size: 14, color: colors.primary),
+            ),
           ),
         ],
       ),
@@ -897,7 +803,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -908,8 +814,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               // Type d'absence
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
                   color: typeColor.withValues(alpha: 0.15),
@@ -917,9 +823,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                 ),
                 child: Text(
                   absence.typeName,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: typeColor,
                   ),
                 ),
@@ -928,8 +832,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               // Statut
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
                   color: statusColor.withValues(alpha: 0.15),
@@ -937,9 +841,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                 ),
                 child: Text(
                   absence.status.displayName,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: statusColor,
                   ),
                 ),
@@ -956,8 +858,8 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                   tooltip: 'Annuler',
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
-                    minWidth: 32,
-                    minHeight: 32,
+                    minWidth: 48,
+                    minHeight: 48,
                   ),
                 ),
             ],
@@ -965,37 +867,32 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Icon(Icons.calendar_today, size: 16, color: colors.primary),
+              Icon(Icons.calendar_today, size: 20, color: colors.primary),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 '${dateFormat.format(absence.startDate)} - ${dateFormat.format(absence.endDate)}',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.foreground,
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 '(${absence.durationInDays} jour${absence.durationInDays > 1 ? 's' : ''})',
-                style: TextStyle(
-                  fontSize: 12,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
               if (absence.period != null && absence.period!.isNotEmpty) ...[
                 const SizedBox(width: AppSpacing.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
                   decoration: BoxDecoration(
                     color: colors.info.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Text(
                     absence.period == 'matin' ? 'Matin' : 'Après-midi',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colors.info,
                     ),
                   ),
@@ -1007,8 +904,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             const SizedBox(height: AppSpacing.sm),
             Text(
               absence.reason,
-              style: TextStyle(
-                fontSize: 13,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: colors.mutedForeground,
               ),
             ),
@@ -1024,13 +920,12 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.info_outline, size: 14, color: colors.destructive),
+                  Icon(Icons.info_outline, size: 20, color: colors.destructive),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
                       'Motif du refus : ${absence.rejectionReason}',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: colors.destructive,
                       ),
                     ),
@@ -1221,9 +1116,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
               children: [
                 Text(
                   'Filtres',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
@@ -1232,21 +1125,22 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     widget.onClear();
                     Navigator.pop(context);
                   },
+                  style: TextButton.styleFrom(
+                    minimumSize: const Size(48, 48),
+                  ),
                   child: Text(
                     'Effacer tout',
-                    style: TextStyle(color: colors.destructive),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colors.destructive),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
 
             // Période
             Text(
               'Période',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: colors.mutedForeground,
               ),
             ),
@@ -1266,15 +1160,14 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 16, color: colors.primary),
+                          Icon(Icons.calendar_today, size: 20, color: colors.primary),
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Text(
                               _startDate != null
                                   ? dateFormat.format(_startDate!)
                                   : 'Début',
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: _startDate != null
                                     ? colors.foreground
                                     : colors.mutedForeground,
@@ -1284,7 +1177,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                           if (_startDate != null)
                             GestureDetector(
                               onTap: () => setState(() => _startDate = null),
-                              child: Icon(Icons.close, size: 16, color: colors.mutedForeground),
+                              child: Icon(Icons.close, size: 20, color: colors.mutedForeground),
                             ),
                         ],
                       ),
@@ -1293,7 +1186,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                  child: Text('-', style: TextStyle(color: colors.mutedForeground)),
+                  child: Text('-', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.mutedForeground)),
                 ),
                 Expanded(
                   child: InkWell(
@@ -1308,15 +1201,14 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.calendar_today, size: 16, color: colors.primary),
+                          Icon(Icons.calendar_today, size: 20, color: colors.primary),
                           const SizedBox(width: AppSpacing.sm),
                           Expanded(
                             child: Text(
                               _endDate != null
                                   ? dateFormat.format(_endDate!)
                                   : 'Fin',
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 color: _endDate != null
                                     ? colors.foreground
                                     : colors.mutedForeground,
@@ -1326,7 +1218,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                           if (_endDate != null)
                             GestureDetector(
                               onTap: () => setState(() => _endDate = null),
-                              child: Icon(Icons.close, size: 16, color: colors.mutedForeground),
+                              child: Icon(Icons.close, size: 20, color: colors.mutedForeground),
                             ),
                         ],
                       ),
@@ -1335,14 +1227,12 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
 
             // Statut
             Text(
               'Statut',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: colors.mutedForeground,
               ),
             ),
@@ -1360,14 +1250,14 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
                     ),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? colors.primary.withValues(alpha: 0.2)
                           : colors.muted,
-                      borderRadius: BorderRadius.circular(AppRadius.base),
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
                       border: Border.all(
                         color: isSelected ? colors.primary : colors.border,
                         width: isSelected ? 2 : 1,
@@ -1375,8 +1265,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     ),
                     child: Text(
                       option['label']!,
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                         color: isSelected ? colors.primary : colors.foreground,
                       ),
@@ -1385,15 +1274,13 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                 );
               }).toList(),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
 
             // Type d'absence
             if (widget.absenceTypes.isNotEmpty) ...[
               Text(
                 'Type d\'absence',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
@@ -1412,14 +1299,14 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                        horizontal: AppSpacing.md,
+                        vertical: AppSpacing.sm,
                       ),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? typeColor.withValues(alpha: 0.2)
                             : colors.muted,
-                        borderRadius: BorderRadius.circular(AppRadius.base),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
                         border: Border.all(
                           color: isSelected ? typeColor : colors.border,
                           width: isSelected ? 2 : 1,
@@ -1427,8 +1314,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                       ),
                       child: Text(
                         type.name,
-                        style: TextStyle(
-                          fontSize: 13,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                           color: isSelected ? typeColor : colors.foreground,
                         ),
@@ -1437,7 +1323,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                   );
                 }).toList(),
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
             ],
 
             // Bouton appliquer
@@ -1656,7 +1542,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
         content: Row(
           children: [
             Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
@@ -1675,12 +1561,12 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
     return GestureDetector(
       onTap: () => setState(() => _selectedPeriod = value),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: isSelected
               ? colors.primary.withValues(alpha: 0.2)
               : colors.muted,
-          borderRadius: BorderRadius.circular(AppRadius.base),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(
             color: isSelected ? colors.primary : colors.border,
             width: isSelected ? 2 : 1,
@@ -1688,8 +1574,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontSize: 13,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
             fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
             color: isSelected ? colors.primary : colors.foreground,
           ),
@@ -1748,21 +1633,17 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
               const SizedBox(height: AppSpacing.base),
               Text(
                 'Nouvelle demande d\'absence',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   color: colors.foreground,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
 
               // Type d'absence
               Text(
                 'Type d\'absence',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
@@ -1799,14 +1680,14 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.sm,
                           ),
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? typeColor.withValues(alpha: 0.2)
                                 : colors.muted,
-                            borderRadius: BorderRadius.circular(AppRadius.base),
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
                             border: Border.all(
                               color: isSelected ? typeColor : colors.border,
                               width: isSelected ? 2 : 1,
@@ -1814,8 +1695,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                           ),
                           child: Text(
                             type.name,
-                            style: TextStyle(
-                              fontSize: 13,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                               color: isSelected ? typeColor : colors.foreground,
                             ),
@@ -1833,14 +1713,14 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+                          horizontal: AppSpacing.md,
+                          vertical: AppSpacing.sm,
                         ),
                         decoration: BoxDecoration(
                           color: _useCustomType
                               ? colors.primary.withValues(alpha: 0.2)
                               : colors.muted,
-                          borderRadius: BorderRadius.circular(AppRadius.base),
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
                           border: Border.all(
                             color: _useCustomType ? colors.primary : colors.border,
                             width: _useCustomType ? 2 : 1,
@@ -1851,14 +1731,13 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                           children: [
                             Icon(
                               Icons.add,
-                              size: 16,
+                              size: 20,
                               color: _useCustomType ? colors.primary : colors.mutedForeground,
                             ),
-                            const SizedBox(width: 4),
+                            const SizedBox(width: AppSpacing.xs),
                             Text(
                               'Autre',
-                              style: TextStyle(
-                                fontSize: 13,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                 fontWeight: _useCustomType ? FontWeight.w600 : FontWeight.w400,
                                 color: _useCustomType ? colors.primary : colors.foreground,
                               ),
@@ -1904,9 +1783,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
               // Date de début
               Text(
                 'Date de début',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
@@ -1923,14 +1800,13 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 18, color: colors.primary),
+                      Icon(Icons.calendar_today, size: 20, color: colors.primary),
                       const SizedBox(width: AppSpacing.md),
                       Text(
                         _startDate != null
                             ? dateFormat.format(_startDate!)
                             : 'Sélectionner une date',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: _startDate != null
                               ? colors.foreground
                               : colors.mutedForeground,
@@ -1945,9 +1821,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
               // Date de fin
               Text(
                 'Date de fin',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
@@ -1964,14 +1838,13 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 18, color: colors.primary),
+                      Icon(Icons.calendar_today, size: 20, color: colors.primary),
                       const SizedBox(width: AppSpacing.md),
                       Text(
                         _endDate != null
                             ? dateFormat.format(_endDate!)
                             : 'Sélectionner une date',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: _endDate != null
                               ? colors.foreground
                               : colors.mutedForeground,
@@ -1986,9 +1859,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
               // Période (demi-journée)
               Text(
                 'Période (optionnel)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
@@ -2006,9 +1877,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
               // Motif
               Text(
                 'Motif (optionnel)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
@@ -2036,7 +1905,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
                 ),
                 style: TextStyle(color: colors.foreground),
               ),
-              const SizedBox(height: AppSpacing.xl),
+              const SizedBox(height: AppSpacing.lg),
 
               // Bouton submit
               AppButton(

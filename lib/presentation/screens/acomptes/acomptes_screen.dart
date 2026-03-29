@@ -133,34 +133,44 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
 
   Future<void> _cancelAcompte(Acompte acompte) async {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         title: Text(
           'Annuler la demande',
-          style: TextStyle(color: colors.foreground),
+          style: textTheme.titleLarge?.copyWith(color: colors.foreground),
         ),
         content: Text(
           'Voulez-vous vraiment annuler cette demande d\'acompte ?',
-          style: TextStyle(color: colors.mutedForeground),
+          style: textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 48),
+            ),
             child: Text(
               'Non',
-              style: TextStyle(color: colors.mutedForeground),
+              style: textTheme.labelLarge?.copyWith(color: colors.mutedForeground),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colors.destructive),
-            child: const Text('Oui, annuler'),
+            style: TextButton.styleFrom(
+              foregroundColor: colors.destructive,
+              minimumSize: const Size(48, 48),
+            ),
+            child: Text(
+              'Oui, annuler',
+              style: textTheme.labelLarge?.copyWith(color: colors.destructive),
+            ),
           ),
         ],
       ),
@@ -259,6 +269,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                 icon: const Icon(Icons.filter_list, size: 22),
                 onPressed: _showFiltersDialog,
                 tooltip: 'Filtres',
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               ),
               if (_hasActiveFilters)
                 Positioned(
@@ -287,92 +298,69 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
   }
 
   Widget _buildBody(AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
+
     if (_isLoading) {
       return const LoadingIndicator(message: 'Chargement...');
     }
 
     if (_error != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: colors.destructive),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              _error!,
-              style: TextStyle(color: colors.mutedForeground),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.base),
-            AppButton(
-              text: 'Réessayer',
-              onPressed: _loadAcomptes,
-              backgroundColor: colors.primary,
-              foregroundColor: colors.primaryForeground,
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: colors.destructive),
+              const SizedBox(height: AppSpacing.base),
+              Text(
+                _error!,
+                style: textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: AppSpacing.base),
+              AppButton(
+                text: 'Réessayer',
+                onPressed: _loadAcomptes,
+                backgroundColor: colors.primary,
+                foregroundColor: colors.primaryForeground,
+              ),
+            ],
+          ),
         ),
       );
     }
 
     if (_acomptes.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.payments_outlined,
-              size: 64,
-              color: colors.mutedForeground,
-            ),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              _hasActiveFilters
-                  ? 'Aucun acompte ne correspond aux filtres'
-                  : 'Aucune demande d\'acompte',
-              style: TextStyle(
-                fontSize: 16,
-                color: colors.mutedForeground,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            if (_hasActiveFilters)
-              TextButton.icon(
-                onPressed: () {
-                  setState(() {
-                    _filterStartDate = null;
-                    _filterEndDate = null;
-                    _filterStatus = null;
-                    _filterMontantMin = null;
-                    _filterMontantMax = null;
-                    _hasActiveFilters = false;
-                  });
-                  _loadAcomptes();
-                },
-                icon: Icon(Icons.clear, size: 18, color: colors.primary),
-                label: Text(
-                  'Effacer les filtres',
-                  style: TextStyle(color: colors.primary),
-                ),
-              )
-            else
-              Text(
-                'Appuyez sur + pour créer une demande',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: colors.mutedForeground,
-                ),
-              ),
-          ],
-        ),
+      if (_hasActiveFilters) {
+        return AppEmptyState(
+          icon: Icons.filter_list_off,
+          title: 'Aucun acompte ne correspond aux filtres',
+          actionText: 'Effacer les filtres',
+          onAction: () {
+            setState(() {
+              _filterStartDate = null;
+              _filterEndDate = null;
+              _filterStatus = null;
+              _filterMontantMin = null;
+              _filterMontantMax = null;
+              _hasActiveFilters = false;
+            });
+            _loadAcomptes();
+          },
+        );
+      }
+      return const AppEmptyState(
+        icon: Icons.payments_outlined,
+        title: 'Aucune demande d\'acompte',
+        subtitle: 'Appuyez sur + pour créer une demande',
       );
     }
 
     return Column(
       children: [
         // Barre de filtres actifs
-        if (_hasActiveFilters) _buildActiveFiltersBar(colors),
+        if (_hasActiveFilters) _buildActiveFiltersBar(colors, textTheme),
         // Liste des acomptes
         Expanded(
           child: RefreshIndicator(
@@ -403,7 +391,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
     );
   }
 
-  Widget _buildActiveFiltersBar(AppColors colors) {
+  Widget _buildActiveFiltersBar(AppColors colors, TextTheme textTheme) {
     final filters = <String>[];
     if (_filterStatus != null) filters.add(_filterStatus!.label);
     if (_filterStartDate != null || _filterEndDate != null) {
@@ -421,19 +409,19 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
       color: colors.card,
       child: Row(
         children: [
-          Icon(Icons.filter_alt, size: 18, color: colors.primary),
+          Icon(Icons.filter_alt, size: 20, color: colors.primary),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
               'Filtres: ${filters.join(', ')}',
-              style: TextStyle(
-                fontSize: 13,
+              style: textTheme.labelSmall?.copyWith(
                 color: colors.mutedForeground,
+                letterSpacing: 1,
               ),
             ),
           ),
-          InkWell(
-            onTap: () {
+          IconButton(
+            onPressed: () {
               setState(() {
                 _filterStartDate = null;
                 _filterEndDate = null;
@@ -444,10 +432,8 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
               });
               _loadAcomptes();
             },
-            child: Padding(
-              padding: const EdgeInsets.all(4),
-              child: Icon(Icons.close, size: 18, color: colors.mutedForeground),
-            ),
+            icon: Icon(Icons.close, size: 20, color: colors.mutedForeground),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           ),
         ],
       ),
@@ -456,12 +442,14 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
 
   Widget _buildAcompteCard(Acompte acompte, AppColors colors) {
     final dateFormat = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR');
+    final textTheme = Theme.of(context).textTheme;
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.base),
       color: colors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: colors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.base),
@@ -472,15 +460,15 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(
                     color: colors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.base),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                   ),
                   child: Icon(
                     Icons.euro,
                     color: colors.primary,
-                    size: 24,
+                    size: 22,
                   ),
                 ),
                 const SizedBox(width: AppSpacing.base),
@@ -489,10 +477,8 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '${acompte.montant.toStringAsFixed(2)} €',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
+                        '${acompte.montant.toStringAsFixed(2)} \u20ac',
+                        style: textTheme.titleLarge?.copyWith(
                           color: colors.foreground,
                         ),
                       ),
@@ -501,8 +487,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                         acompte.createdAt != null
                             ? dateFormat.format(acompte.createdAt!)
                             : 'Date non disponible',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style: textTheme.labelSmall?.copyWith(
                           color: colors.mutedForeground,
                         ),
                       ),
@@ -525,15 +510,14 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                   children: [
                     Icon(
                       Icons.description_outlined,
-                      size: 16,
+                      size: 20,
                       color: colors.mutedForeground,
                     ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         acompte.raison!,
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: textTheme.bodySmall?.copyWith(
                           color: colors.mutedForeground,
                         ),
                       ),
@@ -547,14 +531,13 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  Icon(Icons.check_circle, size: 14, color: colors.success),
+                  Icon(Icons.check_circle, size: 20, color: colors.success),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
                     acompte.validatedAt != null
-                        ? 'Approuvé le ${dateFormat.format(acompte.validatedAt!)}'
-                        : 'Approuvé',
-                    style: TextStyle(
-                      fontSize: 12,
+                        ? 'Approuv\u00e9 le ${dateFormat.format(acompte.validatedAt!)}'
+                        : 'Approuv\u00e9',
+                    style: textTheme.labelSmall?.copyWith(
                       color: colors.success,
                     ),
                   ),
@@ -572,13 +555,12 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.cancel, size: 14, color: colors.destructive),
+                    Icon(Icons.cancel, size: 20, color: colors.destructive),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
-                        acompte.rejectionReason ?? 'Rejeté',
-                        style: TextStyle(
-                          fontSize: 12,
+                        acompte.rejectionReason ?? 'Rejet\u00e9',
+                        style: textTheme.labelSmall?.copyWith(
                           color: colors.destructive,
                         ),
                       ),
@@ -599,15 +581,14 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.paid, size: 14, color: colors.success),
+                    Icon(Icons.paid, size: 20, color: colors.success),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         acompte.paidDate != null
-                            ? 'Payé le ${dateFormat.format(acompte.paidDate!)}'
-                            : 'Payé',
-                        style: TextStyle(
-                          fontSize: 12,
+                            ? 'Pay\u00e9 le ${dateFormat.format(acompte.paidDate!)}'
+                            : 'Pay\u00e9',
+                        style: textTheme.labelSmall?.copyWith(
                           color: colors.success,
                           fontWeight: FontWeight.w500,
                         ),
@@ -619,15 +600,16 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
             ],
             // Bouton annuler
             if (acompte.status == AcompteStatus.pending) ...[
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.md),
               SizedBox(
                 width: double.infinity,
+                height: 48,
                 child: OutlinedButton.icon(
                   onPressed: () => _cancelAcompte(acompte),
-                  icon: Icon(Icons.cancel_outlined, size: 16, color: colors.destructive),
+                  icon: Icon(Icons.cancel_outlined, size: 20, color: colors.destructive),
                   label: Text(
                     'Annuler la demande',
-                    style: TextStyle(color: colors.destructive),
+                    style: textTheme.labelLarge?.copyWith(color: colors.destructive),
                   ),
                   style: OutlinedButton.styleFrom(
                     side: BorderSide(color: colors.destructive),
@@ -642,6 +624,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
   }
 
   Widget _buildStatusBadge(AcompteStatus status, AppColors colors) {
+    final textTheme = Theme.of(context).textTheme;
     Color bgColor;
     Color textColor;
     IconData icon;
@@ -672,7 +655,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sm,
-        vertical: 4,
+        vertical: AppSpacing.xs,
       ),
       decoration: BoxDecoration(
         color: bgColor,
@@ -682,12 +665,10 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 14, color: textColor),
-          const SizedBox(width: 4),
+          const SizedBox(width: AppSpacing.xs),
           Text(
             status.label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+            style: textTheme.labelSmall?.copyWith(
               color: textColor,
             ),
           ),
@@ -747,7 +728,7 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
         widget.onCreated(acompte);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Demande d\'acompte créée avec succès')),
+          SnackBar(content: const Text('Demande d\'acompte cr\u00e9\u00e9e avec succ\u00e8s')),
         );
       },
     );
@@ -756,6 +737,7 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -778,17 +760,18 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Nouvelle demande d\'acompte',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: colors.foreground,
+                Expanded(
+                  child: Text(
+                    'Nouvelle demande d\'acompte',
+                    style: textTheme.titleLarge?.copyWith(
+                      color: colors.foreground,
+                    ),
                   ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: colors.mutedForeground),
+                  icon: Icon(Icons.close, size: 22, color: colors.mutedForeground),
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 ),
               ],
             ),
@@ -798,11 +781,11 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
               controller: _montantController,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: InputDecoration(
-                labelText: 'Montant (€)',
-                labelStyle: TextStyle(color: colors.mutedForeground),
+                labelText: 'Montant (\u20ac)',
+                labelStyle: textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
                 prefixIcon: Icon(Icons.euro, color: colors.primary),
               ),
-              style: TextStyle(color: colors.foreground),
+              style: textTheme.bodyMedium?.copyWith(color: colors.foreground),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Veuillez saisir un montant';
@@ -821,10 +804,10 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
               maxLines: 3,
               decoration: InputDecoration(
                 labelText: 'Raison (facultative)',
-                labelStyle: TextStyle(color: colors.mutedForeground),
+                labelStyle: textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
                 prefixIcon: Icon(Icons.description_outlined, color: colors.primary),
               ),
-              style: TextStyle(color: colors.foreground),
+              style: textTheme.bodyMedium?.copyWith(color: colors.foreground),
             ),
             const SizedBox(height: AppSpacing.lg),
             // Bouton soumettre
@@ -893,6 +876,7 @@ class _FiltersSheetState extends State<_FiltersSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       decoration: BoxDecoration(
@@ -910,35 +894,36 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             children: [
               Text(
                 'Filtres',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                style: textTheme.titleLarge?.copyWith(
                   color: colors.foreground,
                 ),
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.close, color: colors.mutedForeground),
+                icon: Icon(Icons.close, size: 22, color: colors.mutedForeground),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.base),
           // Statut
           Text(
-            'Statut',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+            'STATUT',
+            style: textTheme.labelSmall?.copyWith(
               color: colors.mutedForeground,
+              letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.sm),
           Wrap(
-            spacing: AppSpacing.xs,
+            spacing: AppSpacing.sm,
             children: [
               for (final status in AcompteStatus.values)
                 FilterChip(
-                  label: Text(status.label),
+                  label: Text(
+                    status.label,
+                    style: textTheme.labelSmall,
+                  ),
                   selected: _status == status,
                   onSelected: (selected) {
                     setState(() => _status = selected ? status : null);
@@ -951,60 +936,65 @@ class _FiltersSheetState extends State<_FiltersSheet> {
           const SizedBox(height: AppSpacing.base),
           // Dates
           Text(
-            'Période',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+            'P\u00c9RIODE',
+            style: textTheme.labelSmall?.copyWith(
               color: colors.mutedForeground,
+              letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _startDate ?? DateTime.now(),
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                      locale: const Locale('fr', 'FR'),
-                    );
-                    if (date != null) {
-                      setState(() => _startDate = date);
-                    }
-                  },
-                  icon: Icon(Icons.calendar_today, size: 16, color: colors.primary),
-                  label: Text(
-                    _startDate != null
-                        ? DateFormat('dd/MM/yyyy').format(_startDate!)
-                        : 'Début',
-                    style: TextStyle(color: colors.foreground),
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _startDate ?? DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                        locale: const Locale('fr', 'FR'),
+                      );
+                      if (date != null) {
+                        setState(() => _startDate = date);
+                      }
+                    },
+                    icon: Icon(Icons.calendar_today, size: 20, color: colors.primary),
+                    label: Text(
+                      _startDate != null
+                          ? DateFormat('dd/MM/yyyy').format(_startDate!)
+                          : 'D\u00e9but',
+                      style: textTheme.bodySmall?.copyWith(color: colors.foreground),
+                    ),
                   ),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    final date = await showDatePicker(
-                      context: context,
-                      initialDate: _endDate ?? DateTime.now(),
-                      firstDate: DateTime(2020),
-                      lastDate: DateTime.now(),
-                      locale: const Locale('fr', 'FR'),
-                    );
-                    if (date != null) {
-                      setState(() => _endDate = date);
-                    }
-                  },
-                  icon: Icon(Icons.calendar_today, size: 16, color: colors.primary),
-                  label: Text(
-                    _endDate != null
-                        ? DateFormat('dd/MM/yyyy').format(_endDate!)
-                        : 'Fin',
-                    style: TextStyle(color: colors.foreground),
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: _endDate ?? DateTime.now(),
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now(),
+                        locale: const Locale('fr', 'FR'),
+                      );
+                      if (date != null) {
+                        setState(() => _endDate = date);
+                      }
+                    },
+                    icon: Icon(Icons.calendar_today, size: 20, color: colors.primary),
+                    label: Text(
+                      _endDate != null
+                          ? DateFormat('dd/MM/yyyy').format(_endDate!)
+                          : 'Fin',
+                      style: textTheme.bodySmall?.copyWith(color: colors.foreground),
+                    ),
                   ),
                 ),
               ),
@@ -1013,14 +1003,13 @@ class _FiltersSheetState extends State<_FiltersSheet> {
           const SizedBox(height: AppSpacing.base),
           // Montants
           Text(
-            'Montant',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+            'MONTANT',
+            style: textTheme.labelSmall?.copyWith(
               color: colors.mutedForeground,
+              letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
               Expanded(
@@ -1028,10 +1017,10 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                   controller: _montantMinController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    hintText: 'Min (€)',
-                    hintStyle: TextStyle(color: colors.mutedForeground),
+                    hintText: 'Min (\u20ac)',
+                    hintStyle: textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
                   ),
-                  style: TextStyle(color: colors.foreground),
+                  style: textTheme.bodyMedium?.copyWith(color: colors.foreground),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -1040,10 +1029,10 @@ class _FiltersSheetState extends State<_FiltersSheet> {
                   controller: _montantMaxController,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    hintText: 'Max (€)',
-                    hintStyle: TextStyle(color: colors.mutedForeground),
+                    hintText: 'Max (\u20ac)',
+                    hintStyle: textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
                   ),
-                  style: TextStyle(color: colors.foreground),
+                  style: textTheme.bodyMedium?.copyWith(color: colors.foreground),
                 ),
               ),
             ],
@@ -1053,17 +1042,20 @@ class _FiltersSheetState extends State<_FiltersSheet> {
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    widget.onClear();
-                    Navigator.pop(context);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.border),
-                  ),
-                  child: Text(
-                    'Effacer',
-                    style: TextStyle(color: colors.mutedForeground),
+                child: SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    onPressed: () {
+                      widget.onClear();
+                      Navigator.pop(context);
+                    },
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: colors.border),
+                    ),
+                    child: Text(
+                      'Effacer',
+                      style: textTheme.labelLarge?.copyWith(color: colors.mutedForeground),
+                    ),
                   ),
                 ),
               ),

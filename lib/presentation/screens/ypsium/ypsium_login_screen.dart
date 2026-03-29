@@ -106,7 +106,7 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
               const SizedBox(height: AppSpacing.base),
               Text(
                 'Connexion à Ypsium...',
-                style: TextStyle(fontSize: 14, color: colors.mutedForeground),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
               ),
             ],
           ),
@@ -119,13 +119,13 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Ypsium',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            fontSize: 18,
             letterSpacing: -0.3,
             color: colors.foreground,
           ),
@@ -137,7 +137,7 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
           message: 'Connexion en cours...',
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.xl),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -160,14 +160,13 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl),
+                    const SizedBox(height: AppSpacing.lg),
 
                     // Title
                     Text(
                       'Ypsium Transport',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: colors.foreground,
                         letterSpacing: -0.5,
@@ -177,16 +176,15 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
                     Text(
                       'Connectez-vous pour accéder aux commandes',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colors.mutedForeground,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xxl),
+                    const SizedBox(height: AppSpacing.xl),
 
                     // Login card
                     Container(
-                      padding: const EdgeInsets.all(AppSpacing.xl),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                       decoration: BoxDecoration(
                         color: colors.card,
                         borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -238,8 +236,8 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
                             child: Row(
                               children: [
                                 SizedBox(
-                                  width: 20,
-                                  height: 20,
+                                  width: 24,
+                                  height: 24,
                                   child: Checkbox(
                                     value: _rememberMe,
                                     onChanged: _isLoading
@@ -258,15 +256,14 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
                                 const SizedBox(width: AppSpacing.sm),
                                 Text(
                                   'Se souvenir de moi',
-                                  style: TextStyle(
-                                    fontSize: 14,
+                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: colors.foreground,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xl),
+                          const SizedBox(height: AppSpacing.lg),
 
                           AppButton(
                             text: 'Se connecter',
@@ -320,8 +317,9 @@ class _YpsiumPasswordFieldState extends State<_YpsiumPasswordField> {
       suffixIcon: IconButton(
         icon: Icon(
           _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-          size: 18,
+          size: 20,
         ),
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         onPressed: () => setState(() => _obscureText = !_obscureText),
       ),
       enabled: widget.enabled,

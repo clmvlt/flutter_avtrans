@@ -53,7 +53,8 @@ class _UtaMapScreenState extends State<UtaMapScreen> {
         title: const Text('Carte UTA'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, size: 22),
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             onPressed: () => _controller.reload(),
             tooltip: 'Actualiser',
           ),

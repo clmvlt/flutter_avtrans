@@ -7,7 +7,7 @@ import '../../widgets/widgets.dart';
 import '../home/home_screen.dart';
 import 'register_screen.dart';
 
-/// Page de connexion - design shadcn/ui
+/// Page de connexion — Z-pattern, CTA en bas, accessibilite
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -69,6 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -78,111 +79,107 @@ class _LoginScreenState extends State<LoginScreen> {
           message: 'Connexion en cours...',
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Logo
-                    Center(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                        child: Image.asset(
-                          'lib/assets/icons/icon-512x512.png',
-                          width: 72,
-                          height: 72,
-                          fit: BoxFit.contain,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.lg,
+                vertical: AppSpacing.xl,
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 400),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Z-pattern: logo en haut-gauche (zone primaire optique)
+                      Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(AppRadius.xl),
+                          child: Image.asset(
+                            'lib/assets/icons/icon-512x512.png',
+                            width: 80,
+                            height: 80,
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
+                      const SizedBox(height: AppSpacing.lg),
 
-                    // Title
-                    Text(
-                      'Pointage',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
-                        color: colors.foreground,
-                        letterSpacing: -0.5,
+                      // Titre
+                      Text(
+                        'Pointage AVTRANS',
+                        textAlign: TextAlign.center,
+                        style: textTheme.headlineSmall,
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Connectez-vous pour continuer',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: colors.mutedForeground,
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        'Connectez-vous pour continuer',
+                        textAlign: TextAlign.center,
+                        style: textTheme.bodySmall,
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxl),
+                      const SizedBox(height: AppSpacing.xl),
 
-                    // Login card
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.xl),
-                      decoration: BoxDecoration(
-                        color: colors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(color: colors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (_errorMessage != null) ...[
-                            AppAlert(
-                              description: _errorMessage!,
-                              variant: AlertVariant.destructive,
+                      // Carte de connexion
+                      Container(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(
+                          color: colors.card,
+                          borderRadius: BorderRadius.circular(AppRadius.lg),
+                          border: Border.all(color: colors.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            if (_errorMessage != null) ...[
+                              AppAlert(
+                                description: _errorMessage!,
+                                variant: AlertVariant.destructive,
+                              ),
+                              const SizedBox(height: AppSpacing.base),
+                            ],
+
+                            EmailTextField(
+                              controller: _emailController,
+                              enabled: !_isLoading,
+                              onSubmitted: (_) => _passwordFocusNode.requestFocus(),
                             ),
                             const SizedBox(height: AppSpacing.base),
+
+                            PasswordTextField(
+                              controller: _passwordController,
+                              focusNode: _passwordFocusNode,
+                              enabled: !_isLoading,
+                              onSubmitted: (_) => _login(),
+                            ),
+                            const SizedBox(height: AppSpacing.lg),
+
+                            // CTA principal — zone terminale du Z-pattern
+                            AppButton(
+                              text: 'Se connecter',
+                              onPressed: _login,
+                              isLoading: _isLoading,
+                            ),
                           ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.lg),
 
-                          EmailTextField(
-                            controller: _emailController,
-                            enabled: !_isLoading,
-                            onSubmitted: (_) => _passwordFocusNode.requestFocus(),
+                      // Lien inscription
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            'Pas encore de compte ?',
+                            style: textTheme.bodySmall,
                           ),
-                          const SizedBox(height: AppSpacing.base),
-
-                          PasswordTextField(
-                            controller: _passwordController,
-                            focusNode: _passwordFocusNode,
-                            enabled: !_isLoading,
-                            onSubmitted: (_) => _login(),
-                          ),
-                          const SizedBox(height: AppSpacing.xl),
-
-                          AppButton(
-                            text: 'Se connecter',
-                            onPressed: _login,
-                            isLoading: _isLoading,
+                          AppTextButton(
+                            text: 'S\'inscrire',
+                            onPressed: _isLoading ? null : _goToRegister,
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Register link
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Pas encore de compte ?',
-                          style: TextStyle(
-                            color: colors.mutedForeground,
-                            fontSize: 14,
-                          ),
-                        ),
-                        AppTextButton(
-                          text: 'S\'inscrire',
-                          onPressed: _isLoading ? null : _goToRegister,
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -201,7 +201,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
             padding: const EdgeInsets.all(AppSpacing.base),
             decoration: BoxDecoration(
               color: colors.card,
-              borderRadius: BorderRadius.circular(AppRadius.base),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(color: colors.border),
             ),
             child: Column(
@@ -266,6 +266,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
     IconData icon,
     AppColors colors,
   ) {
+    final textTheme = Theme.of(context).textTheme;
     return Row(
       children: [
         Icon(icon, size: 20, color: colors.primary),
@@ -276,17 +277,14 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
             children: [
               Text(
                 label,
-                style: TextStyle(
-                  fontSize: 12,
+                style: textTheme.labelSmall?.copyWith(
                   color: colors.mutedForeground,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 value,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+                style: textTheme.titleSmall?.copyWith(
                   color: colors.foreground,
                 ),
               ),
@@ -314,25 +312,17 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
         // Liste des fichiers
         Expanded(
           child: _files.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.folder_open, size: 64, color: colors.mutedForeground),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        'Aucun fichier',
-                        style: TextStyle(color: colors.mutedForeground),
-                      ),
-                    ],
-                  ),
+              ? const AppEmptyState(
+                  icon: Icons.folder_open,
+                  title: 'Aucun fichier',
+                  subtitle: 'Ajoutez un fichier pour ce véhicule',
                 )
               : GridView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
+                    crossAxisSpacing: AppSpacing.md,
+                    mainAxisSpacing: AppSpacing.md,
                     childAspectRatio: 0.85,
                   ),
                   itemCount: _files.length,
@@ -356,7 +346,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
       child: Container(
         decoration: BoxDecoration(
           color: colors.card,
-          borderRadius: BorderRadius.circular(AppRadius.base),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(color: colors.border),
         ),
         child: Column(
@@ -364,7 +354,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.base),
+                  top: Radius.circular(AppRadius.lg),
                 ),
                 child: file.isImage
                     ? Image.network(
@@ -391,11 +381,11 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
               ),
             ),
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(AppSpacing.sm),
               decoration: BoxDecoration(
                 color: colors.card,
                 borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(AppRadius.base),
+                  bottom: Radius.circular(AppRadius.lg),
                 ),
               ),
               child: Column(
@@ -403,15 +393,13 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                 children: [
                   Text(
                     file.originalName,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colors.foreground,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: AppSpacing.xs),
                   Row(
                     children: [
                       Icon(
@@ -419,20 +407,20 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                         size: 10,
                         color: colors.mutedForeground,
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: AppSpacing.xs),
                       Text(
                         date,
-                        style: TextStyle(
-                          fontSize: 10,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: colors.mutedForeground,
+                          fontSize: 10,
                         ),
                       ),
                       const Spacer(),
                       Text(
                         file.formattedSize,
-                        style: TextStyle(
-                          fontSize: 10,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: colors.mutedForeground,
+                          fontSize: 10,
                         ),
                       ),
                     ],
@@ -501,9 +489,8 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                   ),
                   child: Text(
                     extensionLabel.isEmpty ? 'FILE' : extensionLabel,
-                    style: const TextStyle(
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: Colors.white,
-                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -595,10 +582,11 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
               ),
             ),
             Positioned(
-              top: 16,
-              right: 16,
+              top: AppSpacing.base,
+              right: AppSpacing.base,
               child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 32),
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 onPressed: () => Navigator.pop(context),
               ),
             ),

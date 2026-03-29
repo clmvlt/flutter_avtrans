@@ -24,13 +24,13 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Ordre #${order.idOrdre}',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            fontSize: 18,
             letterSpacing: -0.3,
             color: colors.foreground,
           ),
@@ -41,11 +41,12 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(colors),
+            _buildHeader(context, colors),
             const SizedBox(height: AppSpacing.base),
 
             // Enlèvement
             _buildStopCard(
+              context: context,
               colors: colors,
               title: 'Enlèvement',
               icon: Icons.upload_outlined,
@@ -66,6 +67,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
 
             // Livraison
             _buildStopCard(
+              context: context,
               colors: colors,
               title: 'Livraison',
               icon: Icons.download_outlined,
@@ -85,12 +87,12 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.base),
 
             // Photos requises
-            if (_hasPhotoConfig()) _buildPhotoInfo(colors),
+            if (_hasPhotoConfig()) _buildPhotoInfo(context, colors),
             if (_hasPhotoConfig()) const SizedBox(height: AppSpacing.base),
 
             // Infos complémentaires
-            _buildDetails(colors),
-            const SizedBox(height: AppSpacing.xl),
+            _buildDetails(context, colors),
+            const SizedBox(height: AppSpacing.lg),
 
             // Actions selon l'état
             ..._buildActions(context, colors),
@@ -184,7 +186,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
   // Widgets
   // ==========================================================
 
-  Widget _buildHeader(AppColors colors) {
+  Widget _buildHeader(BuildContext context, AppColors colors) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
@@ -200,16 +202,14 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
               children: [
                 Text(
                   order.client,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Ordre #${order.idOrdre}',
-                  style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
                 ),
               ],
             ),
@@ -237,6 +237,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
   }
 
   Widget _buildStopCard({
+    required BuildContext context,
     required AppColors colors,
     required String title,
     required IconData icon,
@@ -277,14 +278,12 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
                   color: iconColor.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 16, color: iconColor),
+                child: Icon(icon, size: 20, color: iconColor),
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: colors.foreground,
                 ),
               ),
@@ -299,9 +298,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
           if (nom.isNotEmpty)
             Text(
               nom,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
                 color: colors.foreground,
               ),
             ),
@@ -312,19 +309,17 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2),
               child: Text(
                 adresse1,
-                style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
               ),
             ),
           if (adresse2.isNotEmpty)
-            Text(adresse2, style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
+            Text(adresse2, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
           if (adresse3.isNotEmpty)
-            Text(adresse3, style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
+            Text(adresse3, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
           if (codePostal.isNotEmpty || ville.isNotEmpty)
             Text(
               '$codePostal $ville'.trim(),
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: colors.foreground,
               ),
             ),
@@ -334,9 +329,9 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                Icon(Icons.person_outline, size: 14, color: colors.mutedForeground),
-                const SizedBox(width: 4),
-                Text(contact, style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
+                Icon(Icons.person_outline, size: 20, color: colors.mutedForeground),
+                const SizedBox(width: AppSpacing.xs),
+                Text(contact, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
               ],
             ),
           ],
@@ -347,9 +342,9 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2),
               child: Row(
                 children: [
-                  Icon(Icons.phone_outlined, size: 14, color: colors.mutedForeground),
-                  const SizedBox(width: 4),
-                  Text(tel1, style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
+                  Icon(Icons.phone_outlined, size: 20, color: colors.mutedForeground),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(tel1, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
                 ],
               ),
             ),
@@ -358,9 +353,9 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.only(top: 2),
               child: Row(
                 children: [
-                  Icon(Icons.phone_outlined, size: 14, color: colors.mutedForeground),
-                  const SizedBox(width: 4),
-                  Text(tel2, style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
+                  Icon(Icons.phone_outlined, size: 20, color: colors.mutedForeground),
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(tel2, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
                 ],
               ),
             ),
@@ -372,6 +367,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
               children: [
                 if (tel1.isNotEmpty)
                   _buildActionChip(
+                    context: context,
                     colors: colors,
                     icon: Icons.phone,
                     label: 'Appeler',
@@ -382,6 +378,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                 if (tel2.isNotEmpty)
                   _buildActionChip(
+                    context: context,
                     colors: colors,
                     icon: Icons.phone,
                     label: tel2,
@@ -392,6 +389,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
                   const SizedBox(width: AppSpacing.sm),
                 if (hasAddress)
                   _buildActionChip(
+                    context: context,
                     colors: colors,
                     icon: Icons.navigation,
                     label: 'Itinéraire',
@@ -414,6 +412,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
   }
 
   Widget _buildActionChip({
+    required BuildContext context,
     required AppColors colors,
     required IconData icon,
     required String label,
@@ -423,6 +422,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.md,
           vertical: AppSpacing.sm,
@@ -435,13 +435,11 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: AppSpacing.sm),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: color,
               ),
             ),
@@ -451,7 +449,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPhotoInfo(AppColors colors) {
+  Widget _buildPhotoInfo(BuildContext context, AppColors colors) {
     final photos = <String>[];
     if (order.photoEnlDebut) photos.add('Enlèvement (début)');
     if (order.photoEnlFin) photos.add('Enlèvement (fin)');
@@ -473,20 +471,18 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
         children: [
           Text(
             'Photos requises',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: colors.foreground,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           ...photos.map((p) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
                 child: Row(
                   children: [
-                    Icon(Icons.camera_alt_outlined, size: 14, color: colors.info),
+                    Icon(Icons.camera_alt_outlined, size: 20, color: colors.info),
                     const SizedBox(width: AppSpacing.sm),
-                    Text(p, style: TextStyle(fontSize: 13, color: colors.foreground)),
+                    Text(p, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.foreground)),
                   ],
                 ),
               )),
@@ -495,7 +491,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDetails(AppColors colors) {
+  Widget _buildDetails(BuildContext context, AppColors colors) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.base),
@@ -509,33 +505,31 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
         children: [
           Text(
             'Détails',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: colors.foreground,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
-          _row(colors, 'État enlèvement', _sousEtatLabel(order.idEtatSousOrdreEnlevement)),
-          _row(colors, 'État livraison', _sousEtatLabel(order.idEtatSousOrdreLivraison)),
-          if (order.eSignatureAuto) _row(colors, 'Signature enlèvement', 'Automatique'),
-          if (order.lSignatureAuto) _row(colors, 'Signature livraison', 'Automatique'),
-          if (order.bEstUnService) _row(colors, 'Type', 'Service'),
+          _row(context, colors, 'État enlèvement', _sousEtatLabel(order.idEtatSousOrdreEnlevement)),
+          _row(context, colors, 'État livraison', _sousEtatLabel(order.idEtatSousOrdreLivraison)),
+          if (order.eSignatureAuto) _row(context, colors, 'Signature enlèvement', 'Automatique'),
+          if (order.lSignatureAuto) _row(context, colors, 'Signature livraison', 'Automatique'),
+          if (order.bEstUnService) _row(context, colors, 'Type', 'Service'),
         ],
       ),
     );
   }
 
-  Widget _row(AppColors colors, String label, String value) {
+  Widget _row(BuildContext context, AppColors colors, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
       child: Row(
         children: [
-          Text(label, style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
+          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
           const Spacer(),
           Text(
             value,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: colors.foreground),
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colors.foreground),
           ),
         ],
       ),

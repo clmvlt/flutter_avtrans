@@ -91,8 +91,8 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openSignScreen,
         backgroundColor: colors.primary,
-        icon: Icon(Icons.draw, color: colors.primaryForeground, size: 18),
-        label: Text('Signer', style: TextStyle(color: colors.primaryForeground)),
+        icon: Icon(Icons.draw, color: colors.primaryForeground, size: 20),
+        label: Text('Signer', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: colors.primaryForeground)),
       ),
       body: _buildBody(colors),
     );
@@ -117,17 +117,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
     }
 
     if (_signatures.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.draw_outlined, size: 48, color: colors.mutedForeground),
-            const SizedBox(height: AppSpacing.base),
-            Text('Aucune signature', style: TextStyle(fontSize: 16, color: colors.foreground)),
-            const SizedBox(height: AppSpacing.xs),
-            Text('Appuyez sur "Signer" pour créer une signature', style: TextStyle(fontSize: 13, color: colors.mutedForeground)),
-          ],
-        ),
+      return const AppEmptyState(
+        icon: Icons.draw_outlined,
+        title: 'Aucune signature',
+        subtitle: 'Appuyez sur "Signer" pour créer une signature',
       );
     }
 
@@ -144,6 +137,7 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
 
   Widget _buildSignatureCard(Signature signature, AppColors colors) {
     final dateFormat = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR');
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -163,9 +157,7 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
               Expanded(
                 child: Text(
                   dateFormat.format(signature.date),
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                  style: textTheme.labelMedium?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
@@ -198,10 +190,10 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
             Row(
               children: [
                 Icon(Icons.access_time, size: 12, color: colors.mutedForeground),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 Text(
                   'Signé le ${dateFormat.format(signature.createdAt!)}',
-                  style: TextStyle(fontSize: 11, color: colors.mutedForeground),
+                  style: textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
                 ),
               ],
             ),

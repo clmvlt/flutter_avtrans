@@ -25,7 +25,7 @@ import '../uta/uta_map_screen.dart';
 import '../vehicules/vehicules_list_screen.dart';
 import '../ypsium/ypsium_login_screen.dart';
 
-/// Page d'accueil - design shadcn/ui
+/// Page d'accueil — navigation bottom bar + grille d'outils
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -164,6 +164,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  // Navigation helpers
   void _openServices() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ServicesScreen()));
   void _openHistory() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
   void _openAbsences() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AbsencesScreen()));
@@ -201,93 +202,120 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text(
-          'AVTRANS',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            letterSpacing: -0.3,
-            color: colors.foreground,
-          ),
-        ),
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: Icon(Icons.notifications_outlined, size: 22, color: colors.mutedForeground),
-                onPressed: _openNotifications,
-                tooltip: 'Notifications',
-              ),
-              if (_unreadNotificationCount > 0)
-                Positioned(
-                  right: 6,
-                  top: 6,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: colors.destructive,
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                    child: Text(
-                      _unreadNotificationCount > 99
-                          ? '99+'
-                          : '$_unreadNotificationCount',
-                      style: TextStyle(
-                        color: colors.destructiveForeground,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, size: 18, color: colors.mutedForeground),
-            onPressed: _logout,
-            tooltip: 'Déconnexion',
-          ),
-        ],
-      ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: colors.primary, strokeWidth: 2))
+          ? Center(child: CircularProgressIndicator(color: colors.primary, strokeWidth: 2.5))
           : RefreshIndicator(
               onRefresh: _loadUser,
               color: colors.primary,
               backgroundColor: colors.card,
-              child: SingleChildScrollView(
+              child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(AppSpacing.base),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildWelcomeHeader(colors),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      'Outils',
+                slivers: [
+                  // SliverAppBar collapsible
+                  SliverAppBar(
+                    floating: true,
+                    snap: true,
+                    backgroundColor: colors.background,
+                    surfaceTintColor: Colors.transparent,
+                    title: Text(
+                      'AVTRANS',
                       style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: colors.mutedForeground,
-                        letterSpacing: 0.5,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 20,
+                        letterSpacing: -0.3,
+                        color: colors.foreground,
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    _buildToolsGrid(colors),
-                  ],
-                ),
+                    actions: [
+                      // Notifications avec badge
+                      Stack(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.notifications_outlined, size: 24, color: colors.mutedForeground),
+                            onPressed: _openNotifications,
+                            tooltip: 'Notifications',
+                            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          ),
+                          if (_unreadNotificationCount > 0)
+                            Positioned(
+                              right: 6,
+                              top: 6,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: colors.destructive,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                                child: Text(
+                                  _unreadNotificationCount > 99
+                                      ? '99+'
+                                      : '$_unreadNotificationCount',
+                                  style: TextStyle(
+                                    color: colors.destructiveForeground,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.logout_rounded, size: 22, color: colors.mutedForeground),
+                        onPressed: _logout,
+                        tooltip: 'Deconnexion',
+                        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                      ),
+                    ],
+                  ),
+
+                  // Contenu
+                  SliverPadding(
+                    padding: const EdgeInsets.all(AppSpacing.base),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        // En-tete utilisateur
+                        _buildWelcomeHeader(colors, textTheme),
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // Actions rapides — les plus utilisees
+                        Text(
+                          'Actions rapides',
+                          style: textTheme.labelSmall?.copyWith(
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildQuickActions(colors),
+                        const SizedBox(height: AppSpacing.lg),
+
+                        // Tous les outils
+                        Text(
+                          'Tous les outils',
+                          style: textTheme.labelSmall?.copyWith(
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _buildToolsGrid(colors, textTheme),
+                        const SizedBox(height: AppSpacing.base),
+                      ]),
+                    ),
+                  ),
+                ],
               ),
             ),
     );
   }
 
-  Widget _buildWelcomeHeader(AppColors colors) {
+  /// En-tete avec avatar, nom, role
+  Widget _buildWelcomeHeader(AppColors colors, TextTheme textTheme) {
     final firstName = _user?.firstName ?? '';
     final lastName = _user?.lastName ?? '';
     final greeting = _getGreeting();
@@ -310,29 +338,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               AppAvatar(
                 imageUrl: pictureUrl,
                 fallbackText: _getInitials(firstName, lastName),
-                size: 48,
+                size: 52,
               ),
-              const SizedBox(width: AppSpacing.md),
+              const SizedBox(width: AppSpacing.base),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       greeting,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: colors.mutedForeground,
-                      ),
+                      style: textTheme.bodySmall,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '$firstName $lastName',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: colors.foreground,
-                        letterSpacing: -0.3,
-                      ),
+                      style: textTheme.titleLarge?.copyWith(fontSize: 20),
                     ),
                     if (_user?.role != null) ...[
                       const SizedBox(height: AppSpacing.sm),
@@ -344,7 +364,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, size: 18, color: colors.mutedForeground),
+              Icon(Icons.chevron_right, size: 20, color: colors.mutedForeground),
             ],
           ),
         ),
@@ -352,22 +372,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildToolsGrid(AppColors colors) {
+  /// Actions rapides — 3 boutons horizontaux (pointage, heures, historique)
+  Widget _buildQuickActions(AppColors colors) {
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickActionButton(
+            icon: Icons.play_circle_filled,
+            label: 'Pointage',
+            color: colors.primary,
+            onTap: _openServices,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: _QuickActionButton(
+            icon: Icons.schedule,
+            label: 'Mes heures',
+            color: colors.success,
+            onTap: _openMesHeures,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.md),
+        Expanded(
+          child: _QuickActionButton(
+            icon: Icons.history,
+            label: 'Historique',
+            color: colors.chart4,
+            onTap: _openHistory,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Grille d'outils — 2 colonnes, cartes lisibles
+  Widget _buildToolsGrid(AppColors colors, TextTheme textTheme) {
     final tools = [
-      _ToolItem(title: 'Services', subtitle: 'Gérer vos pointages', icon: Icons.access_time, color: colors.primary, onTap: _openServices),
-      _ToolItem(title: 'Historique', subtitle: 'Services passés', icon: Icons.history, color: colors.chart4, onTap: _openHistory),
-      _ToolItem(title: 'Mes heures', subtitle: 'Heures travaillées', icon: Icons.schedule, color: colors.success, onTap: _openMesHeures),
-      _ToolItem(title: 'Absences', subtitle: 'Gérer les demandes', icon: Icons.event_busy, color: colors.warning, onTap: _openAbsences),
+      _ToolItem(title: 'Absences', subtitle: 'Gerer les demandes', icon: Icons.event_busy, color: colors.warning, onTap: _openAbsences),
       _ToolItem(title: 'Acomptes', subtitle: 'Demander un acompte', icon: Icons.payments, color: colors.info, onTap: _openAcomptes),
       _ToolItem(title: 'Signatures', subtitle: 'Signer vos heures', icon: Icons.draw, color: colors.success, onTap: _openSignatures),
-      _ToolItem(title: 'Véhicules', subtitle: 'Gérer les véhicules', icon: Icons.directions_car, color: colors.chart4, onTap: _openVehicules),
-      _ToolItem(title: 'Rapport', subtitle: 'Créer un rapport', icon: Icons.description, color: colors.chart3, onTap: _openRapportVehicule),
-      _ToolItem(title: 'Tâches', subtitle: 'Gérer les todos', icon: Icons.checklist, color: colors.chart3, onTap: _openTodos),
+      _ToolItem(title: 'Vehicules', subtitle: 'Gerer les vehicules', icon: Icons.directions_car, color: colors.chart4, onTap: _openVehicules),
+      _ToolItem(title: 'Rapport', subtitle: 'Creer un rapport', icon: Icons.description, color: colors.chart3, onTap: _openRapportVehicule),
+      _ToolItem(title: 'Taches', subtitle: 'Gerer les todos', icon: Icons.checklist, color: colors.chart3, onTap: _openTodos),
       _ToolItem(title: 'Carte UTA', subtitle: 'Trouver une station', icon: Icons.map, color: colors.info, onTap: _openUtaMap),
       _ToolItem(title: 'Ypsium', subtitle: 'Transport / Commandes', icon: Icons.local_shipping, color: colors.chart4, onTap: _openYpsium),
       if (_user?.isCouchette == true)
-        _ToolItem(title: 'Couchettes', subtitle: 'Gérer les couchettes', icon: Icons.hotel, color: colors.info, onTap: _openCouchettes),
-      _ToolItem(title: 'Paramètres', subtitle: 'Personnaliser', icon: Icons.settings, color: colors.mutedForeground, onTap: _openSettings),
+        _ToolItem(title: 'Couchettes', subtitle: 'Gerer les couchettes', icon: Icons.hotel, color: colors.info, onTap: _openCouchettes),
+      _ToolItem(title: 'Parametres', subtitle: 'Personnaliser l\'app', icon: Icons.settings_outlined, color: colors.mutedForeground, onTap: _openSettings),
     ];
 
     return GridView.builder(
@@ -375,68 +427,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.85,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.55,
       ),
       itemCount: tools.length,
-      itemBuilder: (context, index) => _buildToolCard(tools[index], colors),
+      itemBuilder: (context, index) => _buildToolCard(tools[index], colors, textTheme),
     );
   }
 
-  Widget _buildToolCard(_ToolItem tool, AppColors colors) {
+  Widget _buildToolCard(_ToolItem tool, AppColors colors, TextTheme textTheme) {
     return Material(
       color: colors.card,
       borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         onTap: tool.onTap,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        splashColor: colors.accent,
+        splashColor: tool.color.withValues(alpha: 0.08),
         child: Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(AppSpacing.base),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: colors.border),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: tool.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
-                child: Icon(tool.icon, size: 20, color: tool.color),
+                child: Icon(tool.icon, size: 22, color: tool.color),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      tool.title,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: colors.foreground,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      tool.subtitle,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: colors.mutedForeground,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
+              const Spacer(),
+              Text(
+                tool.title,
+                style: textTheme.titleSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                tool.subtitle,
+                style: textTheme.labelSmall,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -448,7 +486,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Bonjour';
-    if (hour < 18) return 'Bon après-midi';
+    if (hour < 18) return 'Bon apres-midi';
     return 'Bonsoir';
   }
 
@@ -456,6 +494,54 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final first = firstName.isNotEmpty ? firstName[0].toUpperCase() : '';
     final last = lastName.isNotEmpty ? lastName[0].toUpperCase() : '';
     return '$first$last';
+  }
+}
+
+/// Bouton d'action rapide — icone + label, touch target 48dp+
+class _QuickActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        splashColor: color.withValues(alpha: 0.15),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 28, color: color),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -13,6 +13,7 @@ import '../../widgets/app_badge.dart';
 import '../../widgets/app_button.dart';
 import '../../widgets/app_text_field.dart';
 import '../../widgets/loading_overlay.dart';
+import '../../widgets/widgets.dart';
 import 'ypsium_signature_fullscreen.dart';
 
 /// Flux de chargement / enlèvement en 3 étapes :
@@ -226,13 +227,13 @@ class _YpsiumEnlevementFlowScreenState
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Enlèvement #${widget.order.idOrdre}',
-          style: TextStyle(
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w700,
-            fontSize: 18,
             letterSpacing: -0.3,
             color: colors.foreground,
           ),
@@ -332,8 +333,7 @@ class _YpsiumEnlevementFlowScreenState
                               ? Icon(Icons.check, size: 16, color: colors.successForeground)
                               : Text(
                                   '${index + 1}',
-                                  style: TextStyle(
-                                    fontSize: 13,
+                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color: isActive
                                         ? colors.primaryForeground
@@ -342,11 +342,10 @@ class _YpsiumEnlevementFlowScreenState
                                 ),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: AppSpacing.xs),
                       Text(
                         labels[index],
-                        style: TextStyle(
-                          fontSize: 11,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                           color: color,
                         ),
@@ -381,28 +380,26 @@ class _YpsiumEnlevementFlowScreenState
           children: [
             Text(
               order.eNom,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: colors.foreground,
               ),
             ),
             if (order.eAdresseComplete.isNotEmpty) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 order.eAdresseComplete,
-                style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
               ),
             ],
             if (order.eHeureFormatted.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
-                  Icon(Icons.access_time, size: 14, color: colors.mutedForeground),
-                  const SizedBox(width: 4),
+                  Icon(Icons.access_time, size: 20, color: colors.mutedForeground),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     order.eHeureFormatted,
-                    style: TextStyle(fontSize: 13, color: colors.foreground),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.foreground),
                   ),
                 ],
               ),
@@ -431,7 +428,7 @@ class _YpsiumEnlevementFlowScreenState
           children: [
             Text(
               'Client',
-              style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
             ),
             const Spacer(),
             AppBadge(text: order.client, variant: BadgeVariant.secondary),
@@ -444,9 +441,7 @@ class _YpsiumEnlevementFlowScreenState
           children: [
             Text(
               'Colis chargés',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 color: colors.foreground,
               ),
             ),
@@ -460,24 +455,9 @@ class _YpsiumEnlevementFlowScreenState
         const SizedBox(height: AppSpacing.sm),
 
         if (_colisList.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: colors.border),
-            ),
-            child: Column(
-              children: [
-                Icon(Icons.inbox_outlined, size: 32, color: colors.mutedForeground),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Aucun colis ajouté',
-                  style: TextStyle(fontSize: 13, color: colors.mutedForeground),
-                ),
-              ],
-            ),
+          AppEmptyState(
+            icon: Icons.inbox_outlined,
+            title: 'Aucun colis ajouté',
           )
         else
           ..._colisList.asMap().entries.map(
@@ -516,8 +496,7 @@ class _YpsiumEnlevementFlowScreenState
             child: Center(
               child: Text(
                 '${index + 1}',
-                style: TextStyle(
-                  fontSize: 14,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: colors.success,
                 ),
@@ -531,15 +510,13 @@ class _YpsiumEnlevementFlowScreenState
               children: [
                 Text(
                   '${colis.designation} (${colis.refArticle})',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
                 Text(
                   'Qté: ${colis.quantite}',
-                  style: TextStyle(fontSize: 12, color: colors.mutedForeground),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
                 ),
               ],
             ),
@@ -565,10 +542,10 @@ class _YpsiumEnlevementFlowScreenState
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
-          left: AppSpacing.xl,
-          right: AppSpacing.xl,
-          top: AppSpacing.xl,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.xl,
+          left: AppSpacing.lg,
+          right: AppSpacing.lg,
+          top: AppSpacing.lg,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + AppSpacing.lg,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -578,15 +555,14 @@ class _YpsiumEnlevementFlowScreenState
               children: [
                 Text(
                   'Ajouter un colis',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
                 const Spacer(),
                 IconButton(
                   icon: Icon(Icons.close, size: 20, color: colors.mutedForeground),
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                   onPressed: () => Navigator.of(ctx).pop(),
                 ),
               ],
@@ -625,7 +601,7 @@ class _YpsiumEnlevementFlowScreenState
               label: 'Désignation',
               hint: 'Description du colis',
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.lg),
             AppButton(
               text: 'Ajouter',
               icon: Icons.add,
@@ -663,18 +639,16 @@ class _YpsiumEnlevementFlowScreenState
           children: [
             Text(
               'Photos d\'enlèvement',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: colors.foreground,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               hasRequired
                   ? 'Des photos sont demandées pour cet ordre'
                   : 'Aucune photo requise — vous pouvez passer cette étape',
-              style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
             ),
           ],
         ),
@@ -684,9 +658,7 @@ class _YpsiumEnlevementFlowScreenState
         if (_photos.isNotEmpty) ...[
           Text(
             '${_photos.length} photo(s)',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: colors.foreground,
             ),
           ),
@@ -735,28 +707,9 @@ class _YpsiumEnlevementFlowScreenState
 
         // Placeholder when no photos
         if (_photos.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.xxl),
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: colors.border, style: BorderStyle.solid),
-            ),
-            child: Column(
-              children: [
-                Icon(
-                  Icons.add_a_photo_outlined,
-                  size: 48,
-                  color: colors.mutedForeground,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                Text(
-                  'Aucune photo pour le moment',
-                  style: TextStyle(fontSize: 14, color: colors.mutedForeground),
-                ),
-              ],
-            ),
+          AppEmptyState(
+            icon: Icons.add_a_photo_outlined,
+            title: 'Aucune photo pour le moment',
           ),
         const SizedBox(height: AppSpacing.md),
 
@@ -769,12 +722,12 @@ class _YpsiumEnlevementFlowScreenState
           ),
           child: Row(
             children: [
-              Icon(Icons.info_outline, size: 16, color: colors.info),
+              Icon(Icons.info_outline, size: 20, color: colors.info),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(
                   'La prise de photo sera disponible via la caméra de l\'appareil',
-                  style: TextStyle(fontSize: 12, color: colors.info),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.info),
                 ),
               ),
             ],
@@ -799,16 +752,14 @@ class _YpsiumEnlevementFlowScreenState
           children: [
             Text(
               'Valider l\'enlèvement',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 color: colors.foreground,
               ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: AppSpacing.xs),
             Text(
               'Renseignez les informations de passage',
-              style: TextStyle(fontSize: 13, color: colors.mutedForeground),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
             ),
           ],
         ),
@@ -847,31 +798,33 @@ class _YpsiumEnlevementFlowScreenState
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xl),
+        const SizedBox(height: AppSpacing.lg),
 
         // Signature
         Row(
           children: [
             Text(
               'Signature',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 color: colors.foreground,
               ),
             ),
             const Spacer(),
             GestureDetector(
               onTap: _openSignatureFullscreen,
-              child: Row(
-                children: [
-                  Icon(Icons.fullscreen, size: 18, color: colors.primary),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Plein écran',
-                    style: TextStyle(fontSize: 13, color: colors.primary),
-                  ),
-                ],
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 48),
+                alignment: Alignment.center,
+                child: Row(
+                  children: [
+                    Icon(Icons.fullscreen, size: 20, color: colors.primary),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      'Plein écran',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.primary),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -905,19 +858,23 @@ class _YpsiumEnlevementFlowScreenState
           children: [
             Text(
               'Dessinez votre signature ci-dessus',
-              style: TextStyle(fontSize: 12, color: colors.mutedForeground),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
             ),
             GestureDetector(
               onTap: () => _signatureController.clear(),
-              child: Row(
-                children: [
-                  Icon(Icons.refresh, size: 14, color: colors.mutedForeground),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Effacer',
-                    style: TextStyle(fontSize: 13, color: colors.mutedForeground),
-                  ),
-                ],
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 48),
+                alignment: Alignment.center,
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh, size: 20, color: colors.mutedForeground),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      'Effacer',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -942,15 +899,14 @@ class _YpsiumEnlevementFlowScreenState
         children: [
           Text(
             label,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
               color: colors.foreground,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: AppSpacing.sm),
           Container(
             width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 48),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md,
               vertical: AppSpacing.md,
@@ -961,12 +917,11 @@ class _YpsiumEnlevementFlowScreenState
             ),
             child: Row(
               children: [
-                Icon(Icons.access_time, size: 16, color: colors.mutedForeground),
+                Icon(Icons.access_time, size: 20, color: colors.mutedForeground),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   '$hh:$mm',
-                  style: TextStyle(
-                    fontSize: 14,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
@@ -1093,6 +1048,7 @@ class _YpsiumEnlevementFlowScreenState
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
@@ -1102,9 +1058,9 @@ class _YpsiumEnlevementFlowScreenState
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: color),
-            const SizedBox(width: 6),
-            Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: color)),
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: AppSpacing.sm),
+            Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color)),
           ],
         ),
       ),
@@ -1136,7 +1092,7 @@ class _YpsiumEnlevementFlowScreenState
               color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 18, color: color),
+            child: Icon(icon, size: 22, color: color),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(

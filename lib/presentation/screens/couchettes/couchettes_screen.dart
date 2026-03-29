@@ -126,21 +126,22 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: colors.card,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
-        title: Text('Supprimer', style: TextStyle(color: colors.foreground)),
+        title: Text('Supprimer', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.foreground)),
         content: Text(
           'Voulez-vous vraiment supprimer cette couchette ?',
-          style: TextStyle(color: colors.mutedForeground),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Non', style: TextStyle(color: colors.mutedForeground)),
+            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+            child: Text('Non', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: colors.mutedForeground)),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colors.destructive),
+            style: TextButton.styleFrom(foregroundColor: colors.destructive, minimumSize: const Size(48, 48)),
             child: const Text('Supprimer'),
           ),
         ],
@@ -235,23 +236,10 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
     }
 
     if (_couchettes.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.hotel_outlined, size: 64, color: colors.mutedForeground),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              'Aucune couchette',
-              style: TextStyle(fontSize: 16, color: colors.mutedForeground),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Appuyez sur + pour ajouter une couchette',
-              style: TextStyle(fontSize: 13, color: colors.mutedForeground),
-            ),
-          ],
-        ),
+      return const AppEmptyState(
+        icon: Icons.hotel_outlined,
+        title: 'Aucune couchette',
+        subtitle: 'Appuyez sur + pour ajouter une couchette',
       );
     }
 
@@ -295,23 +283,25 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
       }
     }
 
+    final textTheme = Theme.of(context).textTheme;
+
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       color: colors.card,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.base),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 color: colors.info.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.base),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
-              child: Icon(Icons.hotel, color: colors.info, size: 24),
+              child: Icon(Icons.hotel, color: colors.info, size: 22),
             ),
             const SizedBox(width: AppSpacing.base),
             Expanded(
@@ -320,8 +310,7 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
                 children: [
                   Text(
                     dateDisplay,
-                    style: TextStyle(
-                      fontSize: 15,
+                    style: textTheme.bodyMedium?.copyWith(
                       fontWeight: FontWeight.w500,
                       color: colors.foreground,
                     ),
@@ -329,10 +318,8 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
                   if (isToday)
                     Text(
                       'Aujourd\'hui',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: textTheme.labelSmall?.copyWith(
                         color: colors.primary,
-                        fontWeight: FontWeight.w500,
                       ),
                     ),
                 ],
@@ -342,6 +329,7 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
               IconButton(
                 icon: Icon(Icons.delete_outline,
                     size: 20, color: colors.destructive),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                 onPressed: () => _deleteCouchette(couchette),
                 tooltip: 'Supprimer',
               ),

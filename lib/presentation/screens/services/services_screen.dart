@@ -388,7 +388,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
         content: Row(
           children: [
             Icon(Icons.location_off, color: colors.warning, size: 20),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
@@ -652,7 +652,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
         content: Row(
           children: [
             Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(child: Text(message)),
           ],
         ),
@@ -669,6 +669,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -679,6 +680,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             icon: const Icon(Icons.speed, size: 22),
             onPressed: _openKilometrageScreen,
             tooltip: 'Kilométrage',
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           ),
           IconButton(
             icon: const Icon(Icons.history, size: 22),
@@ -688,6 +690,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
               );
             },
             tooltip: 'Historique',
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           ),
         ],
       ),
@@ -705,14 +708,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   children: [
                     if (_locationStatus != null &&
                         _locationStatus != LocationStatus.granted)
-                      _buildLocationWarning(colors),
+                      _buildLocationWarning(colors, textTheme),
                     _buildActionButtons(colors),
                     const SizedBox(height: AppSpacing.base),
-                    _buildStatusCard(colors),
+                    _buildStatusCard(colors, textTheme),
                     const SizedBox(height: AppSpacing.base),
-                    _buildWorkedHoursCard(colors),
+                    _buildWorkedHoursCard(colors, textTheme),
                     const SizedBox(height: AppSpacing.base),
-                    _buildTodayServicesCard(colors),
+                    _buildTodayServicesCard(colors, textTheme),
                   ],
                 ),
               ),
@@ -720,7 +723,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
     );
   }
 
-  Widget _buildLocationWarning(AppColors colors) {
+  Widget _buildLocationWarning(AppColors colors, TextTheme textTheme) {
     String message;
     VoidCallback? action;
     String actionLabel;
@@ -753,7 +756,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: colors.warningMuted,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.warning),
       ),
       child: Row(
@@ -763,8 +766,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(
-                fontSize: 13,
+              style: textTheme.bodySmall?.copyWith(
                 color: colors.foreground,
               ),
             ),
@@ -773,7 +775,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
             onPressed: action,
             style: TextButton.styleFrom(
               foregroundColor: colors.warning,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
+              minimumSize: const Size(48, 48),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             ),
             child: Text(actionLabel),
           ),
@@ -782,7 +785,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
     );
   }
 
-  Widget _buildStatusCard(AppColors colors) {
+  Widget _buildStatusCard(AppColors colors, TextTheme textTheme) {
     final isServiceActive = _activeService != null && !_activeService!.isBreak;
     final isOnBreak = _activeService != null && _activeService!.isBreak;
 
@@ -808,16 +811,16 @@ class _ServicesScreenState extends State<ServicesScreen> {
     final workedTimeToday = _calculateWorkedTimeToday();
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.base),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
@@ -831,17 +834,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
           const SizedBox(height: AppSpacing.base),
           Text(
             statusText,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
+            style: textTheme.titleLarge?.copyWith(
               color: statusColor,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Travaillé aujourd\'hui: ${_formatDuration(workedTimeToday)}',
-            style: TextStyle(
-              fontSize: 13,
+            style: textTheme.bodySmall?.copyWith(
               color: colors.mutedForeground,
             ),
           ),
@@ -850,12 +850,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
     );
   }
 
-  Widget _buildWorkedHoursCard(AppColors colors) {
+  Widget _buildWorkedHoursCard(AppColors colors, TextTheme textTheme) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -863,13 +863,11 @@ class _ServicesScreenState extends State<ServicesScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.schedule, color: colors.primary, size: 20),
+              Icon(Icons.schedule, color: colors.primary, size: 22),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 'Heures travaillées',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                style: textTheme.titleMedium?.copyWith(
                   color: colors.foreground,
                 ),
               ),
@@ -878,15 +876,15 @@ class _ServicesScreenState extends State<ServicesScreen> {
           const SizedBox(height: AppSpacing.base),
           Row(
             children: [
-              Expanded(child: _buildHourItem('Aujourd\'hui', _workedHours?.day, colors)),
-              Expanded(child: _buildHourItem('Semaine', _workedHours?.week, colors)),
+              Expanded(child: _buildHourItem('Aujourd\'hui', _workedHours?.day, colors, textTheme)),
+              Expanded(child: _buildHourItem('Semaine', _workedHours?.week, colors, textTheme)),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
           Row(
             children: [
-              Expanded(child: _buildHourItem('Mois', _workedHours?.month, colors)),
-              Expanded(child: _buildHourItem('Mois dernier', _workedHours?.lastMonth, colors)),
+              Expanded(child: _buildHourItem('Mois', _workedHours?.month, colors, textTheme)),
+              Expanded(child: _buildHourItem('Mois dernier', _workedHours?.lastMonth, colors, textTheme)),
             ],
           ),
         ],
@@ -911,10 +909,10 @@ class _ServicesScreenState extends State<ServicesScreen> {
     }
   }
 
-  Widget _buildHourItem(String label, double? hours, AppColors colors) {
+  Widget _buildHourItem(String label, double? hours, AppColors colors, TextTheme textTheme) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      margin: const EdgeInsets.all(4),
+      margin: const EdgeInsets.all(AppSpacing.xs),
       decoration: BoxDecoration(
         color: colors.muted,
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -923,19 +921,17 @@ class _ServicesScreenState extends State<ServicesScreen> {
         children: [
           Text(
             _formatHours(hours),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+            style: textTheme.titleMedium?.copyWith(
               color: colors.primary,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.xs),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
+            style: textTheme.labelSmall?.copyWith(
               color: colors.mutedForeground,
+              letterSpacing: 1,
             ),
             textAlign: TextAlign.center,
           ),
@@ -944,12 +940,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
     );
   }
 
-  Widget _buildTodayServicesCard(AppColors colors) {
+  Widget _buildTodayServicesCard(AppColors colors, TextTheme textTheme) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.base),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colors.border),
       ),
       child: Column(
@@ -957,13 +953,11 @@ class _ServicesScreenState extends State<ServicesScreen> {
         children: [
           Row(
             children: [
-              Icon(Icons.today, color: colors.primary, size: 20),
+              Icon(Icons.today, color: colors.primary, size: 22),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 'Services d\'aujourd\'hui',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                style: textTheme.titleMedium?.copyWith(
                   color: colors.foreground,
                 ),
               ),
@@ -984,8 +978,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   Expanded(
                     child: Text(
                       'Aucun service aujourd\'hui',
-                      style: TextStyle(
-                        fontSize: 13,
+                      style: textTheme.bodySmall?.copyWith(
                         color: colors.mutedForeground,
                       ),
                     ),
@@ -994,13 +987,13 @@ class _ServicesScreenState extends State<ServicesScreen> {
               ),
             )
           else
-            ..._todayServices.map((service) => _buildServiceItem(service, colors)),
+            ..._todayServices.map((service) => _buildServiceItem(service, colors, textTheme)),
         ],
       ),
     );
   }
 
-  Widget _buildServiceItem(Service service, AppColors colors) {
+  Widget _buildServiceItem(Service service, AppColors colors, TextTheme textTheme) {
     final isBreak = service.isBreak;
     final isActive = service.isActive;
     final duration = service.durationInHours;
@@ -1033,7 +1026,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: iconColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -1047,9 +1040,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
               children: [
                 Text(
                   isBreak ? 'Pause' : 'Service',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                  style: textTheme.titleSmall?.copyWith(
                     color: colors.foreground,
                   ),
                 ),
@@ -1058,9 +1049,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
                   endTime != null
                       ? '$startTime - $endTime'
                       : 'Depuis $startTime',
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: textTheme.labelSmall?.copyWith(
                     color: colors.mutedForeground,
+                    letterSpacing: 1,
                   ),
                 ),
               ],
@@ -1070,16 +1061,15 @@ class _ServicesScreenState extends State<ServicesScreen> {
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm,
-                vertical: 4,
+                vertical: AppSpacing.xs,
               ),
               decoration: BoxDecoration(
                 color: iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(100),
+                borderRadius: BorderRadius.circular(AppRadius.full),
               ),
               child: Text(
                 '${duration.toStringAsFixed(2)}h',
-                style: TextStyle(
-                  fontSize: 12,
+                style: textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: iconColor,
                 ),
@@ -1089,21 +1079,20 @@ class _ServicesScreenState extends State<ServicesScreen> {
             Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.sm,
-                vertical: 4,
+                vertical: AppSpacing.xs,
               ),
               decoration: BoxDecoration(
                 color: iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(100),
+                borderRadius: BorderRadius.circular(AppRadius.full),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.circle, size: 8, color: iconColor),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Text(
                     'En cours',
-                    style: TextStyle(
-                      fontSize: 11,
+                    style: textTheme.labelSmall?.copyWith(
                       fontWeight: FontWeight.w600,
                       color: iconColor,
                     ),
