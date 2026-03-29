@@ -88,7 +88,7 @@ class CompleteProfileDialog extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.base),
             decoration: BoxDecoration(
               color: colors.warning.withValues(alpha: 0.1),
               shape: BoxShape.circle,
@@ -101,38 +101,27 @@ class CompleteProfileDialog extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.base),
           Text(
-            'Complétez votre profil',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w600,
-              color: colors.foreground,
-            ),
+            'Completez votre profil',
+            style: Theme.of(context).textTheme.titleLarge,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Pour une meilleure expérience, veuillez renseigner les informations suivantes :',
-            style: TextStyle(
-              fontSize: 13,
-              color: colors.mutedForeground,
-            ),
+            'Pour une meilleure experience, veuillez renseigner les informations suivantes :',
+            style: Theme.of(context).textTheme.bodySmall,
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.base),
           ...missingInfo.map((info) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: Row(
                   children: [
-                    Icon(Icons.arrow_right, size: 20, color: colors.warning),
-                    const SizedBox(width: AppSpacing.xs),
+                    Icon(Icons.arrow_right, size: 22, color: colors.warning),
+                    const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(
                         info,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: colors.foreground,
-                          fontWeight: FontWeight.w500,
-                        ),
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
                     ),
                   ],
@@ -143,9 +132,12 @@ class CompleteProfileDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: onLater,
+          style: TextButton.styleFrom(
+            minimumSize: const Size(48, 48),
+          ),
           child: Text(
             'Plus tard',
-            style: TextStyle(color: colors.mutedForeground),
+            style: TextStyle(color: colors.mutedForeground, fontSize: 16),
           ),
         ),
         FilledButton(
@@ -153,6 +145,7 @@ class CompleteProfileDialog extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: colors.primary,
             foregroundColor: colors.primaryForeground,
+            minimumSize: const Size(48, 48),
           ),
           child: const Text('Renseigner'),
         ),

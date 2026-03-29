@@ -81,7 +81,7 @@ class AppSearchableSelect<T> extends StatelessWidget {
                               placeholder,
                               style: TextStyle(
                                 color: colors.mutedForeground,
-                                fontSize: 14,
+                                fontSize: 16,
                               ),
                             ),
                     ),
@@ -101,7 +101,7 @@ class AppSearchableSelect<T> extends StatelessWidget {
                   field.errorText!,
                   style: TextStyle(
                     color: colors.destructive,
-                    fontSize: 12,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -132,7 +132,7 @@ class AppSearchableSelect<T> extends StatelessWidget {
                 itemLabel(item),
                 style: TextStyle(
                   color: colors.foreground,
-                  fontSize: 14,
+                  fontSize: 16,
                 ),
               ),
               if (subtitle != null)
@@ -140,7 +140,7 @@ class AppSearchableSelect<T> extends StatelessWidget {
                   subtitle,
                   style: TextStyle(
                     color: colors.mutedForeground,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
             ],
@@ -274,29 +274,21 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
                 Expanded(
                   child: Text(
                     widget.title,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      color: colors.foreground,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ),
-                SizedBox(
-                  width: 32,
-                  height: 32,
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(
-                      Icons.close_rounded,
-                      color: colors.mutedForeground,
-                      size: 18,
-                    ),
-                    padding: EdgeInsets.zero,
-                    style: IconButton.styleFrom(
-                      backgroundColor: colors.muted,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(
+                    Icons.close_rounded,
+                    color: colors.mutedForeground,
+                    size: 20,
+                  ),
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  style: IconButton.styleFrom(
+                    backgroundColor: colors.muted,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
                     ),
                   ),
                 ),
@@ -311,7 +303,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
               controller: _searchController,
               autofocus: widget.items.length > 5,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 color: colors.foreground,
               ),
               decoration: InputDecoration(
@@ -360,7 +352,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
 
   Widget _buildEmptyState(AppColors colors) {
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.xxl),
+      padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -374,7 +366,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
             widget.emptyMessage,
             style: TextStyle(
               color: colors.mutedForeground,
-              fontSize: 14,
+              fontSize: 16,
             ),
           ),
         ],
@@ -422,7 +414,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
                     widget.itemLabel(item),
                     style: TextStyle(
                       color: colors.foreground,
-                      fontSize: 14,
+                      fontSize: 16,
                       fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     ),
                   ),
@@ -431,7 +423,7 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
                       subtitle,
                       style: TextStyle(
                         color: colors.mutedForeground,
-                        fontSize: 12,
+                        fontSize: 14,
                       ),
                     ),
                 ],

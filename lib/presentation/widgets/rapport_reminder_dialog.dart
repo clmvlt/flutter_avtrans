@@ -38,13 +38,9 @@ class RapportReminderDialog extends StatelessWidget {
         ),
       ),
       title: Text(
-        isRequired ? 'Rapport obligatoire' : 'Rapport de véhicule',
+        isRequired ? 'Rapport obligatoire' : 'Rapport de vehicule',
         textAlign: TextAlign.center,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 18,
-          color: colors.foreground,
-        ),
+        style: Theme.of(context).textTheme.titleLarge,
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -54,21 +50,15 @@ class RapportReminderDialog extends StatelessWidget {
                 ? 'Votre dernier rapport date de plus d\'une semaine.'
                 : 'Vous n\'avez pas encore fait de rapport cette semaine.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: colors.foreground,
-            ),
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             isRequired
-                ? 'Vous devez créer un rapport de l\'état du véhicule pour pouvoir pointer.'
-                : 'Pensez à créer un rapport de l\'état du véhicule.',
+                ? 'Vous devez creer un rapport de l\'etat du vehicule pour pouvoir pointer.'
+                : 'Pensez a creer un rapport de l\'etat du vehicule.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: colors.mutedForeground,
-            ),
+            style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
       ),
@@ -76,9 +66,10 @@ class RapportReminderDialog extends StatelessWidget {
         if (!isRequired)
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
+            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
             child: Text(
               'Plus tard',
-              style: TextStyle(color: colors.mutedForeground),
+              style: TextStyle(color: colors.mutedForeground, fontSize: 16),
             ),
           ),
         FilledButton.icon(
@@ -86,11 +77,12 @@ class RapportReminderDialog extends StatelessWidget {
             Navigator.of(context).pop(true);
             onCreateRapport();
           },
-          icon: const Icon(Icons.description, size: 16),
-          label: const Text('Créer un rapport'),
+          icon: const Icon(Icons.description, size: 20),
+          label: const Text('Creer un rapport'),
           style: FilledButton.styleFrom(
             backgroundColor: colors.primary,
             foregroundColor: colors.primaryForeground,
+            minimumSize: const Size(48, 48),
           ),
         ),
       ],

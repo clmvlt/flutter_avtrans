@@ -1,8 +1,9 @@
-// Barrel file pour exporter tous les widgets shadcn
+// Barrel file — widgets partagés
 export 'app_alert.dart';
 export 'app_avatar.dart';
 export 'app_badge.dart';
 export 'app_button.dart';
+export 'app_empty_state.dart';
 export 'app_searchable_select.dart';
 export 'app_separator.dart';
 export 'app_skeleton.dart';

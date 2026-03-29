@@ -98,22 +98,18 @@ class _UpdateDialogState extends State<UpdateDialog> {
       title: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: colors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
-            child: Icon(Icons.system_update, color: colors.primary, size: 20),
+            child: Icon(Icons.system_update, color: colors.primary, size: 22),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
-              'Mise à jour disponible',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: colors.foreground,
-              ),
+              'Mise a jour disponible',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
           ),
         ],
@@ -129,30 +125,22 @@ class _UpdateDialogState extends State<UpdateDialog> {
             if (widget.version.changelog != null &&
                 widget.version.changelog!.isNotEmpty) ...[
               Text(
-                'Nouveautés',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: colors.foreground,
-                ),
+                'Nouveautes',
+                style: Theme.of(context).textTheme.titleSmall,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: colors.muted,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 child: Text(
                   widget.version.changelog!,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: colors.mutedForeground,
-                    height: 1.4,
-                  ),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: AppSpacing.base),
             ],
 
             Row(

@@ -18,29 +18,29 @@ class AppColors {
 
   // ============ Background & Foreground ============
   Color get background => isDarkMode
-      ? const Color(0xFF09090B) // zinc-950
+      ? const Color(0xFF121212) // dark: jamais #000 pur
       : const Color(0xFFFFFFFF);
 
   Color get foreground => isDarkMode
-      ? const Color(0xFFFAFAFA) // zinc-50
+      ? const Color(0xFFE0E0E0) // 87% blanc — jamais #FFF pur
       : const Color(0xFF09090B); // zinc-950
 
   // ============ Card ============
   Color get card => isDarkMode
-      ? const Color(0xFF09090B)
+      ? const Color(0xFF1E1E1E) // surface élevée
       : const Color(0xFFFFFFFF);
 
   Color get cardForeground => isDarkMode
-      ? const Color(0xFFFAFAFA)
+      ? const Color(0xFFE0E0E0)
       : const Color(0xFF09090B);
 
   // ============ Popover ============
   Color get popover => isDarkMode
-      ? const Color(0xFF09090B)
+      ? const Color(0xFF2C2C2C) // surface variant
       : const Color(0xFFFFFFFF);
 
   Color get popoverForeground => isDarkMode
-      ? const Color(0xFFFAFAFA)
+      ? const Color(0xFFE0E0E0)
       : const Color(0xFF09090B);
 
   // ============ Primary (blue brand) ============
@@ -58,29 +58,29 @@ class AppColors {
 
   // ============ Secondary ============
   Color get secondary => isDarkMode
-      ? const Color(0xFF27272A) // zinc-800
+      ? const Color(0xFF2C2C2C) // surface variant
       : const Color(0xFFF4F4F5); // zinc-100
 
   Color get secondaryForeground => isDarkMode
-      ? const Color(0xFFFAFAFA)
+      ? const Color(0xFFE0E0E0)
       : const Color(0xFF18181B); // zinc-900
 
   // ============ Muted ============
   Color get muted => isDarkMode
-      ? const Color(0xFF27272A) // zinc-800
+      ? const Color(0xFF2C2C2C) // surface variant
       : const Color(0xFFF4F4F5); // zinc-100
 
   Color get mutedForeground => isDarkMode
-      ? const Color(0xFFA1A1AA) // zinc-400
+      ? const Color(0xFFA0A0A0) // 60% blanc
       : const Color(0xFF71717A); // zinc-500
 
   // ============ Accent ============
   Color get accent => isDarkMode
-      ? const Color(0xFF27272A) // zinc-800
+      ? const Color(0xFF2C2C2C)
       : const Color(0xFFF4F4F5); // zinc-100
 
   Color get accentForeground => isDarkMode
-      ? const Color(0xFFFAFAFA)
+      ? const Color(0xFFE0E0E0)
       : const Color(0xFF18181B);
 
   // ============ Destructive ============
@@ -94,11 +94,11 @@ class AppColors {
 
   // ============ Border & Input ============
   Color get border => isDarkMode
-      ? const Color(0xFF27272A) // zinc-800
+      ? const Color(0xFF333333) // plus visible sur #1E1E1E
       : const Color(0xFFE4E4E7); // zinc-200
 
   Color get input => isDarkMode
-      ? const Color(0xFF27272A)
+      ? const Color(0xFF333333)
       : const Color(0xFFE4E4E7);
 
   // ============ Ring (focus) ============
@@ -182,6 +182,11 @@ class AppColors {
   Color get surface => card;
   Color get divider => border;
 
+  // ============ Disabled ============
+  Color get disabled => isDarkMode
+      ? const Color(0xFF6C6C6C) // 38% blanc
+      : const Color(0xFFA1A1AA);
+
   // ============ Static compat ============
   static const Color primaryStatic = Color(0xFF3B82F6);
   static const Color primaryLightStatic = Color(0xFF60A5FA);
@@ -189,16 +194,16 @@ class AppColors {
   static const Color secondaryStatic = Color(0xFF8B5CF6);
   static const Color secondaryLightStatic = Color(0xFFA78BFA);
   static const Color secondaryDarkStatic = Color(0xFF7C3AED);
-  static const Color bgPrimaryStatic = Color(0xFF09090B);
-  static const Color bgSecondaryStatic = Color(0xFF09090B);
-  static const Color bgTertiaryStatic = Color(0xFF27272A);
-  static const Color bgHoverStatic = Color(0xFF27272A);
-  static const Color textPrimaryStatic = Color(0xFFFAFAFA);
-  static const Color textSecondaryStatic = Color(0xFFA1A1AA);
-  static const Color textMutedStatic = Color(0xFF71717A);
-  static const Color textInverseStatic = Color(0xFF09090B);
-  static const Color borderPrimaryStatic = Color(0xFF27272A);
-  static const Color borderSecondaryStatic = Color(0xFF27272A);
+  static const Color bgPrimaryStatic = Color(0xFF121212);
+  static const Color bgSecondaryStatic = Color(0xFF1E1E1E);
+  static const Color bgTertiaryStatic = Color(0xFF2C2C2C);
+  static const Color bgHoverStatic = Color(0xFF2C2C2C);
+  static const Color textPrimaryStatic = Color(0xFFE0E0E0);
+  static const Color textSecondaryStatic = Color(0xFFA0A0A0);
+  static const Color textMutedStatic = Color(0xFF6C6C6C);
+  static const Color textInverseStatic = Color(0xFF121212);
+  static const Color borderPrimaryStatic = Color(0xFF333333);
+  static const Color borderSecondaryStatic = Color(0xFF333333);
   static const Color borderFocusStatic = Color(0xFF3B82F6);
   static const Color successStatic = Color(0xFF22C55E);
   static const Color successBgStatic = Color(0xFF052E16);

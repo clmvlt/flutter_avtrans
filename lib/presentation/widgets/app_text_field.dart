@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// Champ de texte shadcn/ui
+/// Champ de texte — 16sp texte, touch target 48dp
 class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
   final String? label;
@@ -51,11 +51,11 @@ class AppTextField extends StatelessWidget {
       children: [
         if (label != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               label!,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 16,
                 fontWeight: FontWeight.w500,
                 color: colors.foreground,
               ),
@@ -74,8 +74,9 @@ class AppTextField extends StatelessWidget {
           focusNode: focusNode,
           autofocus: autofocus,
           style: TextStyle(
-            fontSize: 14,
+            fontSize: 16,
             color: colors.foreground,
+            height: 1.5,
           ),
           decoration: InputDecoration(
             hintText: hint,
@@ -116,7 +117,7 @@ class EmailTextField extends StatelessWidget {
       hint: 'exemple@email.com',
       errorText: errorText,
       keyboardType: TextInputType.emailAddress,
-      prefixIcon: const Icon(Icons.mail_outline, size: 18),
+      prefixIcon: const Icon(Icons.mail_outline, size: 20),
       enabled: enabled,
       onChanged: onChanged,
       onSubmitted: onSubmitted,
@@ -173,13 +174,14 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
       obscureText: _obscureText,
       keyboardType: TextInputType.visiblePassword,
       textInputAction: widget.textInputAction,
-      prefixIcon: const Icon(Icons.lock_outline, size: 18),
+      prefixIcon: const Icon(Icons.lock_outline, size: 20),
       suffixIcon: IconButton(
         icon: Icon(
           _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-          size: 18,
+          size: 20,
         ),
         onPressed: () => setState(() => _obscureText = !_obscureText),
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
       ),
       enabled: widget.enabled,
       onChanged: widget.onChanged,
@@ -190,7 +192,7 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
           return 'Veuillez entrer votre mot de passe';
         }
         if (value.length < 6) {
-          return 'Le mot de passe doit contenir au moins 6 caractères';
+          return 'Le mot de passe doit contenir au moins 6 caracteres';
         }
         return null;
       },

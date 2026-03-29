@@ -36,7 +36,7 @@ class AppAlert extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon ?? defaultIcon, size: 16, color: fg),
+          Icon(icon ?? defaultIcon, size: 20, color: fg),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -48,7 +48,7 @@ class AppAlert extends StatelessWidget {
                     child: Text(
                       title!,
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: fg,
                         height: 1.4,
@@ -58,7 +58,7 @@ class AppAlert extends StatelessWidget {
                 Text(
                   description,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     color: fg.withValues(alpha: 0.9),
                     height: 1.5,
                   ),
