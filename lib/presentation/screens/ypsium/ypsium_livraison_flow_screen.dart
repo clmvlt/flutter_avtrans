@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:signature/signature.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -121,6 +122,19 @@ class _YpsiumLivraisonFlowScreenState
     }
   }
 
+  /// Prendre une photo via la caméra
+  Future<void> _takePhoto() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.camera,
+      imageQuality: 70,
+    );
+    if (image == null || !mounted) return;
+
+    final bytes = await image.readAsBytes();
+    setState(() => _photos.add(base64Encode(bytes)));
+  }
+
   /// Envoyer les photos (step 2)
   Future<void> _sendPhotos() async {
     if (_photos.isEmpty) {
@@ -213,11 +227,12 @@ class _YpsiumLivraisonFlowScreenState
           ),
         ),
       ),
-      body: LoadingOverlay(
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: LoadingOverlay(
         isLoading: _isLoading,
         child: Column(
           children: [
-            _buildStepIndicator(colors),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(AppSpacing.base),
@@ -242,93 +257,6 @@ class _YpsiumLivraisonFlowScreenState
           ],
         ),
       ),
-    );
-  }
-
-  // ==========================================================
-  // Step Indicator
-  // ==========================================================
-
-  Widget _buildStepIndicator(AppColors colors) {
-    const labels = ['Récapitulatif', 'Photos', 'Validation'];
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.md,
-      ),
-      decoration: BoxDecoration(
-        color: colors.card,
-        border: Border(bottom: BorderSide(color: colors.border)),
-      ),
-      child: Row(
-        children: List.generate(3, (index) {
-          final isActive = index == _currentStep;
-          final isDone = index < _currentStep;
-          final color = isActive
-              ? colors.primary
-              : isDone
-                  ? colors.success
-                  : colors.mutedForeground;
-
-          return Expanded(
-            child: Row(
-              children: [
-                if (index > 0)
-                  Expanded(
-                    flex: 0,
-                    child: Container(
-                      width: 20,
-                      height: 1,
-                      color: isDone ? colors.success : colors.border,
-                    ),
-                  ),
-                Expanded(
-                  child: Column(
-                    children: [
-                      Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: isDone
-                              ? colors.success
-                              : isActive
-                                  ? colors.primary
-                                  : colors.muted,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: isDone
-                              ? Icon(Icons.check,
-                                  size: 16, color: colors.successForeground)
-                              : Text(
-                                  '${index + 1}',
-                                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: isActive
-                                        ? colors.primaryForeground
-                                        : colors.mutedForeground,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        labels[index],
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight:
-                              isActive ? FontWeight.w600 : FontWeight.w400,
-                          color: color,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
       ),
     );
   }
@@ -402,15 +330,15 @@ class _YpsiumLivraisonFlowScreenState
               ),
             if (order.lTelephone1.isNotEmpty || order.lAdresseComplete.isNotEmpty) ...[
               const SizedBox(height: AppSpacing.md),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
+              Row(
                 children: [
                   if (order.lTelephone1.isNotEmpty)
-                    _buildActionChip(colors, Icons.phone, 'Appeler', colors.success,
+                    _buildActionIcon(colors, Icons.phone, colors.success,
                         () => _launchPhone(order.lTelephone1)),
+                  if (order.lTelephone1.isNotEmpty && order.lAdresseComplete.isNotEmpty)
+                    const SizedBox(width: AppSpacing.sm),
                   if (order.lAdresseComplete.isNotEmpty)
-                    _buildActionChip(colors, Icons.navigation, 'Itinéraire', colors.info,
+                    _buildActionIcon(colors, Icons.navigation, colors.info,
                         () => _launchMaps(order.lAdresseComplete)),
                 ],
               ),
@@ -464,42 +392,18 @@ class _YpsiumLivraisonFlowScreenState
   // ==========================================================
 
   Widget _buildStep2Photos(AppColors colors) {
-    final order = widget.order;
-    final hasRequired = order.photoLivDebut || order.photoLivFin;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInfoCard(
-          colors: colors,
-          icon: Icons.camera_alt_outlined,
-          iconColor: colors.chart4,
-          children: [
-            Text(
-              'Photos de livraison',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              hasRequired
-                  ? 'Des photos sont demandées pour cette livraison'
-                  : 'Aucune photo requise — vous pouvez passer cette étape',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
-            ),
-          ],
+        Text(
+          'Photos',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: colors.foreground,
+          ),
         ),
         const SizedBox(height: AppSpacing.base),
 
         if (_photos.isNotEmpty) ...[
-          Text(
-            '${_photos.length} photo(s)',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: colors.foreground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
           Wrap(
             spacing: AppSpacing.sm,
             runSpacing: AppSpacing.sm,
@@ -546,24 +450,11 @@ class _YpsiumLivraisonFlowScreenState
           ),
         const SizedBox(height: AppSpacing.md),
 
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: colors.infoBg,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, size: 20, color: colors.info),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'La prise de photo sera disponible via la caméra de l\'appareil',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.info),
-                ),
-              ),
-            ],
-          ),
+        AppButton(
+          text: 'Prendre une photo',
+          icon: Icons.camera_alt,
+          variant: ButtonVariant.outline,
+          onPressed: _takePhoto,
         ),
       ],
     );
@@ -577,56 +468,36 @@ class _YpsiumLivraisonFlowScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildInfoCard(
-          colors: colors,
-          icon: Icons.check_circle_outline,
-          iconColor: colors.success,
-          children: [
-            Text(
-              'Valider la livraison',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Renseignez les informations de livraison',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.base),
-
         AppTextField(
           controller: _nomReceptController,
-          label: 'Nom du réceptionnaire',
-          hint: 'Personne qui réceptionne la marchandise',
+          label: 'Réceptionnaire',
+          hint: 'Nom de la personne',
           prefixIcon: const Icon(Icons.person_outline, size: 18),
         ),
-        const SizedBox(height: AppSpacing.base),
+        const SizedBox(height: AppSpacing.sm),
 
         Row(
           children: [
             Expanded(
               child: _buildTimeField(
                 colors: colors,
-                label: 'Arrivée sur site',
+                label: 'Arrivée',
                 time: _heureArrivee,
                 onTap: () => _pickTime(isArrivee: true),
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: _buildTimeField(
                 colors: colors,
-                label: 'Départ du site',
+                label: 'Départ',
                 time: _heureDepart,
                 onTap: () => _pickTime(isArrivee: false),
               ),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: AppSpacing.md),
 
         Row(
           children: [
@@ -638,38 +509,31 @@ class _YpsiumLivraisonFlowScreenState
             ),
             const Spacer(),
             GestureDetector(
+              onTap: () => _signatureController.clear(),
+              child: Container(
+                constraints: const BoxConstraints(minHeight: 44),
+                alignment: Alignment.center,
+                child: Icon(Icons.refresh, size: 20, color: colors.mutedForeground),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            GestureDetector(
               onTap: _openSignatureFullscreen,
               child: Container(
-                constraints: const BoxConstraints(minHeight: 48),
+                constraints: const BoxConstraints(minHeight: 44),
                 alignment: Alignment.center,
-                child: Row(
-                  children: [
-                    Icon(Icons.fullscreen, size: 20, color: colors.primary),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      'Plein écran',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.primary),
-                    ),
-                  ],
-                ),
+                child: Icon(Icons.fullscreen, size: 20, color: colors.primary),
               ),
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        const SizedBox(height: AppSpacing.xs),
         Container(
-          height: 200,
+          height: 300,
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: colors.foreground.withValues(alpha: 0.3), width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: colors.foreground.withValues(alpha: 0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -678,33 +542,6 @@ class _YpsiumLivraisonFlowScreenState
               backgroundColor: Colors.white,
             ),
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Dessinez votre signature ci-dessus',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
-            ),
-            GestureDetector(
-              onTap: () => _signatureController.clear(),
-              child: Container(
-                constraints: const BoxConstraints(minHeight: 48),
-                alignment: Alignment.center,
-                child: Row(
-                  children: [
-                    Icon(Icons.refresh, size: 20, color: colors.mutedForeground),
-                    const SizedBox(width: AppSpacing.xs),
-                    Text(
-                      'Effacer',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
         ),
       ],
     );
@@ -721,33 +558,24 @@ class _YpsiumLivraisonFlowScreenState
 
     return GestureDetector(
       onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: colors.foreground)),
-          const SizedBox(height: AppSpacing.sm),
-          Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(minHeight: 48),
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.md),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: colors.border),
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 44),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: colors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.access_time, size: 18, color: colors.mutedForeground),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              '$label  $hh:$mm',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.foreground),
             ),
-            child: Row(
-              children: [
-                Icon(Icons.access_time,
-                    size: 20, color: colors.mutedForeground),
-                const SizedBox(width: AppSpacing.sm),
-                Text('$hh:$mm',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.foreground)),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -781,7 +609,13 @@ class _YpsiumLivraisonFlowScreenState
       padding: const EdgeInsets.all(AppSpacing.base),
       decoration: BoxDecoration(
         color: colors.card,
-        border: Border(top: BorderSide(color: colors.border)),
+        boxShadow: [
+          BoxShadow(
+            color: colors.foreground.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
@@ -790,7 +624,7 @@ class _YpsiumLivraisonFlowScreenState
             if (_currentStep > 0)
               Expanded(
                 child: AppButton(
-                  text: 'Précédent',
+                  text: 'Retour',
                   variant: ButtonVariant.outline,
                   onPressed: _previousStep,
                   icon: Icons.arrow_back,
@@ -800,13 +634,13 @@ class _YpsiumLivraisonFlowScreenState
             Expanded(
               child: _currentStep == 2
                   ? AppButton(
-                      text: 'Valider la livraison',
+                      text: 'Valider',
                       icon: Icons.check,
                       onPressed: _validate,
                     )
                   : _currentStep == 1
                       ? AppButton(
-                          text: _photos.isEmpty ? 'Passer' : 'Suivant',
+                          text: _photos.isEmpty ? 'Passer' : 'Envoyer (${_photos.length})',
                           icon: Icons.arrow_forward,
                           onPressed:
                               _photos.isEmpty ? _nextStep : _sendPhotos,
@@ -840,31 +674,23 @@ class _YpsiumLivraisonFlowScreenState
     );
   }
 
-  Widget _buildActionChip(
+  Widget _buildActionIcon(
     AppColors colors,
     IconData icon,
-    String label,
     Color color,
     VoidCallback onTap,
   ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          shape: BoxShape.circle,
           border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: AppSpacing.sm),
-            Text(label, style: Theme.of(context).textTheme.labelMedium?.copyWith(color: color)),
-          ],
-        ),
+        child: Icon(icon, size: 20, color: color),
       ),
     );
   }

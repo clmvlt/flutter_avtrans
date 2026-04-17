@@ -36,68 +36,71 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, colors),
-            const SizedBox(height: AppSpacing.base),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.base),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, colors),
+                  const SizedBox(height: AppSpacing.base),
 
-            // Enlèvement
-            _buildStopCard(
-              context: context,
-              colors: colors,
-              title: 'Enlèvement',
-              icon: Icons.upload_outlined,
-              iconColor: colors.info,
-              nom: order.eNom,
-              adresse1: order.eAdresse1,
-              adresse2: order.eAdresse2,
-              adresse3: order.eAdresse3,
-              codePostal: order.eCodePostal,
-              ville: order.eVille,
-              pays: order.ePays,
-              heure: order.eHeureFormatted,
-              contact: order.eContact,
-              tel1: order.eTelephone1,
-              tel2: order.eTelephone2,
+                  // Enlèvement
+                  _buildStopCard(
+                    context: context,
+                    colors: colors,
+                    title: 'Enlèvement',
+                    icon: Icons.upload_outlined,
+                    iconColor: colors.info,
+                    nom: order.eNom,
+                    adresse1: order.eAdresse1,
+                    adresse2: order.eAdresse2,
+                    adresse3: order.eAdresse3,
+                    codePostal: order.eCodePostal,
+                    ville: order.eVille,
+                    pays: order.ePays,
+                    heure: order.eHeureFormatted,
+                    contact: order.eContact,
+                    tel1: order.eTelephone1,
+                    tel2: order.eTelephone2,
+                  ),
+                  const SizedBox(height: AppSpacing.base),
+
+                  // Livraison
+                  _buildStopCard(
+                    context: context,
+                    colors: colors,
+                    title: 'Livraison',
+                    icon: Icons.download_outlined,
+                    iconColor: colors.success,
+                    nom: order.lNom,
+                    adresse1: order.lAdresse1,
+                    adresse2: order.lAdresse2,
+                    adresse3: order.lAdresse3,
+                    codePostal: order.lCodePostal,
+                    ville: order.lVille,
+                    pays: order.lPays,
+                    heure: order.lHeureFormatted,
+                    contact: order.lContact,
+                    tel1: order.lTelephone1,
+                    tel2: order.lTelephone2,
+                  ),
+                  const SizedBox(height: AppSpacing.base),
+
+                  // Photos requises
+                  if (_hasPhotoConfig()) _buildPhotoInfo(context, colors),
+                  if (_hasPhotoConfig()) const SizedBox(height: AppSpacing.base),
+
+                  // Infos complémentaires
+                  _buildDetails(context, colors),
+                ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.base),
-
-            // Livraison
-            _buildStopCard(
-              context: context,
-              colors: colors,
-              title: 'Livraison',
-              icon: Icons.download_outlined,
-              iconColor: colors.success,
-              nom: order.lNom,
-              adresse1: order.lAdresse1,
-              adresse2: order.lAdresse2,
-              adresse3: order.lAdresse3,
-              codePostal: order.lCodePostal,
-              ville: order.lVille,
-              pays: order.lPays,
-              heure: order.lHeureFormatted,
-              contact: order.lContact,
-              tel1: order.lTelephone1,
-              tel2: order.lTelephone2,
-            ),
-            const SizedBox(height: AppSpacing.base),
-
-            // Photos requises
-            if (_hasPhotoConfig()) _buildPhotoInfo(context, colors),
-            if (_hasPhotoConfig()) const SizedBox(height: AppSpacing.base),
-
-            // Infos complémentaires
-            _buildDetails(context, colors),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Actions selon l'état
-            ..._buildActions(context, colors),
-          ],
-        ),
+          ),
+          _buildBottomBar(context, colors),
+        ],
       ),
     );
   }
@@ -106,38 +109,64 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
   // Actions
   // ==========================================================
 
-  List<Widget> _buildActions(BuildContext context, AppColors colors) {
-    final widgets = <Widget>[];
+  Widget _buildBottomBar(BuildContext context, AppColors colors) {
+    final actions = <Widget>[];
 
     if (order.isAEnlever) {
-      widgets.add(AppButton(
-        text: 'Commencer l\'enlèvement',
-        icon: Icons.upload_outlined,
-        onPressed: () => _startFlow(context, isEnlevement: true),
+      actions.add(Expanded(
+        child: AppButton(
+          text: 'Commencer l\'enlèvement',
+          icon: Icons.upload_outlined,
+          onPressed: () => _startFlow(context, isEnlevement: true),
+        ),
       ));
     } else if (order.isEnleve) {
-      widgets.add(AppButton(
-        text: 'Commencer la livraison',
-        icon: Icons.download_outlined,
-        onPressed: () => _startFlow(context, isEnlevement: false),
+      actions.add(Expanded(
+        child: AppButton(
+          text: 'Commencer la livraison',
+          icon: Icons.download_outlined,
+          onPressed: () => _startFlow(context, isEnlevement: false),
+        ),
       ));
     } else if (order.isLivre) {
-      widgets.add(AppButton(
-        text: 'Re-enlever',
-        icon: Icons.upload_outlined,
-        variant: ButtonVariant.outline,
-        onPressed: () => _startFlow(context, isEnlevement: true),
+      actions.add(Expanded(
+        child: AppButton(
+          text: 'Re-enlever',
+          icon: Icons.upload_outlined,
+          variant: ButtonVariant.outline,
+          onPressed: () => _startFlow(context, isEnlevement: true),
+        ),
       ));
-      widgets.add(const SizedBox(height: AppSpacing.sm));
-      widgets.add(AppButton(
-        text: 'Re-livrer',
-        icon: Icons.download_outlined,
-        variant: ButtonVariant.outline,
-        onPressed: () => _startFlow(context, isEnlevement: false),
+      actions.add(const SizedBox(width: AppSpacing.md));
+      actions.add(Expanded(
+        child: AppButton(
+          text: 'Re-livrer',
+          icon: Icons.download_outlined,
+          variant: ButtonVariant.outline,
+          onPressed: () => _startFlow(context, isEnlevement: false),
+        ),
       ));
     }
 
-    return widgets;
+    if (actions.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: colors.card,
+        boxShadow: [
+          BoxShadow(
+            color: colors.foreground.withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(children: actions),
+      ),
+    );
   }
 
   void _startFlow(BuildContext context, {required bool isEnlevement}) async {
@@ -360,39 +389,32 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
               ),
             ),
 
-          // Boutons d'action : Appeler + GPS
           if (hasPhone || hasAddress) ...[
             const SizedBox(height: AppSpacing.md),
             Row(
               children: [
                 if (tel1.isNotEmpty)
-                  _buildActionChip(
-                    context: context,
+                  _buildActionIcon(
                     colors: colors,
                     icon: Icons.phone,
-                    label: 'Appeler',
                     color: colors.success,
                     onTap: () => _callPhone(tel1),
                   ),
                 if (tel1.isNotEmpty && tel2.isNotEmpty)
                   const SizedBox(width: AppSpacing.sm),
                 if (tel2.isNotEmpty)
-                  _buildActionChip(
-                    context: context,
+                  _buildActionIcon(
                     colors: colors,
                     icon: Icons.phone,
-                    label: tel2,
                     color: colors.success,
                     onTap: () => _callPhone(tel2),
                   ),
                 if (hasPhone && hasAddress)
                   const SizedBox(width: AppSpacing.sm),
                 if (hasAddress)
-                  _buildActionChip(
-                    context: context,
+                  _buildActionIcon(
                     colors: colors,
                     icon: Icons.navigation,
-                    label: 'Itinéraire',
                     color: colors.info,
                     onTap: () => _openMaps(
                       adresse1: adresse1,
@@ -411,40 +433,23 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildActionChip({
-    required BuildContext context,
+  Widget _buildActionIcon({
     required AppColors colors,
     required IconData icon,
-    required String label,
     required Color color,
     required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          shape: BoxShape.circle,
           border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(width: AppSpacing.sm),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: color,
-              ),
-            ),
-          ],
-        ),
+        child: Icon(icon, size: 20, color: color),
       ),
     );
   }

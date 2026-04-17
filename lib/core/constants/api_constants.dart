@@ -84,7 +84,7 @@ abstract class ServiceEndpoints {
   /// GET - Récupérer le service actif
   static const String active = '$_base/active';
 
-  /// GET - Récupérer l'historique des services
+  /// POST - Récupérer l'historique paginé des services
   static const String history = '$_base/history';
 
   /// GET - Récupérer les services du jour de l'utilisateur

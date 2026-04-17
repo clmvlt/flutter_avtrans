@@ -6,7 +6,10 @@ import '../../../core/di/service_locator.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
 
-/// Page d'historique des services
+/// Historique des pointages — vue calendrier mensuelle.
+///
+/// Chaque mois affiché déclenche un `GET /services/month` (mis en cache
+/// mémoire). La sélection d'un jour filtre localement les services du mois.
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -15,133 +18,95 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  final List<Service> _services = [];
-  bool _isLoading = true;
-  bool _isLoadingMore = false;
-  bool _hasMore = true;
-  int _currentPage = 0;
-  static const int _pageSize = 20;
+  final Map<String, List<Service>> _cache = {};
+  final Set<String> _loadingMonths = {};
 
-  final ScrollController _scrollController = ScrollController();
-
-  // Filtres
-  bool? _filterIsBreak;
-  DateTime? _filterStartDate;
-  DateTime? _filterEndDate;
-  ServiceHistorySortBy _sortBy = ServiceHistorySortBy.debut;
-  SortDirection _sortDirection = SortDirection.desc;
-
-  // Vue calendrier (par défaut)
-  bool _isCalendarView = true;
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay = DateTime.now(); // Sélectionner la date du jour par défaut
+  DateTime _focusedDay = _today();
+  DateTime? _selectedDay = _today();
   CalendarFormat _calendarFormat = CalendarFormat.month;
-  Map<DateTime, List<Service>> _servicesByDay = {};
+
+  /// `null` = Tout, `false` = Services, `true` = Pauses.
+  bool? _typeFilter;
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
-    _scrollController.addListener(_onScroll);
+    _loadMonth(_focusedDay);
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
+  static DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
   }
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      _loadMore();
+  String _monthKey(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}';
+
+  bool get _isCurrentMonthLoading =>
+      _loadingMonths.contains(_monthKey(_focusedDay));
+
+  bool get _isOnCurrentMonth {
+    final now = DateTime.now();
+    return _focusedDay.year == now.year && _focusedDay.month == now.month;
+  }
+
+  Future<void> _loadMonth(DateTime month, {bool force = false}) async {
+    final key = _monthKey(month);
+    if (!force && (_cache.containsKey(key) || _loadingMonths.contains(key))) {
+      return;
     }
-  }
 
-  ServiceHistoryParams _buildParams({int page = 0}) {
-    return ServiceHistoryParams(
-      page: page,
-      size: _pageSize,
-      isBreak: _filterIsBreak,
-      startDate: _filterStartDate,
-      endDate: _filterEndDate,
-      sortBy: _sortBy,
-      sortDirection: _sortDirection,
+    setState(() => _loadingMonths.add(key));
+
+    final result = await sl.serviceRepository.getMonthServices(
+      year: month.year,
+      month: month.month,
+    );
+
+    if (!mounted) return;
+
+    result.fold(
+      (failure) {
+        setState(() => _loadingMonths.remove(key));
+        _showError(failure.message);
+      },
+      (services) {
+        final sorted = [...services]..sort((a, b) => a.debut.compareTo(b.debut));
+        setState(() {
+          _cache[key] = sorted;
+          _loadingMonths.remove(key);
+        });
+      },
     );
   }
 
-  Future<void> _loadHistory() async {
+  List<Service> _servicesOfFocusedMonth() {
+    final services = _cache[_monthKey(_focusedDay)] ?? const [];
+    if (_typeFilter == null) return services;
+    return services.where((s) => s.isBreak == _typeFilter).toList();
+  }
+
+  List<Service> _servicesForDay(DateTime day) {
+    final normalized = DateTime(day.year, day.month, day.day);
+    return _servicesOfFocusedMonth().where((s) {
+      final local = s.debut.toLocal();
+      return local.year == normalized.year &&
+          local.month == normalized.month &&
+          local.day == normalized.day;
+    }).toList();
+  }
+
+  Future<void> _onRefresh() async {
+    await _loadMonth(_focusedDay, force: true);
+  }
+
+  void _jumpToToday() {
+    final today = _today();
     setState(() {
-      _isLoading = true;
-      _currentPage = 0;
-      _services.clear();
-      _hasMore = true;
+      _focusedDay = today;
+      _selectedDay = today;
     });
-
-    final result = await sl.serviceRepository.getHistory(_buildParams());
-
-    if (!mounted) return;
-
-    result.fold(
-      (failure) {
-        _showError(failure.message);
-        setState(() => _isLoading = false);
-      },
-      (response) {
-        setState(() {
-          _services.addAll(response.content);
-          _hasMore = !response.last;
-          _isLoading = false;
-          _updateServicesByDay();
-        });
-      },
-    );
-  }
-
-  void _updateServicesByDay() {
-    _servicesByDay.clear();
-    for (final service in _services) {
-      // Convertir en heure locale pour regrouper par jour local
-      final debutLocal = service.debut.toLocal();
-      final day = DateTime(
-        debutLocal.year,
-        debutLocal.month,
-        debutLocal.day,
-      );
-      _servicesByDay.putIfAbsent(day, () => []).add(service);
-    }
-  }
-
-  List<Service> _getServicesForDay(DateTime day) {
-    final normalizedDay = DateTime(day.year, day.month, day.day);
-    return _servicesByDay[normalizedDay] ?? [];
-  }
-
-  Future<void> _loadMore() async {
-    if (_isLoadingMore || !_hasMore) return;
-
-    setState(() => _isLoadingMore = true);
-
-    final result = await sl.serviceRepository.getHistory(
-      _buildParams(page: _currentPage + 1),
-    );
-
-    if (!mounted) return;
-
-    result.fold(
-      (failure) {
-        _showError(failure.message);
-        setState(() => _isLoadingMore = false);
-      },
-      (response) {
-        setState(() {
-          _currentPage++;
-          _services.addAll(response.content);
-          _hasMore = !response.last;
-          _isLoadingMore = false;
-        });
-      },
-    );
+    _loadMonth(today);
   }
 
   void _showError(String message) {
@@ -170,57 +135,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  void _showFilterSheet() {
-    final colors = context.colors;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      isScrollControlled: true,
-      builder: (context) => _FilterSheet(
-        filterIsBreak: _filterIsBreak,
-        filterStartDate: _filterStartDate,
-        filterEndDate: _filterEndDate,
-        sortBy: _sortBy,
-        sortDirection: _sortDirection,
-        onApply: (isBreak, startDate, endDate, sortBy, sortDirection) {
-          setState(() {
-            _filterIsBreak = isBreak;
-            _filterStartDate = startDate;
-            _filterEndDate = endDate;
-            _sortBy = sortBy;
-            _sortDirection = sortDirection;
-          });
-          _loadHistory();
-        },
-      ),
-    );
-  }
-
-  int get _activeFiltersCount {
-    int count = 0;
-    if (_filterIsBreak != null) count++;
-    if (_filterStartDate != null) count++;
-    if (_filterEndDate != null) count++;
-    return count;
-  }
-
-  bool get _hasActiveFilters => _activeFiltersCount > 0;
-
-  void _clearFilters() {
-    setState(() {
-      _filterIsBreak = null;
-      _filterStartDate = null;
-      _filterEndDate = null;
-      _sortBy = ServiceHistorySortBy.debut;
-      _sortDirection = SortDirection.desc;
-    });
-    _loadHistory();
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -230,88 +144,96 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         title: const Text('Historique'),
         actions: [
-          // Toggle vue liste/calendrier
-          IconButton(
+          if (!_isOnCurrentMonth)
+            IconButton(
+              icon: const Icon(Icons.today, size: 24),
+              tooltip: 'Aujourd\'hui',
+              onPressed: _jumpToToday,
+            ),
+          PopupMenuButton<bool?>(
+            tooltip: 'Filtrer',
             icon: Icon(
-              _isCalendarView ? Icons.list : Icons.calendar_month,
-              size: 24,
+              _typeFilter == null
+                  ? Icons.filter_list_outlined
+                  : Icons.filter_list,
+              color: _typeFilter == null ? null : colors.primary,
             ),
-            onPressed: () => setState(() => _isCalendarView = !_isCalendarView),
-            tooltip: _isCalendarView ? 'Vue liste' : 'Vue calendrier',
+            onSelected: (value) => setState(() => _typeFilter = value),
+            itemBuilder: (context) => [
+              _buildFilterItem(null, 'Tout', Icons.list, colors.primary),
+              _buildFilterItem(false, 'Services', Icons.work, colors.success),
+              _buildFilterItem(true, 'Pauses', Icons.coffee, colors.warning),
+            ],
           ),
-          // Bouton filtre avec badge (seulement en vue liste)
-          if (!_isCalendarView)
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _hasActiveFilters ? Icons.filter_list : Icons.filter_list_outlined,
-                    size: 24,
-                    color: _hasActiveFilters ? colors.primary : null,
-                  ),
-                  onPressed: _showFilterSheet,
-                  tooltip: 'Filtres',
-                ),
-                if (_hasActiveFilters)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        '$_activeFiltersCount',
-                        style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
         ],
       ),
-      body: Column(
+      body: RefreshIndicator(
+        color: colors.primary,
+        backgroundColor: colors.card,
+        onRefresh: _onRefresh,
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(child: _buildCalendar(colors)),
+            SliverToBoxAdapter(child: _buildDayHeader(colors)),
+            _buildDayServices(colors),
+            const SliverToBoxAdapter(
+              child: SizedBox(height: AppSpacing.xl),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  PopupMenuItem<bool?> _buildFilterItem(
+    bool? value,
+    String label,
+    IconData icon,
+    Color accent,
+  ) {
+    final colors = context.colors;
+    final selected = _typeFilter == value;
+    return PopupMenuItem<bool?>(
+      value: value,
+      child: Row(
         children: [
-          // Barre de filtres actifs (seulement en vue liste)
-          if (_hasActiveFilters && !_isCalendarView) _buildActiveFiltersBar(colors),
-          // Contenu
-          Expanded(
-            child: _isLoading
-                ? const LoadingIndicator(message: 'Chargement...')
-                : _isCalendarView
-                    ? _buildCalendarView(colors)
-                    : RefreshIndicator(
-                        onRefresh: _loadHistory,
-                        color: colors.primary,
-                        backgroundColor: colors.card,
-                        child: _services.isEmpty
-                            ? _buildEmptyState(colors)
-                            : _buildHistoryList(colors),
-                      ),
+          Icon(icon, size: 20, color: accent),
+          const SizedBox(width: AppSpacing.md),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+              color: colors.foreground,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            ),
           ),
+          const Spacer(),
+          if (selected)
+            Icon(Icons.check, size: 18, color: colors.primary),
         ],
       ),
     );
   }
 
-  Widget _buildCalendarView(AppColors colors) {
-    return Column(
-      children: [
-        // Calendrier
-        Container(
-          margin: const EdgeInsets.all(AppSpacing.base),
-          decoration: BoxDecoration(
-            color: colors.card,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: colors.border),
-          ),
-          child: TableCalendar<Service>(
+  Widget _buildCalendar(AppColors colors) {
+    return Container(
+      margin: const EdgeInsets.all(AppSpacing.base),
+      decoration: BoxDecoration(
+        color: colors.card,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: colors.border),
+      ),
+      child: Column(
+        children: [
+          if (_isCurrentMonthLoading)
+            LinearProgressIndicator(
+              minHeight: 2,
+              color: colors.primary,
+              backgroundColor: Colors.transparent,
+            )
+          else
+            const SizedBox(height: 2),
+          TableCalendar<Service>(
             firstDay: DateTime(2020),
             lastDay: DateTime.now().add(const Duration(days: 365)),
             focusedDay: _focusedDay,
@@ -319,7 +241,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
             calendarFormat: _calendarFormat,
             locale: 'fr_FR',
             startingDayOfWeek: StartingDayOfWeek.monday,
-            eventLoader: _getServicesForDay,
+            availableCalendarFormats: const {
+              CalendarFormat.month: 'Mois',
+              CalendarFormat.twoWeeks: '2 sem.',
+              CalendarFormat.week: 'Semaine',
+            },
+            eventLoader: _servicesForDay,
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
@@ -330,53 +257,50 @@ class _HistoryScreenState extends State<HistoryScreen> {
               setState(() => _calendarFormat = format);
             },
             onPageChanged: (focusedDay) {
-              _focusedDay = focusedDay;
+              setState(() => _focusedDay = focusedDay);
+              _loadMonth(focusedDay);
             },
             calendarStyle: CalendarStyle(
-              // Jours normaux
               defaultTextStyle: TextStyle(color: colors.foreground),
               weekendTextStyle: TextStyle(color: colors.mutedForeground),
-              outsideTextStyle: TextStyle(color: colors.mutedForeground),
-              // Jour sélectionné
+              outsideTextStyle: TextStyle(
+                color: colors.mutedForeground.withValues(alpha: 0.5),
+              ),
               selectedDecoration: BoxDecoration(
                 color: colors.primary,
                 shape: BoxShape.circle,
               ),
               selectedTextStyle: const TextStyle(color: Colors.white),
-              // Aujourd'hui
               todayDecoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.3),
+                color: colors.primary.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               todayTextStyle: TextStyle(
                 color: colors.primary,
                 fontWeight: FontWeight.bold,
               ),
-              // Marqueurs d'événements
-              markerDecoration: BoxDecoration(
-                color: colors.success,
-                shape: BoxShape.circle,
-              ),
-              markersMaxCount: 3,
-              markerSize: 6,
-              markerMargin: const EdgeInsets.symmetric(horizontal: 1),
+              markersMaxCount: 0,
             ),
             headerStyle: HeaderStyle(
               titleCentered: true,
               formatButtonVisible: true,
               formatButtonShowsNext: false,
-              titleTextStyle: Theme.of(context).textTheme.titleMedium!.copyWith(
+              titleTextStyle:
+                  Theme.of(context).textTheme.titleMedium!.copyWith(
                 color: colors.foreground,
               ),
-              formatButtonTextStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
+              formatButtonTextStyle:
+                  Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: colors.primary,
               ),
               formatButtonDecoration: BoxDecoration(
                 border: Border.all(color: colors.primary),
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
-              leftChevronIcon: Icon(Icons.chevron_left, color: colors.foreground),
-              rightChevronIcon: Icon(Icons.chevron_right, color: colors.foreground),
+              leftChevronIcon:
+                  Icon(Icons.chevron_left, color: colors.foreground),
+              rightChevronIcon:
+                  Icon(Icons.chevron_right, color: colors.foreground),
             ),
             daysOfWeekStyle: DaysOfWeekStyle(
               weekdayStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
@@ -389,915 +313,170 @@ class _HistoryScreenState extends State<HistoryScreen> {
             calendarBuilders: CalendarBuilders(
               markerBuilder: (context, date, events) {
                 if (events.isEmpty) return null;
-
                 final hasService = events.any((e) => !e.isBreak);
                 final hasBreak = events.any((e) => e.isBreak);
-
                 return Positioned(
-                  bottom: 1,
+                  bottom: 2,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (hasService)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          decoration: BoxDecoration(
-                            color: colors.success,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                        _MarkerDot(color: colors.success),
                       if (hasBreak)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.symmetric(horizontal: 1),
-                          decoration: BoxDecoration(
-                            color: colors.warning,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
+                        _MarkerDot(color: colors.warning),
                     ],
                   ),
                 );
               },
             ),
           ),
-        ),
-        // Liste des services du jour sélectionné
-        if (_selectedDay != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
-            child: Row(
-              children: [
-                Icon(Icons.event, size: 20, color: colors.primary),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  _formatDateLong(_selectedDay!),
-                  style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${_getServicesForDay(_selectedDay!).length} entrée(s)',
-                  style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                    color: colors.mutedForeground,
-                  ),
-                ),
-              ],
+          _buildLegend(colors),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegend(AppColors colors) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base,
+        0,
+        AppSpacing.base,
+        AppSpacing.md,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _MarkerDot(color: colors.success),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            'Service',
+            style: Theme.of(context).textTheme.labelSmall!.copyWith(
+              color: colors.mutedForeground,
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          const SizedBox(width: AppSpacing.lg),
+          _MarkerDot(color: colors.warning),
+          const SizedBox(width: AppSpacing.xs),
+          Text(
+            'Pause',
+            style: Theme.of(context).textTheme.labelSmall!.copyWith(
+              color: colors.mutedForeground,
+            ),
+          ),
         ],
-        // Liste des services
-        Expanded(
-          child: _selectedDay == null
-              ? _buildSelectDayHint(colors)
-              : _getServicesForDay(_selectedDay!).isEmpty
-                  ? _buildNoDayServices(colors)
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
-                      itemCount: _getServicesForDay(_selectedDay!).length,
-                      itemBuilder: (context, index) {
-                        return _buildServiceCard(
-                          _getServicesForDay(_selectedDay!)[index],
-                          colors,
-                        );
-                      },
-                    ),
+      ),
+    );
+  }
+
+  Widget _buildDayHeader(AppColors colors) {
+    if (_selectedDay == null) return const SizedBox.shrink();
+    final count = _servicesForDay(_selectedDay!).length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base,
+        0,
+        AppSpacing.base,
+        AppSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event, size: 20, color: colors.primary),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              _formatDateLong(_selectedDay!),
+              style: Theme.of(context).textTheme.titleSmall!.copyWith(
+                color: colors.foreground,
+              ),
+            ),
+          ),
+          Text(
+            count > 1 ? '$count entrées' : '$count entrée',
+            style: Theme.of(context).textTheme.labelSmall!.copyWith(
+              color: colors.mutedForeground,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDayServices(AppColors colors) {
+    if (_selectedDay == null) {
+      return const SliverToBoxAdapter(
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+          child: AppEmptyState(
+            icon: Icons.touch_app,
+            title: 'Sélectionnez un jour',
+            subtitle: 'pour voir les pointages',
+          ),
         ),
-      ],
-    );
-  }
+      );
+    }
 
-  Widget _buildSelectDayHint(AppColors colors) {
-    return const AppEmptyState(
-      icon: Icons.touch_app,
-      title: 'Sélectionnez un jour',
-      subtitle: 'pour voir les services',
-    );
-  }
+    final services = _servicesForDay(_selectedDay!);
 
-  Widget _buildNoDayServices(AppColors colors) {
-    return const AppEmptyState(
-      icon: Icons.event_busy,
-      title: 'Aucun service ce jour',
+    if (services.isEmpty) {
+      if (_isCurrentMonthLoading &&
+          !_cache.containsKey(_monthKey(_focusedDay))) {
+        return const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+            child: LoadingIndicator(message: 'Chargement du mois...'),
+          ),
+        );
+      }
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
+          child: AppEmptyState(
+            icon: _typeFilter == null ? Icons.event_busy : Icons.search_off,
+            title: _typeFilter == null
+                ? 'Aucun pointage ce jour'
+                : 'Aucun résultat',
+            subtitle: _typeFilter == null
+                ? null
+                : 'Essayez un autre filtre',
+          ),
+        ),
+      );
+    }
+
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
+      sliver: SliverList.builder(
+        itemCount: services.length,
+        itemBuilder: (context, index) => ServiceDayTile(
+          service: services[index],
+        ),
+      ),
     );
   }
 
   String _formatDateLong(DateTime date) {
     const weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-    const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
-    return '${weekdays[date.weekday - 1]} ${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-
-  Widget _buildActiveFiltersBar(AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.base,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: colors.card,
-        border: Border(bottom: BorderSide(color: colors.border)),
-      ),
-      child: Row(
-        children: [
-          // Chips des filtres actifs
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  if (_filterIsBreak != null)
-                    _buildFilterChip(
-                      icon: _filterIsBreak! ? Icons.coffee : Icons.work,
-                      label: _filterIsBreak! ? 'Pauses' : 'Services',
-                      color: _filterIsBreak! ? colors.warning : colors.success,
-                      onRemove: () {
-                        setState(() => _filterIsBreak = null);
-                        _loadHistory();
-                      },
-                    ),
-                  if (_filterStartDate != null)
-                    _buildFilterChip(
-                      icon: Icons.calendar_today,
-                      label: 'Du ${_formatDateFull(_filterStartDate!)}',
-                      color: colors.info,
-                      onRemove: () {
-                        setState(() => _filterStartDate = null);
-                        _loadHistory();
-                      },
-                    ),
-                  if (_filterEndDate != null)
-                    _buildFilterChip(
-                      icon: Icons.event,
-                      label: 'Au ${_formatDateFull(_filterEndDate!)}',
-                      color: colors.info,
-                      onRemove: () {
-                        setState(() => _filterEndDate = null);
-                        _loadHistory();
-                      },
-                    ),
-                ],
-              ),
-            ),
-          ),
-          // Bouton effacer tout
-          const SizedBox(width: AppSpacing.sm),
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: GestureDetector(
-              onTap: _clearFilters,
-              behavior: HitTestBehavior.opaque,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: colors.destructive.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Icon(
-                    Icons.close,
-                    size: 20,
-                    color: colors.destructive,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onRemove,
-  }) {
-    final colors = context.colors;
-    return Container(
-      margin: const EdgeInsets.only(right: AppSpacing.sm),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: AppSpacing.sm),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(
-              color: colors.foreground,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          GestureDetector(
-            onTap: onRemove,
-            behavior: HitTestBehavior.opaque,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xs),
-              child: Icon(Icons.close, size: 16, color: color),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(AppColors colors) {
-    return AppEmptyState(
-      icon: _hasActiveFilters ? Icons.search_off : Icons.history,
-      title: _hasActiveFilters ? 'Aucun résultat' : 'Aucun historique',
-      subtitle: _hasActiveFilters
-          ? 'Modifiez vos filtres pour voir plus de résultats'
-          : 'Vos services apparaîtront ici',
-      actionText: _hasActiveFilters ? 'Effacer les filtres' : null,
-      onAction: _hasActiveFilters ? _clearFilters : null,
-    );
-  }
-
-  Widget _buildHistoryList(AppColors colors) {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      itemCount: _services.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == _services.length) {
-          return _buildLoadingMore(colors);
-        }
-        return _buildServiceCard(_services[index], colors);
-      },
-    );
-  }
-
-  Widget _buildServiceCard(Service service, AppColors colors) {
-    final isBreak = service.isBreak;
-    final statusColor = isBreak ? colors.warning : colors.success;
-    final statusIcon = isBreak ? Icons.coffee : Icons.work;
-    final statusText = isBreak ? 'Pause' : 'Service';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(
-                  statusIcon,
-                  size: 22,
-                  color: statusColor,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      statusText,
-                      style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                        color: statusColor,
-                      ),
-                    ),
-                    Text(
-                      _formatDate(service.debut.toLocal()),
-                      style: Theme.of(context).textTheme.bodySmall!.copyWith(
-                        color: colors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (service.fin != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colors.muted,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Text(
-                    _formatDuration(service.debut, service.fin!),
-                    style: Theme.of(context).textTheme.labelMedium!.copyWith(
-                      color: colors.primary,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: colors.muted,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildTimeInfo(
-                    'Début',
-                    _formatTime(service.debut.toLocal()),
-                    Icons.login,
-                    colors,
-                  ),
-                ),
-                Container(
-                  width: 1,
-                  height: 30,
-                  color: colors.border,
-                ),
-                Expanded(
-                  child: _buildTimeInfo(
-                    'Fin',
-                    service.fin != null ? _formatTime(service.fin!.toLocal()) : '-',
-                    Icons.logout,
-                    colors,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTimeInfo(String label, String time, IconData icon, AppColors colors) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, size: 20, color: colors.mutedForeground),
-        const SizedBox(width: AppSpacing.sm),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                color: colors.mutedForeground,
-              ),
-            ),
-            Text(
-              time,
-              style: Theme.of(context).textTheme.labelMedium!.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLoadingMore(AppColors colors) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      child: Center(
-        child: CircularProgressIndicator(
-          color: colors.primary,
-          strokeWidth: 2,
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime dateTime) {
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final month = dateTime.month.toString().padLeft(2, '0');
-    final year = dateTime.year;
-    return '$day/$month/$year';
-  }
-
-  String _formatDateFull(DateTime dateTime) {
-    final day = dateTime.day.toString().padLeft(2, '0');
-    final month = dateTime.month.toString().padLeft(2, '0');
-    return '$day/$month';
-  }
-
-  String _formatTime(DateTime dateTime) {
-    final hour = dateTime.hour.toString().padLeft(2, '0');
-    final minute = dateTime.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-
-  String _formatDuration(DateTime start, DateTime end) {
-    final duration = end.difference(start);
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-
-    if (hours > 0) {
-      return '${hours}h${minutes.toString().padLeft(2, '0')}';
-    }
-    return '${minutes}min';
+    const months = [
+      'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
+      'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc',
+    ];
+    return '${weekdays[date.weekday - 1]} ${date.day} '
+        '${months[date.month - 1]} ${date.year}';
   }
 }
 
-/// Bottom sheet pour les filtres - Design amélioré
-class _FilterSheet extends StatefulWidget {
-  final bool? filterIsBreak;
-  final DateTime? filterStartDate;
-  final DateTime? filterEndDate;
-  final ServiceHistorySortBy sortBy;
-  final SortDirection sortDirection;
-  final void Function(
-    bool? isBreak,
-    DateTime? startDate,
-    DateTime? endDate,
-    ServiceHistorySortBy sortBy,
-    SortDirection sortDirection,
-  ) onApply;
-
-  const _FilterSheet({
-    required this.filterIsBreak,
-    required this.filterStartDate,
-    required this.filterEndDate,
-    required this.sortBy,
-    required this.sortDirection,
-    required this.onApply,
-  });
-
-  @override
-  State<_FilterSheet> createState() => _FilterSheetState();
-}
-
-class _FilterSheetState extends State<_FilterSheet> {
-  late bool? _isBreak;
-  late DateTime? _startDate;
-  late DateTime? _endDate;
-  late ServiceHistorySortBy _sortBy;
-  late SortDirection _sortDirection;
-
-  @override
-  void initState() {
-    super.initState();
-    _isBreak = widget.filterIsBreak;
-    _startDate = widget.filterStartDate;
-    _endDate = widget.filterEndDate;
-    _sortBy = widget.sortBy;
-    _sortDirection = widget.sortDirection;
-  }
-
-  Future<void> _selectDate(BuildContext context, bool isStartDate) async {
-    final colors = context.colors;
-    final initialDate = isStartDate
-        ? (_startDate ?? DateTime.now())
-        : (_endDate ?? DateTime.now());
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initialDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: colors.primary,
-              brightness: colors.isDarkMode ? Brightness.dark : Brightness.light,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        if (isStartDate) {
-          _startDate = DateTime(picked.year, picked.month, picked.day, 0, 0, 0);
-        } else {
-          _endDate = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-        }
-      });
-    }
-  }
-
-  bool get _hasChanges =>
-      _isBreak != null ||
-      _startDate != null ||
-      _endDate != null ||
-      _sortBy != ServiceHistorySortBy.debut ||
-      _sortDirection != SortDirection.desc;
-
-  void _resetAll() {
-    setState(() {
-      _isBreak = null;
-      _startDate = null;
-      _endDate = null;
-      _sortBy = ServiceHistorySortBy.debut;
-      _sortDirection = SortDirection.desc;
-    });
-  }
+class _MarkerDot extends StatelessWidget {
+  final Color color;
+  const _MarkerDot({required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
     return Container(
-      padding: EdgeInsets.only(
-        left: AppSpacing.lg,
-        right: AppSpacing.lg,
-        top: AppSpacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.lg,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Handle
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colors.border,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Header avec titre et bouton reset
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.tune, color: colors.primary, size: 22),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    'Filtres & Tri',
-                    style: Theme.of(context).textTheme.titleLarge!.copyWith(
-                      color: colors.foreground,
-                    ),
-                  ),
-                ],
-              ),
-              if (_hasChanges)
-                TextButton(
-                  onPressed: _resetAll,
-                  style: TextButton.styleFrom(
-                    foregroundColor: colors.destructive,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                  child: const Text('Réinitialiser'),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Section Type
-          _buildSectionHeader('Type d\'entrée', Icons.category, colors),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(child: _buildTypeOption(null, 'Tout', Icons.list, colors)),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _buildTypeOption(false, 'Services', Icons.work, colors)),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: _buildTypeOption(true, 'Pauses', Icons.coffee, colors)),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Section Période
-          _buildSectionHeader('Période', Icons.date_range, colors),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                child: _buildDateSelector(
-                  'Date début',
-                  _startDate,
-                  Icons.event,
-                  () => _selectDate(context, true),
-                  () => setState(() => _startDate = null),
-                  colors,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                child: Icon(Icons.arrow_forward, color: colors.mutedForeground, size: 20),
-              ),
-              Expanded(
-                child: _buildDateSelector(
-                  'Date fin',
-                  _endDate,
-                  Icons.event,
-                  () => _selectDate(context, false),
-                  () => setState(() => _endDate = null),
-                  colors,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Section Tri
-          _buildSectionHeader('Tri', Icons.sort, colors),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: colors.muted,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: colors.border),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      _buildSortOption(ServiceHistorySortBy.debut, 'Date', colors),
-                      _buildSortOption(ServiceHistorySortBy.duree, 'Durée', colors),
-                    ],
-                  ),
-                ),
-                // Direction
-                Container(
-                  height: 32,
-                  width: 1,
-                  color: colors.border,
-                  margin: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                ),
-                _buildDirectionButton(colors),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-
-          // Bouton Appliquer
-          ElevatedButton(
-            onPressed: () {
-              widget.onApply(
-                _isBreak,
-                _startDate,
-                _endDate,
-                _sortBy,
-                _sortDirection,
-              );
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colors.primary,
-              foregroundColor: colors.primaryForeground,
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-              ),
-              elevation: 0,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.check, size: 20),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'Appliquer les filtres',
-                  style: Theme.of(context).textTheme.titleMedium!.copyWith(
-                    color: colors.primaryForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(String title, IconData icon, AppColors colors) {
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: colors.mutedForeground),
-        const SizedBox(width: AppSpacing.sm),
-        Text(
-          title,
-          style: Theme.of(context).textTheme.labelSmall!.copyWith(
-            color: colors.mutedForeground,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTypeOption(bool? value, String label, IconData icon, AppColors colors) {
-    final isSelected = _isBreak == value;
-    final Color bgColor;
-    final Color borderColor;
-    final Color contentColor;
-
-    if (isSelected) {
-      if (value == null) {
-        bgColor = colors.primary;
-        borderColor = colors.primary;
-        contentColor = Colors.white;
-      } else if (value) {
-        bgColor = colors.warning;
-        borderColor = colors.warning;
-        contentColor = Colors.white;
-      } else {
-        bgColor = colors.success;
-        borderColor = colors.success;
-        contentColor = Colors.white;
-      }
-    } else {
-      bgColor = colors.muted;
-      borderColor = colors.border;
-      contentColor = colors.mutedForeground;
-    }
-
-    return GestureDetector(
-      onTap: () => setState(() => _isBreak = value),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(color: borderColor),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 22, color: contentColor),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                color: contentColor,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDateSelector(
-    String label,
-    DateTime? date,
-    IconData icon,
-    VoidCallback onTap,
-    VoidCallback onClear,
-    AppColors colors,
-  ) {
-    final hasDate = date != null;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          color: hasDate ? colors.info.withValues(alpha: 0.1) : colors.muted,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          border: Border.all(
-            color: hasDate ? colors.info.withValues(alpha: 0.3) : colors.border,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  icon,
-                  size: 16,
-                  color: hasDate ? colors.info : colors.mutedForeground,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  label,
-                  style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                    color: colors.mutedForeground,
-                  ),
-                ),
-                const Spacer(),
-                if (hasDate)
-                  GestureDetector(
-                    onTap: onClear,
-                    behavior: HitTestBehavior.opaque,
-                    child: Padding(
-                      padding: const EdgeInsets.all(AppSpacing.xs),
-                      child: Icon(
-                        Icons.close,
-                        size: 16,
-                        color: colors.mutedForeground,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              hasDate
-                  ? '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}'
-                  : 'Sélectionner',
-              style: hasDate
-                  ? Theme.of(context).textTheme.titleSmall!.copyWith(
-                      color: colors.foreground,
-                    )
-                  : Theme.of(context).textTheme.bodySmall!.copyWith(
-                      color: colors.mutedForeground,
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSortOption(ServiceHistorySortBy value, String label, AppColors colors) {
-    final isSelected = _sortBy == value;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _sortBy = value),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
-          alignment: Alignment.center,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: isSelected ? colors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: isSelected
-                ? Theme.of(context).textTheme.titleSmall!.copyWith(
-                    color: Colors.white,
-                  )
-                : Theme.of(context).textTheme.bodySmall!.copyWith(
-                    color: colors.mutedForeground,
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDirectionButton(AppColors colors) {
-    final isDesc = _sortDirection == SortDirection.desc;
-
-    return GestureDetector(
-      onTap: () => setState(() {
-        _sortDirection = isDesc ? SortDirection.asc : SortDirection.desc;
-      }),
-      child: Container(
-        constraints: const BoxConstraints(minHeight: 48),
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-        decoration: BoxDecoration(
-          color: colors.primary.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isDesc ? Icons.arrow_downward : Icons.arrow_upward,
-              size: 20,
-              color: colors.primary,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-            Text(
-              isDesc ? 'Récent' : 'Ancien',
-              style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                color: colors.primary,
-              ),
-            ),
-          ],
-        ),
-      ),
+      width: 6,
+      height: 6,
+      margin: const EdgeInsets.symmetric(horizontal: 1),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

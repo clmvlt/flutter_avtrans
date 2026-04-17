@@ -164,6 +164,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  bool get _isAdminOrMecano {
+    final roleName = _user?.role?.nom.toLowerCase() ?? '';
+    return roleName == 'admin' || roleName == 'mecanicien';
+  }
+
   // Navigation helpers
   void _openServices() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ServicesScreen()));
   void _openHistory() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HistoryScreen()));
@@ -302,7 +307,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             letterSpacing: 1,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.md),
+                        const SizedBox(height: AppSpacing.sm),
                         _buildToolsGrid(colors, textTheme),
                         const SizedBox(height: AppSpacing.base),
                       ]),
@@ -396,10 +401,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(width: AppSpacing.md),
         Expanded(
           child: _QuickActionButton(
-            icon: Icons.history,
-            label: 'Historique',
+            icon: Icons.local_shipping,
+            label: 'Ypsium',
             color: colors.chart4,
-            onTap: _openHistory,
+            onTap: _openYpsium,
           ),
         ),
       ],
@@ -409,12 +414,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   /// Grille d'outils — 2 colonnes, cartes lisibles
   Widget _buildToolsGrid(AppColors colors, TextTheme textTheme) {
     final tools = [
+      _ToolItem(title: 'Historique', subtitle: 'Mes pointages', icon: Icons.history, color: colors.chart4, onTap: _openHistory),
       _ToolItem(title: 'Absences', subtitle: 'Gerer les demandes', icon: Icons.event_busy, color: colors.warning, onTap: _openAbsences),
       _ToolItem(title: 'Acomptes', subtitle: 'Demander un acompte', icon: Icons.payments, color: colors.info, onTap: _openAcomptes),
       _ToolItem(title: 'Signatures', subtitle: 'Signer vos heures', icon: Icons.draw, color: colors.success, onTap: _openSignatures),
       _ToolItem(title: 'Vehicules', subtitle: 'Gerer les vehicules', icon: Icons.directions_car, color: colors.chart4, onTap: _openVehicules),
       _ToolItem(title: 'Rapport', subtitle: 'Creer un rapport', icon: Icons.description, color: colors.chart3, onTap: _openRapportVehicule),
-      _ToolItem(title: 'Taches', subtitle: 'Gerer les todos', icon: Icons.checklist, color: colors.chart3, onTap: _openTodos),
+      if (_isAdminOrMecano)
+        _ToolItem(title: 'Taches', subtitle: 'Gerer les todos', icon: Icons.checklist, color: colors.chart3, onTap: _openTodos),
       _ToolItem(title: 'Carte UTA', subtitle: 'Trouver une station', icon: Icons.map, color: colors.info, onTap: _openUtaMap),
       _ToolItem(title: 'Ypsium', subtitle: 'Transport / Commandes', icon: Icons.local_shipping, color: colors.chart4, onTap: _openYpsium),
       if (_user?.isCouchette == true)
