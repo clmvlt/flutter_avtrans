@@ -19,6 +19,7 @@ import '../../data/services/download_service.dart';
 import '../../data/services/http_service.dart';
 import '../../data/services/token_storage_service.dart';
 import '../../data/services/ypsium_http_service.dart';
+import '../../data/services/ypsium_spooler_service.dart';
 import '../services/location_service.dart';
 import '../services/update_checker_service.dart';
 
@@ -50,6 +51,7 @@ class ServiceLocator {
   YpsiumTransportRepository? _ypsiumTransportRepository;
   YpsiumVehiculeRepository? _ypsiumVehiculeRepository;
   YpsiumReferentielRepository? _ypsiumReferentielRepository;
+  YpsiumSpoolerService? _ypsiumSpoolerService;
 
   bool _isInitialized = false;
 
@@ -125,9 +127,14 @@ class ServiceLocator {
       httpService: _ypsiumHttpService!,
       prefs: prefs,
     );
+    _ypsiumSpoolerService = YpsiumSpoolerService(
+      httpService: _ypsiumHttpService!,
+    );
+    await _ypsiumSpoolerService!.init();
     _ypsiumTransportRepository = YpsiumTransportRepository(
       httpService: _ypsiumHttpService!,
       authRepository: _ypsiumAuthRepository!,
+      spoolerService: _ypsiumSpoolerService!,
     );
     _ypsiumVehiculeRepository = YpsiumVehiculeRepository(
       httpService: _ypsiumHttpService!,
@@ -267,6 +274,12 @@ class ServiceLocator {
     return _ypsiumReferentielRepository!;
   }
 
+  /// Récupère le service spooler Ypsium
+  YpsiumSpoolerService get ypsiumSpoolerService {
+    _ensureInitialized();
+    return _ypsiumSpoolerService!;
+  }
+
   /// Vérifie que les services sont initialisés
   void _ensureInitialized() {
     if (!_isInitialized) {
@@ -299,6 +312,8 @@ class ServiceLocator {
     _ypsiumHttpService?.dispose();
     _ypsiumHttpService = null;
     _ypsiumAuthRepository = null;
+    _ypsiumSpoolerService?.dispose();
+    _ypsiumSpoolerService = null;
     _ypsiumTransportRepository = null;
     _ypsiumVehiculeRepository = null;
     _ypsiumReferentielRepository = null;

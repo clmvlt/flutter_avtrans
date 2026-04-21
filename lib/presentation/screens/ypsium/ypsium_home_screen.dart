@@ -7,6 +7,7 @@ import '../../../data/models/ypsium_models.dart';
 import '../../widgets/app_badge.dart';
 import '../../widgets/app_skeleton.dart';
 import '../../widgets/widgets.dart';
+import 'ypsium_spooler_screen.dart';
 import 'ypsium_transport_detail_screen.dart';
 import 'ypsium_vehicule_screen.dart';
 
@@ -25,12 +26,24 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
   bool _isLoadingReferentiels = true;
   String? _errorMessage;
   DateTime _selectedDate = DateTime.now();
+  bool _showTermines = false;
 
   @override
   void initState() {
     super.initState();
+    sl.ypsiumSpoolerService.addListener(_onSpoolerChanged);
     _loadReferentiels();
     _loadTransports();
+  }
+
+  @override
+  void dispose() {
+    sl.ypsiumSpoolerService.removeListener(_onSpoolerChanged);
+    super.dispose();
+  }
+
+  void _onSpoolerChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadReferentiels() async {
@@ -87,16 +100,97 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
     );
   }
 
+  void _openSpooler() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const YpsiumSpoolerScreen()),
+    );
+  }
+
   Future<void> _logout() async {
     await sl.ypsiumAuthRepository.logout();
     if (!mounted) return;
     Navigator.of(context).pop();
   }
 
+  Widget _buildPopupMenu(AppColors colors) {
+    final spoolerCount = sl.ypsiumSpoolerService.pendingCount;
+    return PopupMenuButton<String>(
+      icon: Badge(
+        isLabelVisible: spoolerCount > 0,
+        label: Text(
+          '$spoolerCount',
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+        ),
+        backgroundColor: colors.destructive,
+        textColor: colors.destructiveForeground,
+        child: Icon(Icons.more_vert, size: 22, color: colors.foreground),
+      ),
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      color: colors.card,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        side: BorderSide(color: colors.border),
+      ),
+      offset: const Offset(0, 48),
+      onSelected: (value) {
+        switch (value) {
+          case 'spooler':
+            _openSpooler();
+          case 'vehicules':
+            _openVehicules();
+          case 'logout':
+            _logout();
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem(
+          value: 'spooler',
+          height: 48,
+          child: Row(
+            children: [
+              Icon(Icons.outbox, size: 20, color: colors.foreground),
+              const SizedBox(width: AppSpacing.md),
+              Text('Spooler', style: TextStyle(color: colors.foreground)),
+              if (spoolerCount > 0) ...[
+                const SizedBox(width: AppSpacing.sm),
+                AppBadge(
+                  text: '$spoolerCount',
+                  variant: BadgeVariant.destructive,
+                ),
+              ],
+            ],
+          ),
+        ),
+        PopupMenuItem(
+          value: 'vehicules',
+          height: 48,
+          child: Row(
+            children: [
+              Icon(Icons.directions_car, size: 20, color: colors.foreground),
+              const SizedBox(width: AppSpacing.md),
+              Text('Véhicule / Km', style: TextStyle(color: colors.foreground)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem(
+          value: 'logout',
+          height: 48,
+          child: Row(
+            children: [
+              Icon(Icons.logout, size: 20, color: colors.destructive),
+              const SizedBox(width: AppSpacing.md),
+              Text('Déconnexion', style: TextStyle(color: colors.destructive)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final session = sl.ypsiumAuthRepository.currentSession;
 
     return Scaffold(
       backgroundColor: colors.background,
@@ -115,18 +209,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
           ),
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.directions_car, size: 22, color: colors.mutedForeground),
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            onPressed: _openVehicules,
-            tooltip: 'Véhicules',
-          ),
-          IconButton(
-            icon: Icon(Icons.logout, size: 20, color: colors.mutedForeground),
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            onPressed: _logout,
-            tooltip: 'Déconnexion Ypsium',
-          ),
+          _buildPopupMenu(colors),
         ],
       ),
       body: RefreshIndicator(
@@ -139,10 +222,6 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header chauffeur
-              _buildChauffeurHeader(colors, session),
-              const SizedBox(height: AppSpacing.base),
-
               // Date picker
               _buildDateSelector(colors),
               const SizedBox(height: AppSpacing.base),
@@ -183,54 +262,6 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildChauffeurHeader(AppColors colors, dynamic session) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: colors.chart4.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(Icons.local_shipping, size: 22, color: colors.chart4),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  session?.login ?? '',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-                Text(
-                  'Chauffeur ${session?.idChauffeur ?? ''}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colors.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          AppBadge(
-            text: '${_orders.length} ordres',
-            variant: BadgeVariant.secondary,
-          ),
-        ],
       ),
     );
   }
@@ -352,15 +383,55 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
     }
 
     if (livres.isNotEmpty) {
-      widgets.add(_buildSectionHeader(
-        colors,
-        'Livrés',
-        livres.length,
-        Icons.check_circle_outline,
-        colors.success,
-      ));
-      for (final order in livres) {
-        widgets.add(_buildOrderCard(order, colors));
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.sm),
+          child: GestureDetector(
+            onTap: () => setState(() => _showTermines = !_showTermines),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 48),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_outline, size: 20, color: colors.success),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    'Livrés',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: colors.foreground,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: colors.success.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      '${livres.length}',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: colors.success,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _showTermines ? Icons.expand_less : Icons.expand_more,
+                    size: 22,
+                    color: colors.mutedForeground,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      if (_showTermines) {
+        for (final order in livres) {
+          widgets.add(_buildOrderCard(order, colors));
+        }
       }
     }
 
