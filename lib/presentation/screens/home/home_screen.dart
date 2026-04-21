@@ -287,18 +287,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       delegate: SliverChildListDelegate([
                         // En-tete utilisateur
                         _buildWelcomeHeader(colors, textTheme),
-                        const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(height: AppSpacing.sm),
 
-                        // Actions rapides — les plus utilisees
-                        Text(
-                          'Actions rapides',
-                          style: textTheme.labelSmall?.copyWith(
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
+                        // Actions rapides
                         _buildQuickActions(colors),
-                        const SizedBox(height: AppSpacing.lg),
+                        const SizedBox(height: AppSpacing.sm),
 
                         // Tous les outils
                         Text(
@@ -431,6 +424,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
     return GridView.builder(
       shrinkWrap: true,
+      padding: EdgeInsets.zero,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -528,12 +522,12 @@ class _QuickActionButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.lg),
         splashColor: color.withValues(alpha: 0.15),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.base),
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 28, color: color),
-              const SizedBox(height: AppSpacing.sm),
+              Icon(icon, size: 26, color: color),
+              const SizedBox(height: AppSpacing.xs),
               Text(
                 label,
                 style: TextStyle(

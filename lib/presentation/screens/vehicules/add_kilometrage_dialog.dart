@@ -120,7 +120,7 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
                   color: colors.mutedForeground,
                 ),
                 filled: true,
-                fillColor: colors.background,
+                fillColor: colors.muted,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.base),
                   borderSide: BorderSide(color: colors.border),

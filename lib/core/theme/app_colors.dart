@@ -19,7 +19,7 @@ class AppColors {
   // ============ Background & Foreground ============
   Color get background => isDarkMode
       ? const Color(0xFF121212) // dark: jamais #000 pur
-      : const Color(0xFFFFFFFF);
+      : const Color(0xFFF9FAFB); // gray-50 — contraste avec card blanc
 
   Color get foreground => isDarkMode
       ? const Color(0xFFE0E0E0) // 87% blanc — jamais #FFF pur

@@ -503,7 +503,7 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: colors.background,
+                  color: colors.muted,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Row(
