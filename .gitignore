@@ -94,3 +94,6 @@ migrate_working_dir/
 
 # UPLOAD
 upload.py
+
+# Local dev helpers
+emu.vbs
