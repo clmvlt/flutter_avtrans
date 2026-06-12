@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' show Rect;
 
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
@@ -22,11 +23,20 @@ abstract class AddressOcrService {
 
   /// Reconstruit la meilleure requête d'adresse à partir du texte reconnu.
   ///
+  /// Si [accept] est fourni, seules les lignes dont la boîte englobante est
+  /// acceptée par le prédicat sont prises en compte — cela permet à l'appelant
+  /// de limiter le scan au viseur (le calcul de coordonnées dépend de la
+  /// plateforme et de l'orientation, il reste donc côté presentation).
+  ///
   /// Renvoie une chaîne vide si rien d'exploitable n'a été détecté.
-  static String extractAddress(RecognizedText recognized) {
+  static String extractAddress(
+    RecognizedText recognized, {
+    bool Function(Rect box)? accept,
+  }) {
     final lines = <String>[];
     for (final block in recognized.blocks) {
       for (final line in block.lines) {
+        if (accept != null && !accept(line.boundingBox)) continue;
         final text = line.text.trim();
         if (text.isNotEmpty) lines.add(text);
       }

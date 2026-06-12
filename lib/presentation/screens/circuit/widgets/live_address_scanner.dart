@@ -34,8 +34,22 @@ enum _ScannerStatus { initializing, ready, denied, error }
 
 class _LiveAddressScannerState extends State<LiveAddressScanner>
     with WidgetsBindingObserver {
-  static const Duration _minInterval = Duration(milliseconds: 400);
+  static const Duration _minInterval = Duration(milliseconds: 500);
   static const double _previewHeight = 220;
+
+  // Zone de scan active (fractions de l'image redressée). Doit correspondre au
+  // viseur blanc : seul le texte dont le centre tombe dedans est analysé, pour
+  // éviter de lire des adresses hors champ.
+  static const double _roiLeft = 0.10;
+  static const double _roiRight = 0.90;
+  static const double _roiTop = 0.30;
+  static const double _roiBottom = 0.70;
+
+  // Anti-rebond : une adresse doit être détectée [_requiredHits] fois d'affilée
+  // avant d'être proposée, et l'adresse affichée est maintenue au moins
+  // [_holdDuration] avant de pouvoir être remplacée — sinon ça « clignote ».
+  static const int _requiredHits = 2;
+  static const Duration _holdDuration = Duration(milliseconds: 2500);
 
   static const Map<DeviceOrientation, int> _orientations = {
     DeviceOrientation.portraitUp: 0,
@@ -57,6 +71,15 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
   bool _paused = false; // analyse suspendue (confirmation ouverte)
   String? _candidate;
   DateTime _lastRun = DateTime.fromMillisecondsSinceEpoch(0);
+
+  // État de l'anti-rebond.
+  String? _pending; // dernière adresse détectée (pas encore validée)
+  int _pendingHits = 0; // nombre de détections consécutives identiques
+  DateTime _lastChange = DateTime.fromMillisecondsSinceEpoch(0);
+
+  // Largeur réellement rendue de l'aperçu (mesurée au layout) — nécessaire pour
+  // projeter le viseur écran vers les coordonnées image (recadrage cover).
+  double? _previewWidth;
 
   @override
   void initState() {
@@ -181,29 +204,133 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
     final camera = _camera;
     if (controller == null || camera == null) return;
 
-    final input = _toInputImage(image, controller, camera);
+    final rotation = _rotation(controller, camera);
+    if (rotation == null) return;
+
+    final input = _toInputImage(image, rotation);
     if (input == null) return;
 
     try {
       final recognized = await _recognizer.processImage(input);
       if (!mounted || _paused) return;
-      final candidate = AddressOcrService.extractAddress(recognized);
-      if (candidate.isNotEmpty && candidate != _candidate) {
-        setState(() => _candidate = candidate);
-      }
+      final roi = _viewfinderNormalizedRect(controller.value.previewSize);
+      final imageSize = Size(image.width.toDouble(), image.height.toDouble());
+      final lens = camera.lensDirection;
+      final candidate = AddressOcrService.extractAddress(
+        recognized,
+        accept: roi == null
+            ? null
+            : (box) => roi.contains(
+                  _normalizedCenter(box, imageSize, rotation, lens),
+                ),
+      );
+      _updateCandidate(candidate);
     } catch (_) {
       // Erreur transitoire d'analyse d'une frame — on ignore.
     }
   }
 
-  InputImage? _toInputImage(
-    CameraImage image,
-    CameraController controller,
-    CameraDescription camera,
-  ) {
-    final rotation = _rotation(controller, camera);
-    if (rotation == null) return null;
+  /// Met à jour l'adresse proposée avec anti-rebond (stabilité + maintien).
+  void _updateCandidate(String candidate) {
+    if (candidate.isEmpty) return; // on ne vide pas une adresse déjà affichée
+    if (candidate == _candidate) {
+      _pending = candidate;
+      _pendingHits = 0;
+      return;
+    }
 
+    if (candidate == _pending) {
+      _pendingHits++;
+    } else {
+      _pending = candidate;
+      _pendingHits = 1;
+    }
+    if (_pendingHits < _requiredHits) return;
+
+    // L'adresse affichée est maintenue un minimum de temps avant de changer.
+    if (_candidate != null &&
+        DateTime.now().difference(_lastChange) < _holdDuration) {
+      return;
+    }
+
+    setState(() => _candidate = candidate);
+    _lastChange = DateTime.now();
+    _pendingHits = 0;
+  }
+
+  /// Zone du viseur, exprimée en **fractions normalisées [0,1] de l'image
+  /// affichée** (et non en pixels), pour pouvoir la comparer au centre normalisé
+  /// des boîtes de texte.
+  ///
+  /// Le viseur blanc occupe les fractions [_roiLeft]..[_roiBottom] de l'aperçu
+  /// **écran**. Comme l'aperçu est en `BoxFit.cover`, seule une bande centrale
+  /// de l'image est visible : on convertit donc les fractions écran en fractions
+  /// d'image en tenant compte de ce recadrage. Renvoie `null` tant que la
+  /// largeur d'aperçu n'a pas été mesurée.
+  Rect? _viewfinderNormalizedRect(Size? previewSize) {
+    final dispW = _previewWidth;
+    if (previewSize == null || dispW == null) return null;
+
+    // Aperçu redressé en portrait (cf. le FittedBox du build).
+    final childW = previewSize.height; // largeur affichée (px)
+    final childH = previewSize.width; // hauteur affichée (px)
+    const dispH = _previewHeight;
+
+    // BoxFit.cover : on retient l'échelle qui couvre la boîte ; le reste déborde.
+    final scale =
+        (dispW / childW > dispH / childH) ? dispW / childW : dispH / childH;
+    // Fraction de l'image réellement visible (l'autre axe vaut 1.0).
+    final visW = (dispW / (childW * scale)).clamp(0.0, 1.0);
+    final visH = (dispH / (childH * scale)).clamp(0.0, 1.0);
+    final uLeft = 0.5 - visW / 2;
+    final vTop = 0.5 - visH / 2;
+
+    return Rect.fromLTRB(
+      uLeft + _roiLeft * visW,
+      vTop + _roiTop * visH,
+      uLeft + _roiRight * visW,
+      vTop + _roiBottom * visH,
+    );
+  }
+
+  /// Centre de [box] en fractions normalisées [0,1] de l'image affichée.
+  ///
+  /// Le repère des boîtes ML Kit dépend de la plateforme et de la rotation
+  /// (cf. `coordinates_translator.dart` officiel) : sur iOS la coordonnée X est
+  /// rapportée à `imageSize.width`, sur Android à `imageSize.height` (et
+  /// inversement pour Y). On reproduit exactement cette logique.
+  Offset _normalizedCenter(
+    Rect box,
+    Size imageSize,
+    InputImageRotation rotation,
+    CameraLensDirection lens,
+  ) {
+    final cx = box.center.dx;
+    final cy = box.center.dy;
+    final iw = imageSize.width;
+    final ih = imageSize.height;
+
+    double u;
+    double v;
+    switch (rotation) {
+      case InputImageRotation.rotation90deg:
+        u = cx / (Platform.isIOS ? iw : ih);
+        v = cy / (Platform.isIOS ? ih : iw);
+        break;
+      case InputImageRotation.rotation270deg:
+        u = 1 - cx / (Platform.isIOS ? iw : ih);
+        v = cy / (Platform.isIOS ? ih : iw);
+        break;
+      case InputImageRotation.rotation0deg:
+      case InputImageRotation.rotation180deg:
+        u = cx / iw;
+        v = cy / ih;
+        break;
+    }
+    return Offset(u.clamp(0.0, 1.0), v.clamp(0.0, 1.0));
+  }
+
+  InputImage? _toInputImage(CameraImage image, InputImageRotation rotation) {
     final format = InputImageFormatValue.fromRawValue(image.format.raw);
     if (format == null ||
         (Platform.isAndroid && format != InputImageFormat.nv21) ||
@@ -247,6 +374,9 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
     setState(() => _paused = true);
     await widget.onConfirm(candidate);
     if (!mounted) return;
+    _pending = null;
+    _pendingHits = 0;
+    _lastChange = DateTime.fromMillisecondsSinceEpoch(0);
     setState(() {
       _candidate = null;
       _paused = false;
@@ -296,9 +426,13 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
         SizedBox(
           height: _previewHeight,
           width: double.infinity,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // Mémorise la largeur affichée pour le calcul de la ROI.
+              _previewWidth = constraints.maxWidth;
+              return Stack(
+                fit: StackFit.expand,
+                children: [
               if (preview != null)
                 FittedBox(
                   fit: BoxFit.cover,
@@ -308,14 +442,16 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
                     child: CameraPreview(controller),
                   ),
                 ),
-              // Viseur de scan.
+              // Viseur de scan — délimite la zone réellement analysée (ROI).
               Center(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 28),
-                  height: 92,
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.white, width: 2),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                child: FractionallySizedBox(
+                  widthFactor: _roiRight - _roiLeft,
+                  heightFactor: _roiBottom - _roiTop,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.white, width: 2),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
                   ),
                 ),
               ),
@@ -327,7 +463,9 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
                   label: 'Vise une adresse',
                 ),
               ),
-            ],
+                ],
+              );
+            },
           ),
         ),
         Container(
