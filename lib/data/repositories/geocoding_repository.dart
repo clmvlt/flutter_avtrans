@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:dartz/dartz.dart';
 
 import '../../core/constants/ors_api_constants.dart';
@@ -12,11 +10,12 @@ import '../services/ors_http_service.dart';
 abstract class IGeocodingRepository {
   /// Recherche des adresses correspondant au texte [query].
   ///
-  /// L'autocomplétion s'applique au dernier mot. Si la position de l'utilisateur
-  /// ([originLat]/[originLon]) est fournie, les résultats sont reclassés en
-  /// combinant le score ORS et la proximité géographique (les plus pertinents
-  /// ET proches d'abord). Sinon, on conserve l'ordre par score décroissant.
-  /// Peut être vide.
+  /// L'autocomplétion s'applique au dernier mot. Si une position de référence
+  /// ([originLat]/[originLon]) est fournie, elle est transmise à l'API (`lat`/
+  /// `lon`) : le serveur biaise les résultats par proximité (le plus proche
+  /// d'abord) et renvoie la distance de chaque adresse (`distanceMeters`). Les
+  /// deux coordonnées partent ensemble ou pas du tout. Résultats déjà triés par
+  /// le serveur — on les affiche dans l'ordre reçu.
   Future<Either<Failure, List<AddressSuggestion>>> search(
     String query, {
     int limit,
@@ -31,15 +30,6 @@ class GeocodingRepository implements IGeocodingRepository {
 
   GeocodingRepository(this._httpService);
 
-  // Pondération du classement final (somme = 1) : on cherche le juste milieu
-  // entre la pertinence textuelle (score ORS) et la proximité géographique.
-  static const double _scoreWeight = 0.5;
-  static const double _proximityWeight = 0.5;
-
-  // Distance caractéristique de décroissance de la proximité (km) : à cette
-  // distance, le facteur de proximité vaut ~0.37 ; au-delà il chute vite.
-  static const double _proximityTauKm = 20;
-
   @override
   Future<Either<Failure, List<AddressSuggestion>>> search(
     String query, {
@@ -50,13 +40,27 @@ class GeocodingRepository implements IGeocodingRepository {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return const Right([]);
 
+    final params = <String, String>{
+      'q': trimmed,
+      'limit': limit.clamp(1, 50).toString(),
+    };
+
+    // `lat`/`lon` : envoyés ENSEMBLE et seulement dans les bornes WGS84 (sinon
+    // l'API renverrait 400). Sinon recherche purement textuelle.
+    if (originLat != null &&
+        originLon != null &&
+        originLat >= -90 &&
+        originLat <= 90 &&
+        originLon >= -180 &&
+        originLon <= 180) {
+      params['lat'] = originLat.toString();
+      params['lon'] = originLon.toString();
+    }
+
     try {
       final response = await _httpService.get(
         OrsEndpoints.geocodingSearch,
-        queryParameters: {
-          'q': trimmed,
-          'limit': limit.clamp(1, 50).toString(),
-        },
+        queryParameters: params,
       );
 
       if (response is! List) return const Right([]);
@@ -66,74 +70,21 @@ class GeocodingRepository implements IGeocodingRepository {
           .map(AddressSuggestion.fromJson)
           .toList();
 
-      final ranked = (originLat != null && originLon != null)
-          ? _rankByRelevanceAndProximity(suggestions, originLat, originLon)
-          : suggestions;
-
-      return Right(ranked);
+      return Right(suggestions);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
     } on ServerException catch (e) {
+      // 400 = paramètres invalides (position incohérente/hors bornes) ;
+      // 503 = index d'adresses indisponible (message déjà posé en amont).
+      if (e.statusCode == 400) {
+        return const Left(ServerFailure(
+          message: 'Recherche invalide. Réessaie sans la position.',
+          statusCode: 400,
+        ));
+      }
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
     } on AppException catch (e) {
       return Left(ServerFailure(message: e.message));
     }
   }
-
-  /// Reclasse les suggestions en combinant score ORS (normalisé) et proximité.
-  List<AddressSuggestion> _rankByRelevanceAndProximity(
-    List<AddressSuggestion> suggestions,
-    double originLat,
-    double originLon,
-  ) {
-    if (suggestions.isEmpty) return suggestions;
-
-    // Attache la distance à chaque suggestion.
-    final withDistance = suggestions
-        .map((s) => s.withDistance(
-              _haversineMeters(originLat, originLon, s.lat, s.lon),
-            ))
-        .toList();
-
-    final maxScore = withDistance
-        .map((s) => s.score ?? 0)
-        .fold<double>(0, (a, b) => a > b ? a : b);
-
-    double relevance(AddressSuggestion s) {
-      final scoreNorm = maxScore > 0 ? (s.score ?? 0) / maxScore : 0.0;
-      final distanceKm = (s.distanceMeters ?? 0) / 1000;
-      final proximityNorm = math.exp(-distanceKm / _proximityTauKm);
-      return _scoreWeight * scoreNorm + _proximityWeight * proximityNorm;
-    }
-
-    withDistance.sort((a, b) {
-      final byRelevance = relevance(b).compareTo(relevance(a));
-      if (byRelevance != 0) return byRelevance;
-      // Égalité → le plus proche d'abord.
-      return (a.distanceMeters ?? 0).compareTo(b.distanceMeters ?? 0);
-    });
-
-    return withDistance;
-  }
-
-  /// Distance du grand cercle (Haversine) en mètres — pur Dart, sans plugin.
-  double _haversineMeters(
-    double lat1,
-    double lon1,
-    double lat2,
-    double lon2,
-  ) {
-    const earthRadius = 6371000.0; // mètres
-    final dLat = _toRadians(lat2 - lat1);
-    final dLon = _toRadians(lon2 - lon1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_toRadians(lat1)) *
-            math.cos(_toRadians(lat2)) *
-            math.sin(dLon / 2) *
-            math.sin(dLon / 2);
-    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-    return earthRadius * c;
-  }
-
-  double _toRadians(double degrees) => degrees * math.pi / 180;
 }

@@ -155,15 +155,19 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
     final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
     final media = MediaQuery.of(context);
+    // Espace disponible au-dessus du clavier : sert de hauteur stable.
+    final available =
+        media.size.height - media.viewInsets.bottom - media.padding.top;
 
     return Padding(
       padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
       child: SafeArea(
         top: false,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: media.size.height * 0.85),
+        child: SizedBox(
+          // Hauteur fixe : la feuille ne se redimensionne plus selon l'état
+          // (spinner / message / liste) — uniquement à l'ouverture du clavier.
+          height: available * 0.9,
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: AppSpacing.md),
@@ -231,7 +235,7 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
                   onSubmitted: (v) => _search(v),
                 ),
               ),
-              Flexible(child: _buildResults(colors, textTheme)),
+              Expanded(child: _buildResults(colors, textTheme)),
             ],
           ),
         ),
@@ -240,45 +244,58 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
   }
 
   Widget _buildResults(AppColors colors, TextTheme textTheme) {
-    if (_loading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_error != null) {
-      return _Message(
-        icon: Icons.cloud_off_rounded,
-        title: _error!,
-        actionLabel: 'Réessayer',
-        onAction: () => _search(_controller.text),
-        colors: colors,
-        textTheme: textTheme,
-      );
-    }
-
     final query = _controller.text.trim();
-    if (query.length < _minChars) {
-      return _Message(
-        icon: Icons.edit_location_alt_outlined,
-        title: 'Tape une rue, une ville ou un code postal',
-        colors: colors,
-        textTheme: textTheme,
-      );
-    }
 
+    // États sans résultat : occupent la même zone (centrés), donc la feuille
+    // ne « saute » pas entre chargement / message / liste.
     if (_results.isEmpty) {
-      return _Message(
-        icon: Icons.location_off_outlined,
-        title: 'Aucune adresse trouvée',
-        subtitle: 'Précise la rue ou la ville.',
-        colors: colors,
-        textTheme: textTheme,
+      if (_loading) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (_error != null) {
+        return Center(
+          child: _Message(
+            icon: Icons.cloud_off_rounded,
+            title: _error!,
+            actionLabel: 'Réessayer',
+            onAction: () => _search(_controller.text),
+            colors: colors,
+            textTheme: textTheme,
+          ),
+        );
+      }
+      if (query.length < _minChars) {
+        return Center(
+          child: _Message(
+            icon: Icons.edit_location_alt_outlined,
+            title: 'Tape une rue, une ville ou un code postal',
+            colors: colors,
+            textTheme: textTheme,
+          ),
+        );
+      }
+      return Center(
+        child: _Message(
+          icon: Icons.location_off_outlined,
+          title: 'Aucune adresse trouvée',
+          subtitle: 'Vérifie l\'orthographe ou précise la commune.',
+          colors: colors,
+          textTheme: textTheme,
+        ),
       );
     }
 
-    return ListView.separated(
+    // Résultats présents : liste stable + fine barre pendant un rechargement
+    // (on garde les résultats affichés au lieu de tout remplacer par un spinner).
+    return Column(
+      children: [
+        SizedBox(
+          height: 2,
+          child:
+              _loading ? const LinearProgressIndicator(minHeight: 2) : null,
+        ),
+        Expanded(
+          child: ListView.separated(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.screen,
         0,
@@ -289,6 +306,11 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
       separatorBuilder: (_, __) => Divider(height: 1, color: colors.border),
       itemBuilder: (context, index) {
         final suggestion = _results[index];
+        // Méta-ligne : niveau (« Rue » pour une voie agrégée) + distance.
+        final meta = <String>[
+          if (suggestion.isStreet) 'Rue',
+          if (suggestion.distanceLabel != null) 'à ${suggestion.distanceLabel}',
+        ];
         return InkWell(
           borderRadius: BorderRadius.circular(AppRadius.md),
           onTap: () => Navigator.of(context).pop(suggestion),
@@ -296,8 +318,13 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
             padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
             child: Row(
               children: [
-                Icon(Icons.location_on_outlined,
-                    size: 20, color: colors.primary),
+                Icon(
+                  suggestion.isStreet
+                      ? Icons.signpost_outlined
+                      : Icons.location_on_outlined,
+                  size: 20,
+                  color: colors.primary,
+                ),
                 const SizedBox(width: AppSpacing.md),
                 Expanded(
                   child: Column(
@@ -309,19 +336,9 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (suggestion.distanceLabel != null) ...[
+                      if (meta.isNotEmpty) ...[
                         const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(Icons.near_me_outlined,
-                                size: 13, color: colors.mutedForeground),
-                            const SizedBox(width: 4),
-                            Text(
-                              suggestion.distanceLabel!,
-                              style: textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
+                        Text(meta.join(' · '), style: textTheme.bodySmall),
                       ],
                     ],
                   ),
@@ -334,6 +351,9 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
           ),
         );
       },
+          ),
+        ),
+      ],
     );
   }
 }

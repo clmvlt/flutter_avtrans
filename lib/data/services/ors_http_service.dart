@@ -30,10 +30,39 @@ class OrsHttpService {
       queryParameters: queryParameters,
     );
 
-    try {
-      final response = await _client
+    return _execute(
+      () => _client
           .get(uri, headers: OrsApiConstants.defaultHeaders)
-          .timeout(const Duration(seconds: OrsApiConstants.connectionTimeout));
+          .timeout(const Duration(seconds: OrsApiConstants.connectionTimeout)),
+    );
+  }
+
+  /// Effectue une requête POST (corps JSON) et renvoie le corps JSON décodé.
+  Future<dynamic> post(
+    String endpoint, {
+    Map<String, dynamic>? body,
+  }) async {
+    final uri = Uri.parse('$_baseUrl$endpoint');
+    final headers = {
+      ...OrsApiConstants.defaultHeaders,
+      'Content-Type': 'application/json',
+    };
+
+    return _execute(
+      () => _client
+          .post(
+            uri,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
+          // L'optimisation peut prendre plusieurs secondes (solveur Timefold).
+          .timeout(const Duration(seconds: OrsApiConstants.requestTimeout)),
+    );
+  }
+
+  Future<dynamic> _execute(Future<http.Response> Function() request) async {
+    try {
+      final response = await request();
       return _handleResponse(response);
     } on SocketException {
       throw const NetworkException(

@@ -8,6 +8,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/couchette_repository.dart';
 import '../../data/repositories/geocoding_repository.dart';
 import '../../data/repositories/notification_repository.dart';
+import '../../data/repositories/routing_repository.dart';
 import '../../data/repositories/rapport_repository.dart';
 import '../../data/repositories/service_repository.dart';
 import '../../data/repositories/signature_repository.dart';
@@ -19,6 +20,7 @@ import '../../data/repositories/ypsium_transport_repository.dart';
 import '../../data/repositories/ypsium_vehicule_repository.dart';
 import '../../data/services/download_service.dart';
 import '../../data/services/http_service.dart';
+import '../../data/services/navigation_preference_service.dart';
 import '../../data/services/ors_http_service.dart';
 import '../../data/services/token_storage_service.dart';
 import '../../data/services/tour_service.dart';
@@ -48,7 +50,9 @@ class ServiceLocator {
   CouchetteRepository? _couchetteRepository;
   OrsHttpService? _orsHttpService;
   GeocodingRepository? _geocodingRepository;
+  RoutingRepository? _routingRepository;
   TourService? _tourService;
+  NavigationPreferenceService? _navigationPreferenceService;
   LocationService? _locationService;
   DownloadService? _downloadService;
   AppVersionRepository? _appVersionRepository;
@@ -111,9 +115,10 @@ class ServiceLocator {
     // Initialise le repository des couchettes
     _couchetteRepository = CouchetteRepository(_httpService!);
 
-    // Initialise le service de geocoding (API publique ORS, sans auth)
+    // Initialise les services ORS (API publique, sans auth)
     _orsHttpService = OrsHttpService();
     _geocodingRepository = GeocodingRepository(_orsHttpService!);
+    _routingRepository = RoutingRepository(_orsHttpService!);
 
     // Initialise le service des tournées (Circuit) — charge les données persistées
     _tourService = TourService();
@@ -140,6 +145,9 @@ class ServiceLocator {
 
     // Initialise les services Ypsium
     final prefs = await SharedPreferences.getInstance();
+
+    // Préférence d'application de navigation GPS (Circuit)
+    _navigationPreferenceService = NavigationPreferenceService(prefs);
     _ypsiumHttpService = YpsiumHttpService();
     _ypsiumAuthRepository = YpsiumAuthRepository(
       httpService: _ypsiumHttpService!,
@@ -244,6 +252,18 @@ class ServiceLocator {
     return _geocodingRepository!;
   }
 
+  /// Récupère le repository d'optimisation / routing (ORS)
+  RoutingRepository get routingRepository {
+    _ensureInitialized();
+    return _routingRepository!;
+  }
+
+  /// Récupère la préférence d'application de navigation GPS (Circuit)
+  NavigationPreferenceService get navigationPreferenceService {
+    _ensureInitialized();
+    return _navigationPreferenceService!;
+  }
+
   /// Récupère le service des tournées (Circuit)
   TourService get tourService {
     _ensureInitialized();
@@ -337,8 +357,11 @@ class ServiceLocator {
     _orsHttpService?.dispose();
     _orsHttpService = null;
     _geocodingRepository = null;
+    _routingRepository = null;
     _tourService?.dispose();
     _tourService = null;
+    _navigationPreferenceService?.dispose();
+    _navigationPreferenceService = null;
     _locationService = null;
     _downloadService?.dispose();
     _downloadService = null;

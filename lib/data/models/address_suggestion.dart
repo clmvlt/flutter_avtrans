@@ -17,9 +17,13 @@ class AddressSuggestion extends Equatable {
   /// Score de pertinence ORS (tri décroissant) — peut être absent.
   final double? score;
 
-  /// Distance (en mètres) entre l'utilisateur et l'adresse, calculée lors du
-  /// classement par proximité. `null` si la position n'est pas disponible.
+  /// Distance (en mètres) à la position de référence fournie à la recherche
+  /// (`lat`/`lon`). `null` si aucune position n'a été fournie.
   final double? distanceMeters;
+
+  /// Niveau du résultat : `"street"` (voie agrégée, sans numéro) ou
+  /// `"housenumber"` (adresse précise). `null` pour un point manuel.
+  final String? type;
 
   const AddressSuggestion({
     required this.label,
@@ -31,6 +35,7 @@ class AddressSuggestion extends Equatable {
     required this.lon,
     this.score,
     this.distanceMeters,
+    this.type,
   });
 
   factory AddressSuggestion.fromJson(Map<String, dynamic> json) {
@@ -43,6 +48,9 @@ class AddressSuggestion extends Equatable {
       lat: _toDouble(json['lat']),
       lon: _toDouble(json['lon']),
       score: json['score'] == null ? null : _toDouble(json['score']),
+      distanceMeters:
+          json['distanceMeters'] == null ? null : _toDouble(json['distanceMeters']),
+      type: json['type'] as String?,
     );
   }
 
@@ -57,6 +65,7 @@ class AddressSuggestion extends Equatable {
         'lat': lat,
         'lon': lon,
         if (score != null) 'score': score,
+        if (type != null) 'type': type,
       };
 
   /// Ligne secondaire (rue / ville) quand le label n'est pas suffisant.
@@ -68,14 +77,26 @@ class AddressSuggestion extends Equatable {
     return parts.join(' ');
   }
 
-  /// Distance formatée pour l'affichage (ex. « 450 m », « 12 km »), ou `null`.
+  /// Distance formatée pour l'affichage (ex. « 740 m », « 9,0 km »), ou `null`.
+  /// Les mètres sont arrondis à la dizaine pour un affichage plus lisible.
   String? get distanceLabel {
     final meters = distanceMeters;
     if (meters == null) return null;
-    if (meters < 1000) return '${meters.round()} m';
+    if (meters < 1000) {
+      final rounded = (meters / 10).round() * 10;
+      if (rounded < 1000) return '$rounded m';
+    }
     final km = meters / 1000;
-    return km < 10 ? '${km.toStringAsFixed(1)} km' : '${km.round()} km';
+    return km < 10
+        ? '${km.toStringAsFixed(1).replaceAll('.', ',')} km'
+        : '${km.round()} km';
   }
+
+  /// Résultat « voie agrégée » (liste des rues, sans numéro).
+  bool get isStreet => type == 'street';
+
+  /// Résultat « adresse précise » (avec numéro de voie).
+  bool get isHouseNumber => type == 'housenumber';
 
   /// Indique un point posé manuellement sur la carte (sans adresse résolue).
   bool get isManualPoint => street == null && postcode == null && city == null;
@@ -100,19 +121,7 @@ class AddressSuggestion extends Equatable {
         lon: lon ?? this.lon,
         score: score,
         distanceMeters: distanceMeters,
-      );
-
-  /// Copie en attachant une distance (utilisé par le classement par proximité).
-  AddressSuggestion withDistance(double meters) => AddressSuggestion(
-        label: label,
-        houseNumber: houseNumber,
-        street: street,
-        postcode: postcode,
-        city: city,
-        lat: lat,
-        lon: lon,
-        score: score,
-        distanceMeters: meters,
+        type: type,
       );
 
   static double _toDouble(dynamic value) {

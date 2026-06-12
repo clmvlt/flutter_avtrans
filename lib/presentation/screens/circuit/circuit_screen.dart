@@ -5,14 +5,16 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/tour_model.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/app_empty_state.dart';
-import 'tour_detail_screen.dart';
+import 'tour_delivery_screen.dart';
+import 'tour_edit_flow_screen.dart';
 import 'widgets/tour_name_dialog.dart';
+import 'widgets/tour_widgets.dart';
 
 /// Écran « Circuit » — liste des tournées.
 ///
 /// Point d'entrée de la fonctionnalité : on y crée, ouvre et supprime des
-/// tournées. Chaque tournée contient ses arrêts (adresses), gérés dans
-/// [TourDetailScreen]. Les données sont persistées (survivent au redémarrage).
+/// tournées. Une tournée s'ouvre en mode édition (brouillon) ou livraison
+/// (validée) selon son statut. Les données sont persistées.
 class CircuitScreen extends StatelessWidget {
   const CircuitScreen({super.key});
 
@@ -26,13 +28,17 @@ class CircuitScreen extends StatelessWidget {
     final tour = await sl.tourService.createTour(name);
     if (!context.mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => TourDetailScreen(tourId: tour.id)),
+      MaterialPageRoute(builder: (_) => TourEditFlowScreen(tourId: tour.id)),
     );
   }
 
   void _open(BuildContext context, Tour tour) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => TourDetailScreen(tourId: tour.id)),
+      MaterialPageRoute(
+        builder: (_) => tour.isDelivery
+            ? TourDeliveryScreen(tourId: tour.id)
+            : TourEditFlowScreen(tourId: tour.id),
+      ),
     );
   }
 
@@ -177,11 +183,24 @@ class _TourCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  tour.name,
-                  style: textTheme.titleMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        tour.name,
+                        style: textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    StatusChip(
+                      label: tour.isDelivery ? 'Livraison' : 'Brouillon',
+                      color: tour.isDelivery
+                          ? colors.success
+                          : colors.mutedForeground,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(_subtitle, style: textTheme.bodySmall),
