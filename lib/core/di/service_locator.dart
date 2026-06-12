@@ -1,10 +1,12 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../constants/mapbox_constants.dart';
 import '../../data/repositories/absence_repository.dart';
 import '../../data/repositories/acompte_repository.dart';
 import '../../data/repositories/app_version_repository.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/couchette_repository.dart';
+import '../../data/repositories/geocoding_repository.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../data/repositories/rapport_repository.dart';
 import '../../data/repositories/service_repository.dart';
@@ -17,7 +19,9 @@ import '../../data/repositories/ypsium_transport_repository.dart';
 import '../../data/repositories/ypsium_vehicule_repository.dart';
 import '../../data/services/download_service.dart';
 import '../../data/services/http_service.dart';
+import '../../data/services/ors_http_service.dart';
 import '../../data/services/token_storage_service.dart';
+import '../../data/services/tour_service.dart';
 import '../../data/services/ypsium_http_service.dart';
 import '../../data/services/ypsium_spooler_service.dart';
 import '../services/location_service.dart';
@@ -42,6 +46,9 @@ class ServiceLocator {
   TodoRepository? _todoRepository;
   NotificationRepository? _notificationRepository;
   CouchetteRepository? _couchetteRepository;
+  OrsHttpService? _orsHttpService;
+  GeocodingRepository? _geocodingRepository;
+  TourService? _tourService;
   LocationService? _locationService;
   DownloadService? _downloadService;
   AppVersionRepository? _appVersionRepository;
@@ -103,6 +110,17 @@ class ServiceLocator {
 
     // Initialise le repository des couchettes
     _couchetteRepository = CouchetteRepository(_httpService!);
+
+    // Initialise le service de geocoding (API publique ORS, sans auth)
+    _orsHttpService = OrsHttpService();
+    _geocodingRepository = GeocodingRepository(_orsHttpService!);
+
+    // Initialise le service des tournées (Circuit) — charge les données persistées
+    _tourService = TourService();
+    await _tourService!.init();
+
+    // Configure le cache de tuiles Mapbox (carte Circuit)
+    await MapboxConstants.initCache();
 
     // Initialise le service de localisation
     _locationService = LocationService();
@@ -220,6 +238,18 @@ class ServiceLocator {
     return _couchetteRepository!;
   }
 
+  /// Récupère le repository de geocoding d'adresses (ORS)
+  GeocodingRepository get geocodingRepository {
+    _ensureInitialized();
+    return _geocodingRepository!;
+  }
+
+  /// Récupère le service des tournées (Circuit)
+  TourService get tourService {
+    _ensureInitialized();
+    return _tourService!;
+  }
+
   /// Récupère le service de localisation
   LocationService get locationService {
     _ensureInitialized();
@@ -304,6 +334,11 @@ class ServiceLocator {
     _todoRepository = null;
     _notificationRepository = null;
     _couchetteRepository = null;
+    _orsHttpService?.dispose();
+    _orsHttpService = null;
+    _geocodingRepository = null;
+    _tourService?.dispose();
+    _tourService = null;
     _locationService = null;
     _downloadService?.dispose();
     _downloadService = null;
