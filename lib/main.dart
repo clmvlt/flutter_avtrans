@@ -8,7 +8,7 @@ import 'core/di/service_locator.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
-import 'presentation/screens/home/home_screen.dart';
+import 'presentation/screens/shell/main_shell.dart';
 import 'presentation/widgets/update_dialog.dart';
 
 void main() async {
@@ -144,7 +144,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (_hasNavigated) return;
     _hasNavigated = true;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const MainShell()),
     );
   }
 

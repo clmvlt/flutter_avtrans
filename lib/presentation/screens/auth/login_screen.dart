@@ -4,7 +4,7 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
-import '../home/home_screen.dart';
+import '../shell/main_shell.dart';
 import 'register_screen.dart';
 
 /// Page de connexion — Z-pattern, CTA en bas, accessibilite
@@ -54,7 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
       (failure) => setState(() => _errorMessage = failure.message),
       (user) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          MaterialPageRoute(builder: (_) => const MainShell()),
         );
       },
     );

@@ -6,7 +6,10 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
 
-/// Page des notifications — tabs, cartes accessibles
+/// Page des notifications — direction *soft & chaleureux*.
+///
+/// Filtre segmenté en pilules (Toutes / Non lues), cartes [AppCard] et
+/// horodatage relatif.
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
@@ -14,25 +17,24 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _NotificationsScreenState extends State<NotificationsScreen> {
   List<AppNotification> _allNotifications = [];
-  List<AppNotification> _unreadNotifications = [];
   bool _isLoading = true;
   String? _error;
+
+  /// `false` = Toutes, `true` = Non lues.
+  bool _onlyUnread = false;
+
+  List<AppNotification> get _unreadNotifications =>
+      _allNotifications.where((n) => !n.isRead).toList();
+
+  List<AppNotification> get _visibleNotifications =>
+      _onlyUnread ? _unreadNotifications : _allNotifications;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadNotifications();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadNotifications() async {
@@ -55,8 +57,6 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       (notifications) {
         setState(() {
           _allNotifications = notifications;
-          _unreadNotifications =
-              notifications.where((n) => !n.isRead).toList();
           _isLoading = false;
         });
       },
@@ -72,13 +72,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     if (!mounted) return;
 
     result.fold(
-      (failure) => _showError(failure.message),
+      (failure) => _showSnack(failure.message, isError: true),
       (updated) {
         setState(() {
-          final allIndex = _allNotifications
+          final i = _allNotifications
               .indexWhere((n) => n.uuid == notification.uuid);
-          if (allIndex != -1) _allNotifications[allIndex] = updated;
-          _unreadNotifications.removeWhere((n) => n.uuid == notification.uuid);
+          if (i != -1) _allNotifications[i] = updated;
         });
       },
     );
@@ -90,23 +89,43 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     if (!mounted) return;
 
     result.fold(
-      (failure) => _showError(failure.message),
+      (failure) => _showSnack(failure.message, isError: true),
       (_) {
-        _showSuccess('Toutes les notifications marquees comme lues');
+        _showSnack('Toutes les notifications marquées comme lues');
         _loadNotifications();
       },
     );
   }
 
-  void _showError(String message) {
+  void _showSnack(String message, {bool isError = false}) {
+    final colors = context.colors;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline : Icons.check_circle_outline,
+              color: isError ? colors.destructive : colors.success,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: colors.card,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.base),
+          side: BorderSide(
+            color: isError ? colors.destructive : colors.border,
+          ),
+        ),
+      ),
     );
   }
 
@@ -114,59 +133,109 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Widget build(BuildContext context) {
     final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
+    final unreadCount = _unreadNotifications.length;
 
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Notifications'),
         actions: [
-          if (_unreadNotifications.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.done_all, size: 22),
+          if (unreadCount > 0)
+            TextButton.icon(
               onPressed: _markAllAsRead,
-              tooltip: 'Tout marquer comme lu',
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+              icon: const Icon(Icons.done_all_rounded, size: 18),
+              label: const Text('Tout lire'),
+              style: TextButton.styleFrom(foregroundColor: colors.primary),
             ),
+          const SizedBox(width: AppSpacing.xs),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: colors.primary,
-          unselectedLabelColor: colors.mutedForeground,
-          indicatorColor: colors.primary,
-          labelStyle: textTheme.labelLarge,
-          unselectedLabelStyle: textTheme.bodyMedium,
-          tabs: [
-            Tab(text: 'Toutes (${_allNotifications.length})'),
-            Tab(text: 'Non lues (${_unreadNotifications.length})'),
-          ],
-        ),
       ),
-      body: _isLoading
-          ? const LoadingIndicator(message: 'Chargement...')
-          : _error != null
-              ? AppEmptyState(
-                  icon: Icons.error_outline,
-                  title: 'Erreur de chargement',
-                  subtitle: _error,
-                  actionText: 'Reessayer',
-                  onAction: _loadNotifications,
-                )
-              : TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildNotificationList(_allNotifications, colors, textTheme),
-                    _buildNotificationList(_unreadNotifications, colors, textTheme),
-                  ],
-                ),
+      body: Column(
+        children: [
+          _buildSegmentedFilter(colors, textTheme, unreadCount),
+          Expanded(child: _buildBody(colors, textTheme)),
+        ],
+      ),
     );
   }
 
-  Widget _buildNotificationList(
-      List<AppNotification> notifications, AppColors colors, TextTheme textTheme) {
+  Widget _buildSegmentedFilter(
+      AppColors colors, TextTheme textTheme, int unreadCount) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.sm,
+        AppSpacing.screen,
+        AppSpacing.sm,
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: colors.surfaceSunken,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SegmentButton(
+                label: 'Toutes',
+                count: _allNotifications.length,
+                selected: !_onlyUnread,
+                onTap: () => setState(() => _onlyUnread = false),
+              ),
+            ),
+            Expanded(
+              child: _SegmentButton(
+                label: 'Non lues',
+                count: unreadCount,
+                selected: _onlyUnread,
+                onTap: () => setState(() => _onlyUnread = true),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(AppColors colors, TextTheme textTheme) {
+    if (_isLoading) {
+      return const LoadingIndicator(message: 'Chargement...');
+    }
+    if (_error != null) {
+      return AppEmptyState(
+        icon: Icons.error_outline,
+        title: 'Erreur de chargement',
+        subtitle: _error,
+        actionText: 'Réessayer',
+        onAction: _loadNotifications,
+      );
+    }
+
+    final notifications = _visibleNotifications;
+
     if (notifications.isEmpty) {
-      return const AppEmptyState(
-        icon: Icons.notifications_none,
-        title: 'Aucune notification',
+      return RefreshIndicator(
+        onRefresh: _loadNotifications,
+        color: colors.primary,
+        backgroundColor: colors.card,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.18),
+            AppEmptyState(
+              icon: _onlyUnread
+                  ? Icons.mark_email_read_outlined
+                  : Icons.notifications_none_rounded,
+              title: _onlyUnread
+                  ? 'Tout est lu'
+                  : 'Aucune notification',
+              subtitle: _onlyUnread
+                  ? 'Tu es à jour, rien à signaler'
+                  : 'Tes notifications apparaîtront ici',
+            ),
+          ],
+        ),
       );
     }
 
@@ -174,119 +243,130 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       onRefresh: _loadNotifications,
       color: colors.primary,
       backgroundColor: colors.card,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(AppSpacing.base),
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          AppSpacing.sm,
+          AppSpacing.screen,
+          AppSpacing.lg,
+        ),
         itemCount: notifications.length,
-        itemBuilder: (context, index) {
-          return _buildNotificationCard(notifications[index], colors, textTheme);
-        },
+        separatorBuilder: (_, __) =>
+            const SizedBox(height: AppSpacing.md),
+        itemBuilder: (context, index) =>
+            _buildNotificationCard(notifications[index], colors, textTheme),
       ),
     );
   }
 
   Widget _buildNotificationCard(
       AppNotification notification, AppColors colors, TextTheme textTheme) {
-    final dateFormat = DateFormat('dd/MM/yyyy a HH:mm', 'fr_FR');
     final refColor = _getRefTypeColor(notification.refType, colors);
+    final unread = !notification.isRead;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      color: notification.isRead ? colors.card : colors.primary.withValues(alpha: 0.04),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: notification.isRead
-            ? BorderSide(color: colors.border)
-            : BorderSide(color: colors.primary.withValues(alpha: 0.2)),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        onTap: () => _markAsRead(notification),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icone type — avec couleur semantique + icone (pas couleur seule)
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: refColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                ),
-                child: Icon(
-                  _getRefTypeIcon(notification.refType),
-                  color: refColor,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return AppCard(
+      elevation: unread ? AppCardElevation.raised : AppCardElevation.flat,
+      border: !unread,
+      color: unread ? colors.primarySoft : colors.card,
+      onTap: () => _markAsRead(notification),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: refColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(
+              _getRefTypeIcon(notification.refType),
+              color: refColor,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            notification.title,
-                            style: textTheme.titleSmall?.copyWith(
-                              fontWeight: notification.isRead
-                                  ? FontWeight.w400
-                                  : FontWeight.w600,
-                            ),
-                          ),
+                    Expanded(
+                      child: Text(
+                        notification.title,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight:
+                              unread ? FontWeight.w700 : FontWeight.w500,
                         ),
-                        if (!notification.isRead)
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: colors.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                      ],
+                      ),
                     ),
-                    if (notification.description != null &&
-                        notification.description!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        notification.description!,
-                        style: textTheme.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                    if (unread) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Container(
+                        width: 9,
+                        height: 9,
+                        margin: const EdgeInsets.only(top: 4),
+                        decoration: BoxDecoration(
+                          color: colors.primary,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ],
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      notification.createdAt != null
-                          ? dateFormat.format(notification.createdAt!)
-                          : '',
-                      style: textTheme.labelSmall,
-                    ),
                   ],
                 ),
-              ),
-            ],
+                if (notification.description != null &&
+                    notification.description!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    notification.description!,
+                    style: textTheme.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _formatRelative(notification.createdAt),
+                  style: textTheme.labelSmall
+                      ?.copyWith(color: colors.mutedForeground),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
+  }
+
+  /// Horodatage relatif chaleureux ; bascule sur la date au-delà d'une semaine.
+  String _formatRelative(DateTime? date) {
+    if (date == null) return '';
+    final local = date.toLocal();
+    final diff = DateTime.now().difference(local);
+
+    if (diff.inMinutes < 1) return "À l'instant";
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Il y a ${diff.inHours} h';
+    if (diff.inDays < 7) {
+      return diff.inDays == 1 ? 'Hier' : 'Il y a ${diff.inDays} j';
+    }
+    return DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR').format(local);
   }
 
   IconData _getRefTypeIcon(String? refType) {
     switch (refType) {
       case 'acompte':
-        return Icons.payments;
+        return Icons.payments_rounded;
       case 'absence':
-        return Icons.event_busy;
+        return Icons.event_busy_rounded;
       case 'rapportVehicule':
-        return Icons.description;
+        return Icons.description_rounded;
       case 'todo':
-        return Icons.checklist;
+        return Icons.checklist_rounded;
       default:
-        return Icons.notifications;
+        return Icons.notifications_rounded;
     }
   }
 
@@ -303,5 +383,73 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       default:
         return colors.primary;
     }
+  }
+}
+
+/// Pilule d'un sélecteur segmenté (Toutes / Non lues).
+class _SegmentButton extends StatelessWidget {
+  const _SegmentButton({
+    required this.label,
+    required this.count,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int count;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
+
+    return AnimatedContainer(
+      duration: AppDuration.fast,
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        color: selected ? colors.card : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        boxShadow: selected ? colors.cardShadow : null,
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: textTheme.labelLarge?.copyWith(
+                    color: selected
+                        ? colors.foreground
+                        : colors.mutedForeground,
+                    fontWeight:
+                        selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+                if (count > 0) ...[
+                  const SizedBox(width: AppSpacing.xs),
+                  Text(
+                    '$count',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: selected
+                          ? colors.primary
+                          : colors.mutedForeground,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
