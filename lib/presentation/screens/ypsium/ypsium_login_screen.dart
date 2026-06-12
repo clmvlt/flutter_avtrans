@@ -7,7 +7,11 @@ import 'ypsium_home_screen.dart';
 
 /// Page de connexion Ypsium - authentification vers l'API de transport
 class YpsiumLoginScreen extends StatefulWidget {
-  const YpsiumLoginScreen({super.key});
+  const YpsiumLoginScreen({super.key, this.onExit});
+
+  /// Appelé quand l'utilisateur quitte l'onglet Ypsium via la flèche retour
+  /// (revient à l'onglet Accueil). `null` en usage autonome → simple `pop`.
+  final VoidCallback? onExit;
 
   @override
   State<YpsiumLoginScreen> createState() => _YpsiumLoginScreenState();
@@ -45,7 +49,9 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
     if (session != null) {
       // Session encore valide → aller directement au home
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const YpsiumHomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => YpsiumHomeScreen(onExit: widget.onExit),
+        ),
       );
       return;
     }
@@ -120,7 +126,7 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: widget.onExit ?? () => Navigator.of(context).pop(),
         ),
         title: Text(
           'Ypsium',

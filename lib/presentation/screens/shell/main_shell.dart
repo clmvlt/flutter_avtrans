@@ -67,7 +67,7 @@ class _MainShellState extends State<MainShell> {
         return Navigator(
           key: _ypsiumNavKey,
           onGenerateRoute: (_) => MaterialPageRoute(
-            builder: (_) => const YpsiumLoginScreen(),
+            builder: (_) => YpsiumLoginScreen(onExit: () => _goTo(0)),
           ),
         );
       case 3:

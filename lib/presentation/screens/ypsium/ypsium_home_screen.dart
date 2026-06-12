@@ -7,6 +7,7 @@ import '../../../data/models/ypsium_models.dart';
 import '../../widgets/app_badge.dart';
 import '../../widgets/app_skeleton.dart';
 import '../../widgets/widgets.dart';
+import 'ypsium_login_screen.dart';
 import 'ypsium_spooler_screen.dart';
 import 'ypsium_transport_detail_screen.dart';
 import 'ypsium_vehicule_screen.dart';
@@ -14,7 +15,11 @@ import 'ypsium_vehicule_screen.dart';
 /// Écran principal Ypsium après connexion
 /// Affiche la liste des ordres de transport du jour
 class YpsiumHomeScreen extends StatefulWidget {
-  const YpsiumHomeScreen({super.key});
+  const YpsiumHomeScreen({super.key, this.onExit});
+
+  /// Transmis depuis l'écran de login → permet de revenir à l'onglet Accueil
+  /// après déconnexion (conserve une route racine valide dans l'onglet).
+  final VoidCallback? onExit;
 
   @override
   State<YpsiumHomeScreen> createState() => _YpsiumHomeScreenState();
@@ -106,10 +111,43 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
     );
   }
 
+  /// Demande confirmation avant de se déconnecter d'Ypsium.
+  Future<void> _confirmLogout() async {
+    final colors = context.colors;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Déconnexion'),
+        content: const Text('Voulez-vous vous déconnecter d\'Ypsium ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Annuler',
+              style: TextStyle(color: colors.mutedForeground),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: colors.destructive),
+            child: const Text('Déconnexion'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) _logout();
+  }
+
   Future<void> _logout() async {
     await sl.ypsiumAuthRepository.logout();
     if (!mounted) return;
-    Navigator.of(context).pop();
+    // Revenir au formulaire de connexion (route racine valide de l'onglet)
+    // au lieu de `pop()` qui viderait le Navigator imbriqué → écran blanc.
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => YpsiumLoginScreen(onExit: widget.onExit),
+      ),
+    );
   }
 
   Widget _buildPopupMenu(AppColors colors) {
@@ -139,7 +177,7 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
           case 'vehicules':
             _openVehicules();
           case 'logout':
-            _logout();
+            _confirmLogout();
         }
       },
       itemBuilder: (context) => [
@@ -196,9 +234,10 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
       backgroundColor: colors.background,
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
+          icon: Icon(Icons.logout, color: colors.destructive, size: 22),
+          tooltip: 'Déconnexion',
           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: _confirmLogout,
         ),
         title: Text(
           'Ypsium',
