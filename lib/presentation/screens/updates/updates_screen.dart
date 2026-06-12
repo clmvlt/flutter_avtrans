@@ -5,6 +5,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/di/service_locator.dart';
+import '../../../core/services/update_checker_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/app_version_model.dart';
 import '../../../data/models/update_check_response.dart';
@@ -30,6 +31,16 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   // État du téléchargement
   String? _downloadingVersionId;
   double _downloadProgress = 0;
+
+  /// Une vraie mise à jour n'est disponible que si le versionName proposé est
+  /// strictement plus récent que celui installé (le versionCode est peu fiable).
+  bool get _hasRealUpdate {
+    final check = _updateCheck;
+    final latest = check?.latestVersion;
+    if (check == null || latest == null || !check.updateAvailable) return false;
+    return UpdateCheckerService.isVersionNewer(
+        latest.versionName, _currentVersion);
+  }
 
   @override
   void initState() {
@@ -233,8 +244,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
         children: [
           _buildCurrentVersionCard(colors),
           const SizedBox(height: AppSpacing.base),
-          if (_updateCheck?.updateAvailable == true)
-            _buildUpdateAvailableCard(colors),
+          if (_hasRealUpdate) _buildUpdateAvailableCard(colors),
           if (_allVersions.isNotEmpty) ...[
             const SizedBox(height: AppSpacing.lg),
             _buildVersionHistorySection(colors),
@@ -283,7 +293,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
               ],
             ),
           ),
-          if (_updateCheck?.updateAvailable == false)
+          if (!_isChecking && !_hasRealUpdate)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
               decoration: BoxDecoration(

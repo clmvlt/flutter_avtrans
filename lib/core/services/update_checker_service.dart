@@ -127,27 +127,25 @@ class UpdateCheckerService {
       return result.fold(
         (failure) => null,
         (response) {
-          // Vérifie si une mise à jour est vraiment disponible
-          // Ne pas afficher si la version actuelle est >= à la dernière version
-          if (!response.updateAvailable ||
-              response.latestVersionCode <= response.currentVersionCode) {
-            return null;
-          }
+          if (!response.updateAvailable) return null;
 
-          // Comparaison par versionName : si le nom de version est identique,
-          // pas de mise à jour (contourne le problème de buildNumber manquant)
-          if (response.latestVersion != null &&
-              response.latestVersion!.versionName == versionName) {
+          final latest = response.latestVersion;
+          if (latest == null) return null;
+
+          // Source de vérité : comparaison SÉMANTIQUE du versionName.
+          // Le versionCode du device est peu fiable (Flutter met versionCode=1
+          // si pas de +build dans pubspec, alors que le serveur le calcule
+          // différemment), ce qui faisait proposer une mise à jour vers la
+          // version déjà installée. On se fie au versionName, qui est cohérent
+          // entre le device et le serveur (et c'est ce que voit l'utilisateur).
+          if (!isVersionNewer(latest.versionName, versionName)) {
             return null;
           }
 
           // Vérifie si la version n'a pas été ignorée
-          if (response.latestVersion != null) {
-            final skipped = skippedVersionCode;
-            if (skipped != null &&
-                skipped >= response.latestVersion!.versionCode) {
-              return null;
-            }
+          final skipped = skippedVersionCode;
+          if (skipped != null && skipped >= latest.versionCode) {
+            return null;
           }
           return response;
         },
@@ -160,5 +158,32 @@ class UpdateCheckerService {
   /// Réinitialise le timestamp du dernier check (pour forcer un nouveau check)
   Future<void> resetLastCheck() async {
     await _prefs.remove(_lastCheckKey);
+  }
+
+  /// Compare deux versionNames de façon sémantique (ex: "1.0.17", "1.2.0").
+  /// Retourne `true` uniquement si [candidate] est STRICTEMENT plus récente
+  /// que [current]. Versions égales ou inférieures → `false`.
+  ///
+  /// Robuste aux séparateurs non numériques et aux longueurs différentes
+  /// ("1.2" est traité comme "1.2.0").
+  static bool isVersionNewer(String candidate, String current) {
+    final a = _parseVersion(candidate);
+    final b = _parseVersion(current);
+    final length = a.length > b.length ? a.length : b.length;
+    for (var i = 0; i < length; i++) {
+      final av = i < a.length ? a[i] : 0;
+      final bv = i < b.length ? b[i] : 0;
+      if (av != bv) return av > bv;
+    }
+    return false; // versions identiques
+  }
+
+  static List<int> _parseVersion(String version) {
+    return version
+        .trim()
+        .split(RegExp(r'[^0-9]+'))
+        .where((part) => part.isNotEmpty)
+        .map((part) => int.tryParse(part) ?? 0)
+        .toList();
   }
 }
