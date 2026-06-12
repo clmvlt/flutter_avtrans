@@ -200,11 +200,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       elevation: AppCardElevation.hero,
       padding: const EdgeInsets.all(AppSpacing.lg),
       onTap: widget.onOpenPointage,
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [v.soft, colors.card],
-      ),
+      color: v.soft,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -300,11 +296,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       elevation: AppCardElevation.raised,
       padding: const EdgeInsets.all(AppSpacing.base),
       onTap: () => _push(const CircuitScreen()),
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [colors.primarySoft, colors.card],
-      ),
+      color: colors.primarySoft,
       child: Row(
         children: [
           Container(

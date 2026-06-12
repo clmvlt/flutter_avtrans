@@ -674,7 +674,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
     return Scaffold(
       backgroundColor: colors.background,
       appBar: AppBar(
-        title: const Text('Services'),
+        title: const Text('Pointage'),
         actions: [
           IconButton(
             icon: const Icon(Icons.speed, size: 22),
@@ -702,20 +702,29 @@ class _ServicesScreenState extends State<ServicesScreen> {
               backgroundColor: colors.card,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(AppSpacing.base),
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  AppSpacing.md,
+                  AppSpacing.screen,
+                  AppSpacing.lg,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (_locationStatus != null &&
-                        _locationStatus != LocationStatus.granted)
+                        _locationStatus != LocationStatus.granted) ...[
                       _buildLocationWarning(colors, textTheme),
+                      const SizedBox(height: AppSpacing.md),
+                    ],
+                    _buildHero(colors, textTheme),
+                    const SizedBox(height: AppSpacing.md),
                     _buildActionButtons(colors),
-                    const SizedBox(height: AppSpacing.base),
-                    _buildStatusCard(colors, textTheme),
-                    const SizedBox(height: AppSpacing.base),
-                    _buildWorkedHoursCard(colors, textTheme),
-                    const SizedBox(height: AppSpacing.base),
-                    _buildTodayServicesCard(colors, textTheme),
+                    const SizedBox(height: AppSpacing.lg),
+                    Text('Mes heures', style: textTheme.titleMedium),
+                    const SizedBox(height: AppSpacing.md),
+                    _buildHoursStats(colors, textTheme),
+                    const SizedBox(height: AppSpacing.lg),
+                    _buildTodayServices(colors, textTheme),
                   ],
                 ),
               ),
@@ -751,23 +760,32 @@ class _ServicesScreenState extends State<ServicesScreen> {
         return const SizedBox.shrink();
     }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.base),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.warningMuted,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.warning),
+    return AppCard(
+      color: colors.warningMuted,
+      elevation: AppCardElevation.flat,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.base,
+        vertical: AppSpacing.md,
       ),
       child: Row(
         children: [
-          Icon(Icons.location_off, color: colors.warning, size: 20),
-          const SizedBox(width: AppSpacing.sm),
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: colors.warning.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(Icons.location_off_rounded,
+                color: colors.warning, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Text(
               message,
               style: textTheme.bodySmall?.copyWith(
-                color: colors.foreground,
+                color: colors.warningForeground,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ),
@@ -775,7 +793,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
             onPressed: action,
             style: TextButton.styleFrom(
               foregroundColor: colors.warning,
-              minimumSize: const Size(48, 48),
+              minimumSize: const Size(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             ),
             child: Text(actionLabel),
@@ -785,110 +803,160 @@ class _ServicesScreenState extends State<ServicesScreen> {
     );
   }
 
-  Widget _buildStatusCard(AppColors colors, TextTheme textTheme) {
-    final isServiceActive = _activeService != null && !_activeService!.isBreak;
+  /// Carte « hero » du pointage — statut + compteur du jour en direct.
+  Widget _buildHero(AppColors colors, TextTheme textTheme) {
     final isOnBreak = _activeService != null && _activeService!.isBreak;
+    final isServiceActive = _activeService != null && !isOnBreak;
+    final hasActive = _activeService != null;
 
-    String statusText;
-    Color statusColor;
-    IconData statusIcon;
-
+    final Color accent;
+    final Color soft;
+    final IconData icon;
+    final String label;
     if (isOnBreak) {
-      statusText = 'En pause';
-      statusColor = colors.warning;
-      statusIcon = Icons.coffee;
+      accent = colors.warning;
+      soft = colors.warningMuted;
+      icon = Icons.pause_circle_outline;
+      label = 'En pause';
     } else if (isServiceActive) {
-      statusText = 'En service';
-      statusColor = colors.success;
-      statusIcon = Icons.work;
+      accent = colors.success;
+      soft = colors.successMuted;
+      icon = Icons.bolt_rounded;
+      label = 'En service';
     } else {
-      statusText = 'Hors service';
-      statusColor = colors.mutedForeground;
-      statusIcon = Icons.work_off;
+      accent = colors.mutedForeground;
+      soft = colors.surfaceSunken;
+      icon = Icons.bedtime_outlined;
+      label = 'Hors service';
     }
 
-    // Calculer le temps de travail effectif aujourd'hui (sans les pauses)
-    final workedTimeToday = _calculateWorkedTimeToday();
+    final worked = _calculateWorkedTimeToday();
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              statusIcon,
-              size: 40,
-              color: statusColor,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.base),
-          Text(
-            statusText,
-            style: textTheme.titleLarge?.copyWith(
-              color: statusColor,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Travaillé aujourd\'hui: ${_formatDuration(workedTimeToday)}',
-            style: textTheme.bodySmall?.copyWith(
-              color: colors.mutedForeground,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWorkedHoursCard(AppColors colors, TextTheme textTheme) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
+    return AppCard(
+      elevation: AppCardElevation.hero,
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      color: soft,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.schedule, color: colors.primary, size: 22),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Heures travaillées',
-                style: textTheme.titleMedium?.copyWith(
-                  color: colors.foreground,
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Icon(icon, color: accent, size: 26),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Statut', style: textTheme.bodySmall),
+                    Text(
+                      label,
+                      style: textTheme.titleLarge?.copyWith(color: accent),
+                    ),
+                  ],
                 ),
               ),
+              if (hasActive) _LivePulse(color: accent),
             ],
           ),
-          const SizedBox(height: AppSpacing.base),
-          Row(
-            children: [
-              Expanded(child: _buildHourItem('Aujourd\'hui', _workedHours?.day, colors, textTheme)),
-              Expanded(child: _buildHourItem('Semaine', _workedHours?.week, colors, textTheme)),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(child: _buildHourItem('Mois', _workedHours?.month, colors, textTheme)),
-              Expanded(child: _buildHourItem('Mois dernier', _workedHours?.lastMonth, colors, textTheme)),
-            ],
-          ),
+          const SizedBox(height: AppSpacing.lg),
+          Text("Travaillé aujourd'hui", style: textTheme.bodySmall),
+          const SizedBox(height: AppSpacing.sm),
+          _buildElapsed(worked, textTheme, colors),
         ],
       ),
+    );
+  }
+
+  /// Affiche le temps travaillé en « X heures Y minutes Z secondes ».
+  /// Les unités nulles de tête sont masquées (ex. « 5 minutes 12 secondes »).
+  Widget _buildElapsed(Duration d, TextTheme textTheme, AppColors colors) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60);
+    final s = d.inSeconds.remainder(60);
+
+    final units = <Widget>[];
+    if (h > 0) {
+      units.add(_timeUnit(h, h <= 1 ? 'heure' : 'heures', textTheme));
+    }
+    if (h > 0 || m > 0) {
+      units.add(_timeUnit(m, m <= 1 ? 'minute' : 'minutes', textTheme));
+    }
+    units.add(_timeUnit(s, s <= 1 ? 'seconde' : 'secondes', textTheme));
+
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          for (var i = 0; i < units.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppSpacing.md),
+            units[i],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _timeUnit(int value, String unit, TextTheme textTheme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        Text(
+          '$value',
+          style: textTheme.displaySmall?.copyWith(
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(unit, style: textTheme.bodySmall),
+      ],
+    );
+  }
+
+  Widget _buildHoursStats(AppColors colors, TextTheme textTheme) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _statTile('Aujourd\'hui', _workedHours?.day,
+                  Icons.today_rounded, colors.domainPointage, textTheme),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: _statTile('Cette semaine', _workedHours?.week,
+                  Icons.calendar_view_week_rounded, colors.domainHours,
+                  textTheme),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            Expanded(
+              child: _statTile('Ce mois', _workedHours?.month,
+                  Icons.calendar_month_rounded, colors.domainAcompte, textTheme),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: _statTile('Mois dernier', _workedHours?.lastMonth,
+                  Icons.history_rounded, colors.mutedForeground, textTheme),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -909,89 +977,65 @@ class _ServicesScreenState extends State<ServicesScreen> {
     }
   }
 
-  Widget _buildHourItem(String label, double? hours, AppColors colors, TextTheme textTheme) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      margin: const EdgeInsets.all(AppSpacing.xs),
-      decoration: BoxDecoration(
-        color: colors.muted,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
+  Widget _statTile(String label, double? hours, IconData icon, Color accent,
+      TextTheme textTheme) {
+    return AppCard(
+      padding: const EdgeInsets.all(AppSpacing.base),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            _formatHours(hours),
-            style: textTheme.titleMedium?.copyWith(
-              color: colors.primary,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            label,
-            style: textTheme.labelSmall?.copyWith(
-              color: colors.mutedForeground,
-              letterSpacing: 1,
-            ),
-            textAlign: TextAlign.center,
-          ),
+          Icon(icon, color: accent, size: 22),
+          const SizedBox(height: AppSpacing.md),
+          Text(_formatHours(hours), style: textTheme.headlineSmall),
+          const SizedBox(height: 1),
+          Text(label, style: textTheme.bodySmall),
         ],
       ),
     );
   }
 
-  Widget _buildTodayServicesCard(AppColors colors, TextTheme textTheme) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.today, color: colors.primary, size: 22),
-              const SizedBox(width: AppSpacing.sm),
+  Widget _buildTodayServices(AppColors colors, TextTheme textTheme) {
+    final sorted = _todayServices.toList()
+      ..sort((a, b) => a.debut.compareTo(b.debut));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text("Aujourd'hui", style: textTheme.titleMedium),
+            const Spacer(),
+            if (sorted.isNotEmpty)
               Text(
-                'Services d\'aujourd\'hui',
-                style: textTheme.titleMedium?.copyWith(
-                  color: colors.foreground,
-                ),
+                sorted.length > 1
+                    ? '${sorted.length} pointages'
+                    : '1 pointage',
+                style: textTheme.bodySmall,
               ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.base),
-          if (_todayServices.isEmpty)
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: colors.muted,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: colors.mutedForeground, size: 20),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Aucun service aujourd\'hui',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colors.mutedForeground,
-                      ),
-                    ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
+        if (sorted.isEmpty)
+          AppCard(
+            elevation: AppCardElevation.flat,
+            color: colors.surfaceSunken,
+            child: Row(
+              children: [
+                Icon(Icons.bedtime_outlined,
+                    color: colors.mutedForeground, size: 20),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(
+                    'Aucun pointage aujourd\'hui',
+                    style: textTheme.bodySmall,
                   ),
-                ],
-              ),
-            )
-          else
-            ...(_todayServices.toList()
-                  ..sort((a, b) => a.debut.compareTo(b.debut)))
-                .map((service) => ServiceDayTile(service: service)),
-        ],
-      ),
+                ),
+              ],
+            ),
+          )
+        else
+          ...sorted.map((service) => ServiceDayTile(service: service)),
+      ],
     );
   }
 
@@ -1078,19 +1122,70 @@ class _ServicesScreenState extends State<ServicesScreen> {
     final effectiveSeconds = totalWorkSeconds - totalBreakSeconds;
     return Duration(seconds: effectiveSeconds > 0 ? effectiveSeconds : 0);
   }
+}
 
-  /// Formate une durée en heures, minutes, secondes
-  String _formatDuration(Duration duration) {
-    final hours = duration.inHours;
-    final minutes = duration.inMinutes.remainder(60);
-    final seconds = duration.inSeconds.remainder(60);
+/// Pastille « En direct » avec point pulsant — affichée dans le hero quand
+/// un service ou une pause est en cours.
+class _LivePulse extends StatefulWidget {
+  final Color color;
+  const _LivePulse({required this.color});
 
-    if (hours > 0) {
-      return '${hours}h ${minutes}min';
-    } else if (minutes > 0) {
-      return '${minutes}min ${seconds}s';
-    } else {
-      return '${seconds}s';
-    }
+  @override
+  State<_LivePulse> createState() => _LivePulseState();
+}
+
+class _LivePulseState extends State<_LivePulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: widget.color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FadeTransition(
+            opacity: Tween<double>(begin: 0.35, end: 1.0).animate(_controller),
+            child: Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: widget.color,
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'En direct',
+            style: TextStyle(
+              color: widget.color,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

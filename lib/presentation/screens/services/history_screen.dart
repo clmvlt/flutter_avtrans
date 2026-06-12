@@ -217,11 +217,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   Widget _buildCalendar(AppColors colors) {
     return Container(
-      margin: const EdgeInsets.all(AppSpacing.base),
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screen,
+        AppSpacing.md,
+        AppSpacing.screen,
+        AppSpacing.base,
+      ),
       decoration: BoxDecoration(
         color: colors.card,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
+        border: colors.isDarkMode ? Border.all(color: colors.border) : null,
+        boxShadow: colors.cardShadow,
       ),
       child: Column(
         children: [
@@ -374,9 +380,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final count = _servicesForDay(_selectedDay!).length;
     return Padding(
       padding: const EdgeInsets.fromLTRB(
-        AppSpacing.base,
+        AppSpacing.screen,
         0,
-        AppSpacing.base,
+        AppSpacing.screen,
         AppSpacing.sm,
       ),
       child: Row(
@@ -445,7 +451,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
 
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
       sliver: SliverList.builder(
         itemCount: services.length,
         itemBuilder: (context, index) => ServiceDayTile(

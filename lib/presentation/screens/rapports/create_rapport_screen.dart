@@ -477,14 +477,7 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(vertical: 6),
                                             decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                begin: Alignment.bottomCenter,
-                                                end: Alignment.topCenter,
-                                                colors: [
-                                                  Colors.black.withValues(alpha: 0.7),
-                                                  Colors.transparent,
-                                                ],
-                                              ),
+                                              color: Colors.black.withValues(alpha: 0.5),
                                             ),
                                             child: Text(
                                               index == 0 ? 'Photo avant' : index == 1 ? 'Photo arrière' : 'Photo ${index + 1}',

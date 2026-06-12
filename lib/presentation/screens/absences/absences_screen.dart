@@ -474,57 +474,62 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       children: [
         // Bannière absences en attente (cliquable)
         if (pendingCount > 0)
-          GestureDetector(
-            onTap: () {
-              setState(() {
-                _isCalendarView = false;
-                _filterStatus = 'PENDING';
-                _filterStartDate = null;
-                _filterEndDate = null;
-                _filterType = null;
-                _updateFiltersState();
-              });
-              _loadAbsences();
-            },
-            child: Container(
-              margin: const EdgeInsets.all(AppSpacing.sm),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              AppSpacing.md,
+              AppSpacing.screen,
+              0,
+            ),
+            child: AppCard(
+              color: colors.warningMuted,
+              elevation: AppCardElevation.flat,
               padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.sm,
+                horizontal: AppSpacing.base,
+                vertical: AppSpacing.md,
               ),
-              decoration: BoxDecoration(
-                color: colors.warningMuted,
-                borderRadius: BorderRadius.circular(AppRadius.base),
-                border: Border.all(color: colors.warning.withValues(alpha: 0.5)),
-              ),
+              onTap: () {
+                setState(() {
+                  _isCalendarView = false;
+                  _filterStatus = 'PENDING';
+                  _filterStartDate = null;
+                  _filterEndDate = null;
+                  _filterType = null;
+                  _updateFiltersState();
+                });
+                _loadAbsences();
+              },
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    width: 32,
+                    height: 32,
+                    alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: colors.warning,
                       shape: BoxShape.circle,
                     ),
                     child: Text(
                       '$pendingCount',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.md),
                   Expanded(
                     child: Text(
                       pendingCount == 1
-                          ? 'Vous avez 1 demande en attente de validation'
-                          : 'Vous avez $pendingCount demandes en attente de validation',
+                          ? '1 demande en attente de validation'
+                          : '$pendingCount demandes en attente de validation',
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: colors.warning,
+                        color: colors.warningForeground,
                       ),
                     ),
                   ),
-                  Icon(Icons.chevron_right, size: 20, color: colors.warning),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 20, color: colors.warning),
                 ],
               ),
             ),
@@ -800,12 +805,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
+      child: AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -935,6 +935,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
             ),
           ],
         ],
+      ),
       ),
     );
   }
