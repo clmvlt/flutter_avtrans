@@ -18,6 +18,9 @@ class AppButton extends StatelessWidget {
   final ButtonSize size;
   final bool fullWidth;
 
+  /// Padding interne — par défaut celui de la taille ([size]).
+  final EdgeInsets? padding;
+
   // Compat legacy
   final bool isOutlined;
   final bool isDanger;
@@ -33,6 +36,7 @@ class AppButton extends StatelessWidget {
     this.variant = ButtonVariant.primary,
     this.size = ButtonSize.md,
     this.fullWidth = true,
+    this.padding,
     this.isOutlined = false,
     this.isDanger = false,
     this.backgroundColor,
@@ -63,11 +67,13 @@ class AppButton extends StatelessWidget {
     ButtonSize.lg => 22,
   };
 
-  EdgeInsets get _padding => switch (size) {
-    ButtonSize.sm => const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    ButtonSize.md => const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-    ButtonSize.lg => const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-  };
+  EdgeInsets get _padding =>
+      padding ??
+      switch (size) {
+        ButtonSize.sm => const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ButtonSize.md => const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        ButtonSize.lg => const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -169,6 +175,7 @@ class AppButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           textStyle: TextStyle(
+            fontFamily: AppTheme.fontFamily,
             fontSize: _fontSize,
             fontWeight: FontWeight.w600,
           ),
@@ -182,6 +189,7 @@ class AppButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           textStyle: TextStyle(
+            fontFamily: AppTheme.fontFamily,
             fontSize: _fontSize,
             fontWeight: FontWeight.w600,
           ),
@@ -194,6 +202,7 @@ class AppButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           textStyle: TextStyle(
+            fontFamily: AppTheme.fontFamily,
             fontSize: _fontSize,
             fontWeight: FontWeight.w500,
           ),
@@ -207,6 +216,7 @@ class AppButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           textStyle: TextStyle(
+            fontFamily: AppTheme.fontFamily,
             fontSize: _fontSize,
             fontWeight: FontWeight.w600,
           ),
@@ -218,6 +228,7 @@ class AppButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           textStyle: TextStyle(
+            fontFamily: AppTheme.fontFamily,
             fontSize: _fontSize,
             fontWeight: FontWeight.w500,
           ),
@@ -227,6 +238,7 @@ class AppButton extends StatelessWidget {
           padding: EdgeInsets.zero,
           minimumSize: const Size(48, 48),
           textStyle: TextStyle(
+            fontFamily: AppTheme.fontFamily,
             fontSize: _fontSize,
             fontWeight: FontWeight.w500,
             decoration: TextDecoration.underline,
