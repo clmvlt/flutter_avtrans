@@ -97,3 +97,4 @@ upload.py
 
 # Local dev helpers
 emu.vbs
+deploy/
