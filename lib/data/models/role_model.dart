@@ -16,7 +16,7 @@ class Role extends Equatable {
     return Role(
       uuid: json['uuid'] as String,
       nom: json['nom'] as String,
-      color: json['color'] as String,
+      color: json['color'] as String? ?? '',
     );
   }
 

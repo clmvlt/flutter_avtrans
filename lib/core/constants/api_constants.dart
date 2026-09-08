@@ -52,6 +52,9 @@ abstract class AuthEndpoints {
 abstract class ProfileEndpoints {
   static const String _base = '/profile';
 
+  /// GET - Récupérer son profil (UserDTO nu, vérifie isActive, 401 propre)
+  static const String me = _base;
+
   /// PUT - Modifier son profil
   static const String update = _base;
 
@@ -145,6 +148,10 @@ abstract class SignatureEndpoints {
 
   /// GET - Récupérer le résumé de ma dernière signature
   static const String lastSummary = '$_base/last/summary';
+
+  // ⚠ Les trois routes ci-dessous sont réservées aux Administrateurs : elles ne
+  // figurent pas dans le contrat API non-admin. Un Utilisateur/Mécanicien reçoit
+  // 401 "Access denied: Required role is Administrateur".
 
   /// DELETE - Supprimer une signature (admin)
   static String delete(String uuid) => '$_base/$uuid';
@@ -287,7 +294,7 @@ abstract class VehiculeEndpoints {
   /// POST - Uploader un fichier pour un véhicule
   static String uploadFile(String id) => '$_base/$id/files';
 
-  /// DELETE - Supprimer un fichier de véhicule
+  /// DELETE - Supprimer un fichier de véhicule (rôle Mécanicien, hors contrat Utilisateur)
   static String deleteFile(String fileId) => '$_base/files/$fileId';
 }
 

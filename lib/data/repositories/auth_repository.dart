@@ -143,12 +143,19 @@ class AuthRepository implements IAuthRepository {
     }
   }
 
+  /// Rafraîchit le profil de l'utilisateur courant.
+  ///
+  /// Contrat API §3.6 / §4.1 : `GET /profile` est préféré à `GET /auth/me`
+  /// (qui renvoie 400 `Token invalide` ou 500 si le header manque, sans vérifier
+  /// `isActive`). `/profile` renvoie un `UserDTO` nu (sans token) et un 401 propre :
+  /// le token stocké est réinjecté dans l'objet retourné.
   @override
   Future<Either<Failure, User>> getCurrentUser() async {
     try {
-      final response = await _httpService.get(AuthEndpoints.me);
+      final response = await _httpService.get(ProfileEndpoints.me);
 
-      final user = User.fromJson(response['user'] as Map<String, dynamic>);
+      final user = User.fromJson(response as Map<String, dynamic>)
+          .copyWith(token: _tokenStorage.getToken());
 
       // Met à jour le cache
       _cachedUser = user;
@@ -162,8 +169,10 @@ class AuthRepository implements IAuthRepository {
       }
       return Left(NetworkFailure(message: e.message));
     } on UnauthorizedException catch (e) {
-      // Token expiré, nettoie le cache
+      // Token invalide / compte désactivé : nettoie la session locale
       await logout();
+      return Left(AuthFailure(message: e.message));
+    } on AuthException catch (e) {
       return Left(AuthFailure(message: e.message));
     } on ServerException catch (e) {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
@@ -278,12 +287,14 @@ class AuthRepository implements IAuthRepository {
     return _cachedUser;
   }
 
+  /// `GET /auth/status/{userId}` — DTO nu `{ isMailVerified, isActive }`.
+  /// 404 avec corps vide si l'utilisateur n'existe pas.
   @override
   Future<Either<Failure, UserStatusResponse>> checkUserStatus(String userId) async {
     try {
       final response = await _httpService.get(AuthEndpoints.status(userId));
 
-      return Right(UserStatusResponse.fromJson(response));
+      return Right(UserStatusResponse.fromJson(response as Map<String, dynamic>));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
     } on ServerException catch (e) {

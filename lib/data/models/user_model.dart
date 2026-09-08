@@ -1,10 +1,14 @@
 import 'package:equatable/equatable.dart';
 import 'role_model.dart';
 
-/// Préférence de notification
+/// Préférence de notification (contrat API §2.3).
+///
+/// Valeurs API strictes : `NONE`, `SITE`, `EMAIL`.
+/// `SITE` = notification in-app seulement, `EMAIL` = in-app + email.
+/// Toute autre valeur envoyée provoque un 400 `Invalid JSON format`.
 enum NotificationPreference {
   none('NONE', 'Aucune'),
-  inApp('IN_APP', 'Dans l\'app'),
+  site('SITE', 'Dans l\'app'),
   email('EMAIL', 'Email');
 
   final String value;
@@ -16,7 +20,7 @@ enum NotificationPreference {
     final normalized = value.toUpperCase();
     return NotificationPreference.values.firstWhere(
       (p) => p.value == normalized,
-      orElse: () => NotificationPreference.inApp,
+      orElse: () => NotificationPreference.site,
     );
   }
 }
@@ -30,20 +34,20 @@ class NotificationPreferences extends Equatable {
   final NotificationPreference todo;
 
   const NotificationPreferences({
-    this.acompte = NotificationPreference.inApp,
-    this.absence = NotificationPreference.inApp,
-    this.userCreated = NotificationPreference.inApp,
-    this.rapportVehicule = NotificationPreference.inApp,
-    this.todo = NotificationPreference.inApp,
+    this.acompte = NotificationPreference.site,
+    this.absence = NotificationPreference.site,
+    this.userCreated = NotificationPreference.site,
+    this.rapportVehicule = NotificationPreference.site,
+    this.todo = NotificationPreference.site,
   });
 
   factory NotificationPreferences.fromJson(Map<String, dynamic> json) {
     return NotificationPreferences(
-      acompte: NotificationPreference.fromValue(json['acompte'] as String? ?? 'IN_APP'),
-      absence: NotificationPreference.fromValue(json['absence'] as String? ?? 'IN_APP'),
-      userCreated: NotificationPreference.fromValue(json['userCreated'] as String? ?? 'IN_APP'),
-      rapportVehicule: NotificationPreference.fromValue(json['rapportVehicule'] as String? ?? 'IN_APP'),
-      todo: NotificationPreference.fromValue(json['todo'] as String? ?? 'IN_APP'),
+      acompte: NotificationPreference.fromValue(json['acompte'] as String? ?? 'SITE'),
+      absence: NotificationPreference.fromValue(json['absence'] as String? ?? 'SITE'),
+      userCreated: NotificationPreference.fromValue(json['userCreated'] as String? ?? 'SITE'),
+      rapportVehicule: NotificationPreference.fromValue(json['rapportVehicule'] as String? ?? 'SITE'),
+      todo: NotificationPreference.fromValue(json['todo'] as String? ?? 'SITE'),
     );
   }
 
@@ -77,7 +81,7 @@ class NotificationPreferences extends Equatable {
   List<Object?> get props => [acompte, absence, userCreated, rapportVehicule, todo];
 }
 
-/// Adresse de l'utilisateur
+/// Adresse de l'utilisateur (AddressDTO)
 class Address extends Equatable {
   final String? street;
   final String? city;
@@ -95,12 +99,14 @@ class Address extends Equatable {
     );
   }
 
+  /// Sérialise les 4 champs. Sur `PUT /profile`, un objet `address` présent
+  /// REMPLACE les 4 champs côté serveur (un champ omis devient null).
   Map<String, dynamic> toJson() {
     return {
-      if (street != null) 'street': street,
-      if (city != null) 'city': city,
-      if (postalCode != null) 'postalCode': postalCode,
-      if (country != null) 'country': country,
+      'street': street,
+      'city': city,
+      'postalCode': postalCode,
+      'country': country,
     };
   }
 
@@ -108,7 +114,7 @@ class Address extends Equatable {
   List<Object?> get props => [street, city, postalCode, country];
 }
 
-/// Modèle représentant un utilisateur
+/// Modèle représentant un utilisateur (UserDTO / AuthUserDTO, contrat API §2.1-2.2)
 class User extends Equatable {
   final String uuid;
   final String email;
@@ -119,13 +125,19 @@ class User extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final Role? role;
+
+  /// Token API opaque. Présent uniquement sur `/auth/login`, `/auth/google`, `/auth/me`.
   final String? token;
   final String? pictureUrl;
   final bool isCouchette;
   final Address? address;
   final String? driverLicenseNumber;
+  final String? telPersonnel;
+  final String? telPro;
   final double? heureContrat;
   final NotificationPreferences? notificationPreferences;
+
+  /// `PRESENT|ON_BREAK|ABSENT` — uniquement rempli sur des routes admin, toujours null sinon.
   final String? status;
 
   const User({
@@ -143,6 +155,8 @@ class User extends Equatable {
     this.isCouchette = false,
     this.address,
     this.driverLicenseNumber,
+    this.telPersonnel,
+    this.telPro,
     this.heureContrat,
     this.notificationPreferences,
     this.status,
@@ -152,10 +166,11 @@ class User extends Equatable {
     return User(
       uuid: json['uuid'] as String,
       email: json['email'] as String,
-      firstName: json['firstName'] as String,
-      lastName: json['lastName'] as String,
-      isMailVerified: json['isMailVerified'] as bool,
-      isActive: json['isActive'] as bool,
+      // firstName / lastName peuvent être null côté API (§2.1)
+      firstName: json['firstName'] as String? ?? '',
+      lastName: json['lastName'] as String? ?? '',
+      isMailVerified: json['isMailVerified'] as bool? ?? false,
+      isActive: json['isActive'] as bool? ?? false,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       role: json['role'] != null
@@ -168,6 +183,8 @@ class User extends Equatable {
           ? Address.fromJson(json['address'] as Map<String, dynamic>)
           : null,
       driverLicenseNumber: json['driverLicenseNumber'] as String?,
+      telPersonnel: json['telPersonnel'] as String?,
+      telPro: json['telPro'] as String?,
       heureContrat: json['heureContrat'] != null
           ? (json['heureContrat'] as num).toDouble()
           : null,
@@ -195,6 +212,8 @@ class User extends Equatable {
       'isCouchette': isCouchette,
       if (address != null) 'address': address!.toJson(),
       if (driverLicenseNumber != null) 'driverLicenseNumber': driverLicenseNumber,
+      if (telPersonnel != null) 'telPersonnel': telPersonnel,
+      if (telPro != null) 'telPro': telPro,
       if (heureContrat != null) 'heureContrat': heureContrat,
       if (notificationPreferences != null)
         'notificationPreferences': notificationPreferences!.toJson(),
@@ -203,7 +222,7 @@ class User extends Equatable {
   }
 
   /// Retourne le nom complet de l'utilisateur
-  String get fullName => '$firstName $lastName';
+  String get fullName => '$firstName $lastName'.trim();
 
   /// Copie l'utilisateur avec de nouvelles valeurs
   User copyWith({
@@ -221,6 +240,8 @@ class User extends Equatable {
     bool? isCouchette,
     Address? address,
     String? driverLicenseNumber,
+    String? telPersonnel,
+    String? telPro,
     double? heureContrat,
     NotificationPreferences? notificationPreferences,
     String? status,
@@ -240,6 +261,8 @@ class User extends Equatable {
       isCouchette: isCouchette ?? this.isCouchette,
       address: address ?? this.address,
       driverLicenseNumber: driverLicenseNumber ?? this.driverLicenseNumber,
+      telPersonnel: telPersonnel ?? this.telPersonnel,
+      telPro: telPro ?? this.telPro,
       heureContrat: heureContrat ?? this.heureContrat,
       notificationPreferences: notificationPreferences ?? this.notificationPreferences,
       status: status ?? this.status,
@@ -262,6 +285,8 @@ class User extends Equatable {
         isCouchette,
         address,
         driverLicenseNumber,
+        telPersonnel,
+        telPro,
         heureContrat,
         notificationPreferences,
         status,
