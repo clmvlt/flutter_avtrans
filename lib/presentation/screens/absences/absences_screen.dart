@@ -121,7 +121,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
       size: 20,
       startDate: _filterStartDate,
       endDate: _filterEndDate,
-      status: _filterStatus,
+      status: _filterStatus != null ? AbsenceStatus.fromString(_filterStatus!) : null,
       absenceTypeUuid: _filterType?.uuid,
     );
   }
@@ -226,14 +226,12 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
 
     result.fold(
       (failure) => _showError(failure.message),
-      (updatedAbsence) {
-        final index = _absences.indexWhere((a) => a.uuid == absence.uuid);
-        if (index != -1) {
-          setState(() {
-            _absences[index] = updatedAbsence;
-            _updateAbsencesByDay();
-          });
-        }
+      (_) {
+        // L'API supprime physiquement l'absence annulée : on la retire de la liste
+        setState(() {
+          _absences.removeWhere((a) => a.uuid == absence.uuid);
+          _updateAbsencesByDay();
+        });
         _showSuccess('Demande annulée');
       },
     );
@@ -882,7 +880,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                   color: colors.mutedForeground,
                 ),
               ),
-              if (absence.period != null && absence.period!.isNotEmpty) ...[
+              if (absence.period.isHalfDay) ...[
                 const SizedBox(width: AppSpacing.sm),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
@@ -891,7 +889,7 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Text(
-                    absence.period == 'matin' ? 'Matin' : 'Après-midi',
+                    absence.period.label,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: colors.info,
                     ),
@@ -948,8 +946,6 @@ class _AbsencesScreenState extends State<AbsencesScreen> {
         return colors.success;
       case AbsenceStatus.rejected:
         return colors.destructive;
-      case AbsenceStatus.cancelled:
-        return colors.mutedForeground;
     }
   }
 
@@ -1000,7 +996,6 @@ class _FiltersSheetState extends State<_FiltersSheet> {
     {'value': 'PENDING', 'label': 'En attente'},
     {'value': 'APPROVED', 'label': 'Approuvée'},
     {'value': 'REJECTED', 'label': 'Refusée'},
-    {'value': 'CANCELLED', 'label': 'Annulée'},
   ];
 
   @override
@@ -1374,7 +1369,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
 
   DateTime? _startDate;
   DateTime? _endDate;
-  String? _selectedPeriod;
+  AbsencePeriod? _selectedPeriod;
   bool _isLoading = false;
   bool _isLoadingTypes = true;
   List<AbsenceType> _absenceTypes = [];
@@ -1557,7 +1552,7 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
     );
   }
 
-  Widget _buildPeriodChip(String? value, String label, AppColors colors) {
+  Widget _buildPeriodChip(AbsencePeriod? value, String label, AppColors colors) {
     final isSelected = _selectedPeriod == value;
     return GestureDetector(
       onTap: () => setState(() => _selectedPeriod = value),
@@ -1868,9 +1863,9 @@ class _CreateAbsenceSheetState extends State<_CreateAbsenceSheet> {
               Wrap(
                 spacing: AppSpacing.sm,
                 children: [
-                  _buildPeriodChip(null, 'Journée complète', colors),
-                  _buildPeriodChip('matin', 'Matin', colors),
-                  _buildPeriodChip('apres-midi', 'Après-midi', colors),
+                  _buildPeriodChip(null, AbsencePeriod.fullDay.label, colors),
+                  _buildPeriodChip(AbsencePeriod.morning, AbsencePeriod.morning.label, colors),
+                  _buildPeriodChip(AbsencePeriod.afternoon, AbsencePeriod.afternoon.label, colors),
                 ],
               ),
               const SizedBox(height: AppSpacing.base),

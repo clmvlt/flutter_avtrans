@@ -3,12 +3,12 @@ import 'package:equatable/equatable.dart';
 import 'absence_type_model.dart';
 import 'user_model.dart';
 
-/// Statut d'une absence
+/// Statut d'une absence (contrat API §2.5). Une absence annulée est supprimée
+/// physiquement (`DELETE /absences/{uuid}`) : il n'existe pas de statut CANCELLED.
 enum AbsenceStatus {
   pending('PENDING'),
   approved('APPROVED'),
-  rejected('REJECTED'),
-  cancelled('CANCELLED');
+  rejected('REJECTED');
 
   final String value;
   const AbsenceStatus(this.value);
@@ -28,13 +28,33 @@ enum AbsenceStatus {
         return 'Approuvée';
       case AbsenceStatus.rejected:
         return 'Refusée';
-      case AbsenceStatus.cancelled:
-        return 'Annulée';
     }
   }
 }
 
-/// Modèle d'une demande d'absence
+/// Période d'une absence (contrat API §2.5) : `FULL_DAY|MORNING|AFTERNOON`.
+/// À la création, null / "" / valeur inconnue → FULL_DAY silencieusement.
+enum AbsencePeriod {
+  fullDay('FULL_DAY', 'Journée complète'),
+  morning('MORNING', 'Matin'),
+  afternoon('AFTERNOON', 'Après-midi');
+
+  final String value;
+  final String label;
+  const AbsencePeriod(this.value, this.label);
+
+  static AbsencePeriod fromString(String? value) {
+    if (value == null) return AbsencePeriod.fullDay;
+    return AbsencePeriod.values.firstWhere(
+      (p) => p.value == value.toUpperCase(),
+      orElse: () => AbsencePeriod.fullDay,
+    );
+  }
+
+  bool get isHalfDay => this != AbsencePeriod.fullDay;
+}
+
+/// Modèle d'une demande d'absence (AbsenceDTO)
 class Absence extends Equatable {
   final String uuid;
   final User? user;
@@ -43,7 +63,7 @@ class Absence extends Equatable {
   final String reason;
   final AbsenceType? absenceType;
   final String? customType;
-  final String? period;
+  final AbsencePeriod period;
   final AbsenceStatus status;
   final User? validatedBy;
   final DateTime? validatedAt;
@@ -59,7 +79,7 @@ class Absence extends Equatable {
     required this.reason,
     this.absenceType,
     this.customType,
-    this.period,
+    this.period = AbsencePeriod.fullDay,
     required this.status,
     this.validatedBy,
     this.validatedAt,
@@ -73,7 +93,7 @@ class Absence extends Equatable {
     return endDate.difference(startDate).inDays + 1;
   }
 
-  /// Vérifie si l'absence peut être annulée
+  /// Vérifie si l'absence peut être annulée (seules les PENDING le peuvent)
   bool get canBeCancelled => status == AbsenceStatus.pending;
 
   /// Retourne le nom du type d'absence à afficher
@@ -101,8 +121,8 @@ class Absence extends Equatable {
           ? AbsenceType.fromJson(json['absenceType'])
           : null,
       customType: json['customType'] as String?,
-      period: json['period'] as String?,
-      status: AbsenceStatus.fromString(json['status'] as String),
+      period: AbsencePeriod.fromString(json['period'] as String?),
+      status: AbsenceStatus.fromString(json['status'] as String? ?? 'PENDING'),
       validatedBy: json['validatedBy'] != null
           ? User.fromJson(json['validatedBy'])
           : null,
@@ -128,7 +148,7 @@ class Absence extends Equatable {
       'reason': reason,
       'absenceType': absenceType?.toJson(),
       'customType': customType,
-      'period': period,
+      'period': period.value,
       'status': status.value,
       'validatedBy': validatedBy?.toJson(),
       'validatedAt': validatedAt?.toIso8601String(),

@@ -18,8 +18,8 @@ abstract class IAbsenceRepository {
   Future<Either<Failure, PaginatedResponse<Absence>>> getMyAbsences(
       AbsenceListParams params);
 
-  /// Annule une demande d'absence
-  Future<Either<Failure, Absence>> cancelAbsence(String uuid);
+  /// Annule (supprime) une demande d'absence en attente
+  Future<Either<Failure, void>> cancelAbsence(String uuid);
 }
 
 /// Implémentation du repository des absences
@@ -109,15 +109,13 @@ class AbsenceRepository implements IAbsenceRepository {
     }
   }
 
+  /// `DELETE /absences/{uuid}` (contrat API §4.3) : l'absence doit m'appartenir et
+  /// être PENDING ; suppression physique. Réponse `{ success, message, absence: null }`.
   @override
-  Future<Either<Failure, Absence>> cancelAbsence(String uuid) async {
+  Future<Either<Failure, void>> cancelAbsence(String uuid) async {
     try {
-      final response = await _httpService.delete(
-        AbsenceEndpoints.cancel(uuid),
-      );
-
-      final absence = Absence.fromJson(response['absence']);
-      return Right(absence);
+      await _httpService.delete(AbsenceEndpoints.cancel(uuid));
+      return const Right(null);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
     } on AuthException catch (e) {

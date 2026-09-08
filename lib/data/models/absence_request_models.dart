@@ -1,16 +1,22 @@
-/// Requête pour créer une demande d'absence
+import 'absence_model.dart';
+import 'paginated_response.dart';
+
+/// Requête pour créer une demande d'absence — `POST /absences` (contrat API §4.3).
+///
+/// Dates au format `yyyy-MM-dd`. `reason` max 500 caractères, `customType` max 100.
+/// `period` omise → FULL_DAY côté serveur.
 class CreateAbsenceRequest {
   final DateTime startDate;
   final DateTime endDate;
-  final String reason;
+  final String? reason;
   final String? absenceTypeUuid;
   final String? customType;
-  final String? period;
+  final AbsencePeriod? period;
 
   const CreateAbsenceRequest({
     required this.startDate,
     required this.endDate,
-    required this.reason,
+    this.reason,
     this.absenceTypeUuid,
     this.customType,
     this.period,
@@ -18,30 +24,37 @@ class CreateAbsenceRequest {
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{
-      'startDate': startDate.toIso8601String().split('T')[0],
-      'endDate': endDate.toIso8601String().split('T')[0],
-      'reason': reason,
+      'startDate': formatApiDate(startDate),
+      'endDate': formatApiDate(endDate),
     };
 
+    if (reason != null && reason!.isNotEmpty) {
+      map['reason'] = reason;
+    }
     if (absenceTypeUuid != null) {
       map['absenceTypeUuid'] = absenceTypeUuid;
     }
     if (customType != null && customType!.isNotEmpty) {
       map['customType'] = customType;
     }
-    if (period != null && period!.isNotEmpty) {
-      map['period'] = period;
+    if (period != null) {
+      map['period'] = period!.value;
     }
 
     return map;
   }
 }
 
-/// Paramètres pour récupérer la liste des absences (POST body)
+/// Paramètres pour `POST /absences/my` (contrat API §4.3).
+///
+/// Filtre : absence ENTIÈREMENT dans `[startDate ; endDate]`.
+/// Défaut serveur si aucune des deux dates : `[aujourd'hui − 30 j ; aujourd'hui + 10 ans]`.
+/// Pour tout l'historique, envoyer explicitement une `startDate` ancienne.
+/// `sortBy` sûrs : `startDate` (défaut), `endDate`, `createdAt`, `status`.
 class AbsenceListParams {
   final DateTime? startDate;
   final DateTime? endDate;
-  final String? status;
+  final AbsenceStatus? status;
   final String? absenceTypeUuid;
   final int page;
   final int size;
@@ -66,13 +79,13 @@ class AbsenceListParams {
     };
 
     if (startDate != null) {
-      map['startDate'] = startDate!.toIso8601String().split('T')[0];
+      map['startDate'] = formatApiDate(startDate!);
     }
     if (endDate != null) {
-      map['endDate'] = endDate!.toIso8601String().split('T')[0];
+      map['endDate'] = formatApiDate(endDate!);
     }
-    if (status != null && status!.isNotEmpty) {
-      map['status'] = status;
+    if (status != null) {
+      map['status'] = status!.value;
     }
     if (absenceTypeUuid != null) {
       map['absenceTypeUuid'] = absenceTypeUuid;
