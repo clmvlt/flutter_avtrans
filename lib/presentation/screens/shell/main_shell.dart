@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -114,23 +115,23 @@ class _MainShellState extends State<MainShell> {
           onDestinationSelected: _goTo,
           destinations: const [
             NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded),
+              icon: Icon(CupertinoIcons.house),
+              selectedIcon: Icon(CupertinoIcons.house_fill),
               label: 'Accueil',
             ),
             NavigationDestination(
-              icon: Icon(Icons.access_time_outlined),
-              selectedIcon: Icon(Icons.access_time_filled_rounded),
+              icon: Icon(CupertinoIcons.clock),
+              selectedIcon: Icon(CupertinoIcons.clock_fill),
               label: 'Pointage',
             ),
             NavigationDestination(
-              icon: Icon(Icons.local_shipping_outlined),
-              selectedIcon: Icon(Icons.local_shipping_rounded),
+              icon: Icon(CupertinoIcons.cube_box),
+              selectedIcon: Icon(CupertinoIcons.cube_box_fill),
               label: 'Ypsium',
             ),
             NavigationDestination(
-              icon: Icon(Icons.person_outline_rounded),
-              selectedIcon: Icon(Icons.person_rounded),
+              icon: Icon(CupertinoIcons.person),
+              selectedIcon: Icon(CupertinoIcons.person_fill),
               label: 'Moi',
             ),
           ],
