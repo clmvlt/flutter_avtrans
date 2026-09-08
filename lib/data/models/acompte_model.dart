@@ -2,12 +2,13 @@ import 'package:equatable/equatable.dart';
 
 import 'user_model.dart';
 
-/// Statut d'un acompte
+/// Statut d'un acompte (contrat API §2.6) : `PENDING|APPROVED|REJECTED`.
+/// Une demande annulée est supprimée (`DELETE /acomptes/{uuid}`) : pas de statut CANCELLED.
+/// Sur `POST /acomptes/my`, une valeur de filtre inconnue provoque un 500.
 enum AcompteStatus {
-  pending('pending', 'En attente'),
-  approved('approved', 'Approuvé'),
-  rejected('rejected', 'Rejeté'),
-  cancelled('cancelled', 'Annulé');
+  pending('PENDING', 'En attente'),
+  approved('APPROVED', 'Approuvé'),
+  rejected('REJECTED', 'Rejeté');
 
   final String value;
   final String label;
@@ -15,8 +16,7 @@ enum AcompteStatus {
   const AcompteStatus(this.value, this.label);
 
   static AcompteStatus fromValue(String value) {
-    // Normalise en minuscules pour gérer les deux formats (PENDING et pending)
-    final normalizedValue = value.toLowerCase();
+    final normalizedValue = value.toUpperCase();
     return AcompteStatus.values.firstWhere(
       (status) => status.value == normalizedValue,
       orElse: () => AcompteStatus.pending,

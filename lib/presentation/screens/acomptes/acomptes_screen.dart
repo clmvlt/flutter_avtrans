@@ -645,11 +645,6 @@ class _AcomptesScreenState extends State<AcomptesScreen> {
         textColor = colors.destructive;
         icon = Icons.cancel;
         break;
-      case AcompteStatus.cancelled:
-        bgColor = colors.mutedForeground.withValues(alpha: 0.1);
-        textColor = colors.mutedForeground;
-        icon = Icons.block;
-        break;
     }
 
     return Container(
@@ -710,7 +705,7 @@ class _CreateAcompteSheetState extends State<_CreateAcompteSheet> {
     final raisonText = _raisonController.text.trim();
     final request = AcompteCreateRequest(
       montant: montant,
-      raison: raisonText.isEmpty ? '' : raisonText,
+      raison: raisonText.isEmpty ? null : raisonText,
     );
 
     final result = await sl.acompteRepository.createAcompte(request);
