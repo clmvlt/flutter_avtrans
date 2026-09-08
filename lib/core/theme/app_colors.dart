@@ -216,44 +216,28 @@ class AppColors {
         ];
 
   // ============ Verre liquide (tab bar flottante iOS) ============
+  // Aucune ombre portée ici, volontairement : sur iPhone (Impeller), l'ombre
+  // floue de la capsule se rendait comme une seconde capsule grise décalée
+  // sous la barre — « deux bulles ». La lisibilité repose sur le bord fin.
+
   /// Fond translucide du verre (posé sur un BackdropFilter flou + saturé).
+  /// En clair, assez opaque pour lire une bulle blanche sur le fond de page.
   Color get glassSurface => isDarkMode
       ? const Color(0xA61D1F24) // card ~65 %
-      : const Color(0x9EFFFFFF); // blanc ~62 %
+      : const Color(0xBFFFFFFF); // blanc 75 %
 
-  /// Reflet spéculaire sur le bord du verre (intensité max du dégradé).
+  /// Bord du verre : reflet clair en sombre, fin trait ardoise en clair (un
+  /// reflet blanc serait invisible sur le fond clair, et sans ombre c'est ce
+  /// trait qui délimite la capsule).
   Color get glassRim => isDarkMode
       ? const Color(0x47FFFFFF) // blanc 28 %
-      : const Color(0xF2FFFFFF); // blanc 95 %
+      : const Color(0x241E293B); // ardoise 14 %
 
-  /// Pastille derrière l'onglet actif.
+  /// Pastille derrière l'onglet actif. En clair, teinte primaire douce : une
+  /// pastille blanche sur la capsule blanche ne se verrait pas sans ombre.
   Color get glassSelected => isDarkMode
       ? const Color(0x24FFFFFF) // blanc 14 %
-      : const Color(0xF0FFFFFF); // blanc 94 %
-
-  /// Ombre douce de la pastille active (light uniquement).
-  List<BoxShadow> get glassSelectedShadow => isDarkMode
-      ? const []
-      : const [
-          BoxShadow(
-            color: Color(0x1A1E293B), // ~10 %
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ];
-
-  /// Ombre portée de la barre. Dessinée uniquement à l'extérieur de la forme
-  /// (`BlurStyle.outer`) pour ne pas assombrir le verre translucide.
-  List<BoxShadow> get glassNavShadow => isDarkMode
-      ? const []
-      : const [
-          BoxShadow(
-            color: Color(0x1F1E293B), // ~12 %
-            blurRadius: 24,
-            offset: Offset(0, 8),
-            blurStyle: BlurStyle.outer,
-          ),
-        ];
+      : primarySoft;
 
   // ============ Aliases (compat ascendante) ============
   Color get bgPrimary => background;

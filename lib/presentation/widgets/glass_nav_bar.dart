@@ -78,6 +78,8 @@ class GlassNavBar extends StatelessWidget {
     final padding = MediaQuery.paddingOf(context);
     final radius = BorderRadius.circular(height / 2);
 
+    // Pas d'ombre portée : sur iPhone elle se rendait comme une seconde
+    // capsule grise sous la barre. Le bord peint délimite seul la capsule.
     return Padding(
       padding: EdgeInsets.fromLTRB(
         horizontalMargin + padding.left,
@@ -87,24 +89,18 @@ class GlassNavBar extends StatelessWidget {
       ),
       child: SizedBox(
         height: height,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: radius,
-            boxShadow: colors.glassNavShadow,
-          ),
-          child: ClipRRect(
-            borderRadius: radius,
-            child: BackdropFilter(
-              filter: _glassFilter(),
-              child: CustomPaint(
-                foregroundPainter: _GlassRimPainter(color: colors.glassRim),
-                child: ColoredBox(
-                  color: colors.glassSurface,
-                  child: _Tabs(
-                    selectedIndex: selectedIndex,
-                    onSelected: onDestinationSelected,
-                    destinations: destinations,
-                  ),
+        child: ClipRRect(
+          borderRadius: radius,
+          child: BackdropFilter(
+            filter: _glassFilter(),
+            child: CustomPaint(
+              foregroundPainter: _GlassRimPainter(color: colors.glassRim),
+              child: ColoredBox(
+                color: colors.glassSurface,
+                child: _Tabs(
+                  selectedIndex: selectedIndex,
+                  onSelected: onDestinationSelected,
+                  destinations: destinations,
                 ),
               ),
             ),
@@ -155,7 +151,6 @@ class _Tabs extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: colors.glassSelected,
                   borderRadius: BorderRadius.circular(AppRadius.full),
-                  boxShadow: colors.glassSelectedShadow,
                 ),
               ),
             ),
@@ -241,8 +236,9 @@ class _Tab extends StatelessWidget {
   }
 }
 
-/// Reflet spéculaire : trait de 1 px en dégradé, lumineux en haut à gauche
-/// et plus discret en bas à droite, comme la lumière qui accroche le verre.
+/// Bord du verre : trait de 1 px en léger dégradé, un peu plus marqué en haut
+/// à gauche qu'en bas à droite, comme la lumière qui accroche le verre. Sans
+/// ombre portée, c'est lui qui délimite la capsule sur un fond uni.
 class _GlassRimPainter extends CustomPainter {
   const _GlassRimPainter({required this.color});
 
@@ -259,8 +255,8 @@ class _GlassRimPainter extends CustomPainter {
         end: Alignment.bottomRight,
         colors: [
           color,
-          color.withValues(alpha: color.a * 0.25),
-          color.withValues(alpha: color.a * 0.7),
+          color.withValues(alpha: color.a * 0.6),
+          color.withValues(alpha: color.a * 0.85),
         ],
         stops: const [0, 0.55, 1],
       ).createShader(rect);
