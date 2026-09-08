@@ -43,6 +43,21 @@ Le fichier `.env` contient la configuration de l'application :
 | `API_DEBUG_BASE_URL` | URL de l'API en développement (ex: `http://localhost:8081`) |
 | `API_PROD_BASE_URL` | URL de l'API en production |
 | `API_UPLOAD_TOKEN` | Token d'authentification pour le script d'upload |
+| `MAPBOX_TOKEN` | Token public Mapbox pour les tuiles de carte |
+| `GOOGLE_WEB_CLIENT_ID` | Client OAuth *Web* Google : audience de l'ID token vérifiée par l'API |
+| `GOOGLE_IOS_CLIENT_ID` | Client OAuth *iOS* Google (bundle `bzh.stack.avtrans`), iOS uniquement |
+
+### Google Sign-In sur iOS
+
+Le client OAuth *iOS* doit être connu du SDK natif (`GIDClientID` et schéma
+URL de retour dans `ios/Runner/Info.plist`) et du code Dart (`.env`). Une
+seule commande reporte la valeur partout :
+
+```bash
+./configure_google_ios.sh 703495171118-xxxxxxxx.apps.googleusercontent.com
+# ou, depuis le fichier téléchargé sur Google Cloud :
+./configure_google_ios.sh ~/Downloads/GoogleService-Info.plist
+```
 
 ## Lancer l'application
 
