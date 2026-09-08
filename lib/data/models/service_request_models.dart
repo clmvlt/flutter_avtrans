@@ -1,12 +1,17 @@
-/// Modèle pour les requêtes de service avec coordonnées GPS
+/// Body commun aux 4 actions de pointage (contrat API §4.2) :
+/// `POST /services/start|end|break/start|break/end`.
+///
+/// Les coordonnées sont optionnelles (null accepté).
+/// `userUuid` est réservé aux administrateurs : un client non-admin qui le
+/// renseigne reçoit un 403. Ne jamais le renseigner depuis l'application.
 class ServiceGpsRequest {
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
   final String? userUuid;
 
   const ServiceGpsRequest({
-    required this.latitude,
-    required this.longitude,
+    this.latitude,
+    this.longitude,
     this.userUuid,
   });
 
@@ -31,18 +36,22 @@ typedef StartBreakRequest = ServiceGpsRequest;
 /// Alias pour la requête de fin de pause
 typedef EndBreakRequest = ServiceGpsRequest;
 
-/// Période pour les heures travaillées
+/// Période pour `GET /services/hours` (valeurs acceptées par l'API, insensibles à la casse)
 enum WorkedHoursPeriod {
   day('day'),
   week('week'),
   month('month'),
-  year('year');
+  year('year'),
+  lastMonth('lastmonth');
 
   final String value;
   const WorkedHoursPeriod(this.value);
 }
 
-/// Paramètres pour récupérer les heures travaillées
+/// Paramètres pour récupérer les heures travaillées.
+///
+/// ⚠ `week` avec un `year` différent de l'année courante peut donner une plage
+/// incorrecte côté serveur : n'utiliser `week` que pour l'année courante.
 class WorkedHoursParams {
   final WorkedHoursPeriod? period;
   final int? year;

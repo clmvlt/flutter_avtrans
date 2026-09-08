@@ -143,31 +143,13 @@ class ServiceRepository implements IServiceRepository {
       if (year != null) queryParams['year'] = year.toString();
       if (month != null) queryParams['month'] = month.toString();
 
+      // `GET /services/month?year&month` (contrat API §4.2) : tableau JSON nu de ServiceDTO
       final response = await _httpService.get(
         ServiceEndpoints.month,
         queryParameters: queryParams.isNotEmpty ? queryParams : null,
       );
 
-      print('Réponse getMonthServices: $response');
-      print('Type de réponse: ${response.runtimeType}');
-
-      // La réponse peut être directement un tableau ou contenir un champ 'data'
-      List<dynamic> servicesJson;
-      if (response is List) {
-        servicesJson = response as List<dynamic>;
-      } else if (response['data'] != null) {
-        servicesJson = response['data'] as List<dynamic>;
-      } else {
-        // Si la réponse n'est ni un tableau ni un objet avec 'data', retourner une liste vide
-        print('Format de réponse inattendu: $response');
-        return const Right([]);
-      }
-
-      final services = servicesJson
-          .map((json) => Service.fromJson(json as Map<String, dynamic>))
-          .toList();
-
-      return Right(services);
+      return Right(_parseServiceList(response));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
     } on AuthException catch (e) {
@@ -176,11 +158,17 @@ class ServiceRepository implements IServiceRepository {
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
     } on AppException catch (e) {
       return Left(ServerFailure(message: e.message));
-    } catch (e, stackTrace) {
-      print('Erreur inattendue dans getMonthServices: $e');
-      print('StackTrace: $stackTrace');
+    } catch (e) {
       return Left(ServerFailure(message: 'Erreur de parsing: $e'));
     }
+  }
+
+  /// Parse un tableau JSON nu de ServiceDTO (routes `/services/month`, `/services/user/daily`)
+  List<Service> _parseServiceList(dynamic response) {
+    if (response is! List) return const [];
+    return response
+        .map((json) => Service.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   @override
@@ -225,10 +213,6 @@ class ServiceRepository implements IServiceRepository {
     } on AuthException catch (e) {
       return Left(AuthFailure(message: e.message));
     } on ServerException catch (e) {
-      // 404 peut signifier aucun service actif
-      if (e.statusCode == 404) {
-        return const Right(null);
-      }
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
     } on AppException catch (e) {
       return Left(ServerFailure(message: e.message));
@@ -260,67 +244,26 @@ class ServiceRepository implements IServiceRepository {
     }
   }
 
+  /// `GET /services/user/daily` (contrat API §4.2) : services ET pauses dont `debut`
+  /// est aujourd'hui (Paris). Tableau nu, non trié côté serveur → trié ici par `debut` desc.
   @override
   Future<Either<Failure, List<Service>>> getDailyServices() async {
     try {
-      print('🔵 Appel API getDailyServices vers: ${ServiceEndpoints.daily}');
       final response = await _httpService.get(ServiceEndpoints.daily);
 
-      print('🔵 Réponse brute getDailyServices: $response');
-      print('🔵 Type de réponse: ${response.runtimeType}');
-
-      // La réponse doit être un tableau de services
-      List<dynamic> servicesJson;
-      if (response is List) {
-        print('🔵 Réponse est une List directe');
-        servicesJson = response as List<dynamic>;
-      } else if (response is Map && response['data'] != null) {
-        print('🔵 Réponse est une Map avec field data');
-        servicesJson = response['data'] as List<dynamic>;
-      } else {
-        print('⚠️ Format de réponse inattendu: $response');
-        return const Right([]);
-      }
-
-      print('🔵 Nombre de services JSON: ${servicesJson.length}');
-
-      final services = <Service>[];
-      for (var i = 0; i < servicesJson.length; i++) {
-        try {
-          final json = servicesJson[i] as Map<String, dynamic>;
-          print('🔵 Parsing service $i: $json');
-          final service = Service.fromJson(json);
-          services.add(service);
-          print('✅ Service $i parsé avec succès');
-        } catch (e, st) {
-          print('❌ Erreur parsing service $i: $e');
-          print('   JSON: ${servicesJson[i]}');
-          print('   Stack: $st');
-          // Continue avec les autres services
-        }
-      }
-
-      print('🔵 Total services parsés: ${services.length}');
-
-      // Trier par ordre décroissant (plus récent en premier)
-      services.sort((a, b) => b.debut.compareTo(a.debut));
+      final services = _parseServiceList(response)
+        ..sort((a, b) => b.debut.compareTo(a.debut));
 
       return Right(services);
     } on NetworkException catch (e) {
-      print('❌ NetworkException: ${e.message}');
       return Left(NetworkFailure(message: e.message));
     } on AuthException catch (e) {
-      print('❌ AuthException: ${e.message}');
       return Left(AuthFailure(message: e.message));
     } on ServerException catch (e) {
-      print('❌ ServerException: ${e.message}, code: ${e.statusCode}');
       return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
     } on AppException catch (e) {
-      print('❌ AppException: ${e.message}');
       return Left(ServerFailure(message: e.message));
-    } catch (e, stackTrace) {
-      print('❌ Erreur inattendue dans getDailyServices: $e');
-      print('❌ StackTrace: $stackTrace');
+    } catch (e) {
       return Left(ServerFailure(message: 'Erreur de parsing: $e'));
     }
   }
