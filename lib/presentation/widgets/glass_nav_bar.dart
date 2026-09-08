@@ -1,13 +1,19 @@
+import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// Barre de navigation basse « verre dépoli », façon iOS.
+/// Tab bar « verre liquide », fidèle à la barre d'onglets iOS 26.
 ///
-/// Pilule flottante détachée des bords (marge latérale + espace sous la
-/// barre), fond translucide et flou du contenu qui défile derrière.
+/// - Capsule flottante détachée des bords (marge latérale + espace sous la
+///   barre, au-dessus de la zone système).
+/// - Fond en verre : le contenu qui défile derrière est flouté et saturé,
+///   avec un reflet dégradé sur le bord.
+/// - Pastille glissante derrière l'onglet actif, icône + libellé teintés
+///   dans la couleur primaire.
+/// - Aucun composant Material : pas de ripple, pas d'indicateur M3.
 ///
 /// À utiliser avec `Scaffold(extendBody: true)` : le corps passe sous la
 /// barre, et chaque écran réserve `MediaQuery.paddingOf(context).bottom`
@@ -24,36 +30,63 @@ class GlassNavBar extends StatelessWidget {
   final ValueChanged<int> onDestinationSelected;
   final List<NavigationDestination> destinations;
 
-  /// Marge latérale de la pilule.
+  /// Hauteur de la capsule.
+  static const double height = 64;
+
+  /// Marge latérale de la capsule.
   static const double horizontalMargin = AppSpacing.base;
 
-  /// Espace entre la pilule et le bord bas (en plus de la zone système).
+  /// Espace entre la capsule et le bord bas (en plus de la zone système).
   static const double bottomGap = AppSpacing.sm;
 
-  /// Intensité du flou d'arrière-plan.
-  static const double blurSigma = 24;
+  /// Retrait de la pastille active par rapport aux bords de la capsule.
+  static const EdgeInsets pillInset =
+      EdgeInsets.symmetric(horizontal: 4, vertical: 5);
+
+  /// Largeur max de la pastille (évite une pastille géante sur tablette).
+  static const double pillMaxWidth = 96;
+
+  /// Flou et saturation du verre.
+  static const double blurSigma = 30;
+  static const double saturation = 1.4;
+
+  /// Flou + saturation : c'est la saturation qui donne au verre iOS son
+  /// aspect « vibrant » plutôt que laiteux.
+  static ImageFilter _glassFilter() {
+    const s = saturation;
+    const lr = 0.2126, lg = 0.7152, lb = 0.0722;
+    const sr = (1 - s) * lr, sg = (1 - s) * lg, sb = (1 - s) * lb;
+    const matrix = <double>[
+      sr + s, sg, sb, 0, 0, //
+      sr, sg + s, sb, 0, 0, //
+      sr, sg, sb + s, 0, 0, //
+      0, 0, 0, 1, 0, //
+    ];
+    return ImageFilter.compose(
+      outer: ImageFilter.blur(
+        sigmaX: blurSigma,
+        sigmaY: blurSigma,
+        tileMode: TileMode.mirror,
+      ),
+      inner: const ColorFilter.matrix(matrix),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final padding = MediaQuery.paddingOf(context);
-    final radius = BorderRadius.circular(AppRadius.full);
+    final radius = BorderRadius.circular(height / 2);
 
-    // Les insets système sont gérés ici (marges) : on les retire du
-    // MediaQuery pour que NavigationBar, qui embarque son propre SafeArea,
-    // ne les ré-applique pas à l'intérieur de la pilule.
-    return MediaQuery.removePadding(
-      context: context,
-      removeLeft: true,
-      removeRight: true,
-      removeBottom: true,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          horizontalMargin + padding.left,
-          0,
-          horizontalMargin + padding.right,
-          bottomGap + padding.bottom,
-        ),
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        horizontalMargin + padding.left,
+        0,
+        horizontalMargin + padding.right,
+        bottomGap + padding.bottom,
+      ),
+      child: SizedBox(
+        height: height,
         child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: radius,
@@ -62,18 +95,16 @@ class GlassNavBar extends StatelessWidget {
           child: ClipRRect(
             borderRadius: radius,
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
+              filter: _glassFilter(),
+              child: CustomPaint(
+                foregroundPainter: _GlassRimPainter(color: colors.glassRim),
+                child: ColoredBox(
                   color: colors.glassSurface,
-                  borderRadius: radius,
-                  border: Border.all(color: colors.glassBorder),
-                ),
-                child: NavigationBar(
-                  selectedIndex: selectedIndex,
-                  onDestinationSelected: onDestinationSelected,
-                  backgroundColor: Colors.transparent,
-                  destinations: destinations,
+                  child: _Tabs(
+                    selectedIndex: selectedIndex,
+                    onSelected: onDestinationSelected,
+                    destinations: destinations,
+                  ),
                 ),
               ),
             ),
@@ -82,4 +113,168 @@ class GlassNavBar extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Pastille glissante + rangée d'onglets.
+class _Tabs extends StatelessWidget {
+  const _Tabs({
+    required this.selectedIndex,
+    required this.onSelected,
+    required this.destinations,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+  final List<NavigationDestination> destinations;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    const inset = GlassNavBar.pillInset;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final slotWidth =
+            (constraints.maxWidth - inset.horizontal) / destinations.length;
+        final pillWidth = math.min(slotWidth, GlassNavBar.pillMaxWidth);
+        final pillLeft = inset.left +
+            slotWidth * selectedIndex +
+            (slotWidth - pillWidth) / 2;
+
+        return Stack(
+          children: [
+            // Pastille active : glisse d'un onglet à l'autre.
+            AnimatedPositioned(
+              duration: AppDuration.slow,
+              curve: Curves.easeOutCubic,
+              left: pillLeft,
+              top: inset.top,
+              width: pillWidth,
+              height: constraints.maxHeight - inset.vertical,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.glassSelected,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                  boxShadow: colors.glassSelectedShadow,
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: inset.left),
+              child: Row(
+                children: [
+                  for (var i = 0; i < destinations.length; i++)
+                    Expanded(
+                      child: _Tab(
+                        destination: destinations[i],
+                        selected: i == selectedIndex,
+                        onTap: () => onSelected(i),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Un onglet : icône (contour → pleine) au-dessus d'un libellé compact.
+class _Tab extends StatelessWidget {
+  const _Tab({
+    required this.destination,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final NavigationDestination destination;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final color = selected ? colors.primary : colors.mutedForeground;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedSwitcher(
+              duration: AppDuration.fast,
+              child: IconTheme(
+                key: ValueKey<bool>(selected),
+                data: IconThemeData(size: 24, color: color),
+                child: selected
+                    ? (destination.selectedIcon ?? destination.icon)
+                    : destination.icon,
+              ),
+            ),
+            const SizedBox(height: 3),
+            AnimatedDefaultTextStyle(
+              duration: AppDuration.fast,
+              style: TextStyle(
+                fontFamily: AppTheme.fontFamily,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: color,
+                height: 1.1,
+                letterSpacing: -0.1,
+              ),
+              child: Text(
+                destination.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Reflet spéculaire : trait de 1 px en dégradé, lumineux en haut à gauche
+/// et plus discret en bas à droite, comme la lumière qui accroche le verre.
+class _GlassRimPainter extends CustomPainter {
+  const _GlassRimPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          color,
+          color.withValues(alpha: color.a * 0.25),
+          color.withValues(alpha: color.a * 0.7),
+        ],
+        stops: const [0, 0.55, 1],
+      ).createShader(rect);
+
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        rect.deflate(0.5),
+        Radius.circular(size.height / 2),
+      ),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_GlassRimPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

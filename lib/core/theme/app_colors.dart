@@ -215,19 +215,35 @@ class AppColors {
           ),
         ];
 
-  // ============ Verre (barre de navigation flottante) ============
-  /// Fond translucide de la barre « verre dépoli » (posé sur un BackdropFilter).
+  // ============ Verre liquide (tab bar flottante iOS) ============
+  /// Fond translucide du verre (posé sur un BackdropFilter flou + saturé).
   Color get glassSurface => isDarkMode
-      ? const Color(0xB81D1F24) // card ~72 %
-      : const Color(0xBFFFFFFF); // blanc ~75 %
+      ? const Color(0xA61D1F24) // card ~65 %
+      : const Color(0x9EFFFFFF); // blanc ~62 %
 
-  /// Liseré de reflet sur le bord du verre.
-  Color get glassBorder => isDarkMode
-      ? const Color(0x1AFFFFFF) // blanc 10 %
-      : const Color(0xB3FFFFFF); // blanc 70 %
+  /// Reflet spéculaire sur le bord du verre (intensité max du dégradé).
+  Color get glassRim => isDarkMode
+      ? const Color(0x47FFFFFF) // blanc 28 %
+      : const Color(0xF2FFFFFF); // blanc 95 %
 
-  /// Ombre portée de la pilule flottante. Dessinée uniquement à l'extérieur
-  /// de la forme (`BlurStyle.outer`) pour ne pas assombrir le verre translucide.
+  /// Pastille derrière l'onglet actif.
+  Color get glassSelected => isDarkMode
+      ? const Color(0x24FFFFFF) // blanc 14 %
+      : const Color(0xF0FFFFFF); // blanc 94 %
+
+  /// Ombre douce de la pastille active (light uniquement).
+  List<BoxShadow> get glassSelectedShadow => isDarkMode
+      ? const []
+      : const [
+          BoxShadow(
+            color: Color(0x1A1E293B), // ~10 %
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ];
+
+  /// Ombre portée de la barre. Dessinée uniquement à l'extérieur de la forme
+  /// (`BlurStyle.outer`) pour ne pas assombrir le verre translucide.
   List<BoxShadow> get glassNavShadow => isDarkMode
       ? const []
       : const [
