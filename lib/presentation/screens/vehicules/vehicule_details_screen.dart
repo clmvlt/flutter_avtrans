@@ -102,7 +102,10 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
   Future<void> _showAddKilometrageDialog() async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (_) => AddKilometrageDialog(vehiculeId: widget.vehiculeId),
+      builder: (_) => AddKilometrageDialog(
+        vehiculeId: widget.vehiculeId,
+        latestKm: _vehicule?.latestKm,
+      ),
     );
 
     if (result == true) {

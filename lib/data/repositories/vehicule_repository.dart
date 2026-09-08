@@ -27,11 +27,20 @@ abstract class IVehiculeRepository {
     CreateAdjustInfoRequest request,
   );
 
-  /// Récupère l'historique des kilométrages d'un véhicule
-  Future<Either<Failure, List<Kilometrage>>> getKilometrages(String vehiculeId);
+  /// Récupère l'historique des kilométrages d'un véhicule.
+  /// `size` max 300 ; `size = -1` = tout sans pagination.
+  Future<Either<Failure, List<Kilometrage>>> getKilometrages(
+    String vehiculeId, {
+    int page = 0,
+    int size = 300,
+  });
 
-  /// Récupère les informations d'ajustement d'un véhicule
-  Future<Either<Failure, List<AdjustInfo>>> getAdjustInfos(String vehiculeId);
+  /// Récupère les informations d'ajustement d'un véhicule. `size` max 50.
+  Future<Either<Failure, List<AdjustInfo>>> getAdjustInfos(
+    String vehiculeId, {
+    int page = 0,
+    int size = 50,
+  });
 
   /// Récupère les photos d'une information d'ajustement
   Future<Either<Failure, List<AdjustPicture>>> getAdjustInfoPictures(
@@ -49,7 +58,7 @@ abstract class IVehiculeRepository {
     UploadVehiculeFileRequest request,
   );
 
-  /// Supprime un fichier de véhicule
+  /// [MÉCANICIEN] Supprime un fichier de véhicule — route hors contrat `Utilisateur`
   Future<Either<Failure, void>> deleteVehiculeFile(String fileId);
 }
 
@@ -186,13 +195,20 @@ class VehiculeRepository implements IVehiculeRepository {
     }
   }
 
+  /// `GET /vehicules/{id}/kilometrages?page&size` (contrat API §4.11), createdAt desc.
   @override
   Future<Either<Failure, List<Kilometrage>>> getKilometrages(
-    String vehiculeId,
-  ) async {
+    String vehiculeId, {
+    int page = 0,
+    int size = 300,
+  }) async {
     try {
       final response = await _httpService.get(
         VehiculeEndpoints.kilometrages(vehiculeId),
+        queryParameters: {
+          'page': page.toString(),
+          'size': (size == -1 ? -1 : size.clamp(1, 300)).toString(),
+        },
       );
 
       if (response is Map && response['kilometrages'] != null) {
@@ -215,13 +231,20 @@ class VehiculeRepository implements IVehiculeRepository {
     }
   }
 
+  /// `GET /vehicules/{id}/adjust-infos?page&size` (contrat API §4.11), size max 50.
   @override
   Future<Either<Failure, List<AdjustInfo>>> getAdjustInfos(
-    String vehiculeId,
-  ) async {
+    String vehiculeId, {
+    int page = 0,
+    int size = 50,
+  }) async {
     try {
       final response = await _httpService.get(
         VehiculeEndpoints.adjustInfos(vehiculeId),
+        queryParameters: {
+          'page': page.toString(),
+          'size': size.clamp(1, 50).toString(),
+        },
       );
 
       if (response is Map && response['adjustInfos'] != null) {

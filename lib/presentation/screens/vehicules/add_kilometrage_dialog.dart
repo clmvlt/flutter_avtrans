@@ -5,13 +5,18 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/vehicule_model.dart';
 
-/// Dialog pour ajouter un kilométrage
+/// Dialog pour ajouter un kilométrage.
+///
+/// L'API (`POST /vehicules/kilometrages`) n'effectue aucun contrôle de cohérence :
+/// [latestKm] permet de refuser côté client un relevé inférieur au précédent.
 class AddKilometrageDialog extends StatefulWidget {
   final String vehiculeId;
+  final int? latestKm;
 
   const AddKilometrageDialog({
     super.key,
     required this.vehiculeId,
+    this.latestKm,
   });
 
   @override
@@ -149,6 +154,10 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
                 final km = int.tryParse(value);
                 if (km == null || km <= 0) {
                   return 'Kilométrage invalide';
+                }
+                final latest = widget.latestKm;
+                if (latest != null && km < latest) {
+                  return 'Doit être ≥ au dernier relevé ($latest km)';
                 }
                 return null;
               },
