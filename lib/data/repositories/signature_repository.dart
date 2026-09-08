@@ -15,19 +15,19 @@ abstract class ISignatureRepository {
   Future<Either<Failure, Signature>> createSignature(
       SignatureCreateRequest request);
 
-  /// Récupère ma dernière signature
-  Future<Either<Failure, Signature>> getLastSignature();
+  /// Récupère ma dernière signature (null si aucune : le serveur répond 200)
+  Future<Either<Failure, Signature?>> getLastSignature();
 
   /// Récupère le résumé de ma dernière signature
   Future<Either<Failure, SignatureSummary>> getLastSignatureSummary();
 
-  /// [ADMIN] Supprimer une signature
+  /// [ADMIN] Supprimer une signature — route hors contrat non-admin
   Future<Either<Failure, void>> deleteSignature(String signatureUuid);
 
-  /// [ADMIN] Récupérer tous les utilisateurs avec leur dernière signature
+  /// [ADMIN] Récupérer tous les utilisateurs avec leur dernière signature — route hors contrat non-admin
   Future<Either<Failure, List<UserWithLastSignature>>> getAllUsersWithSignatures();
 
-  /// [ADMIN] Récupérer toutes les signatures d'un utilisateur
+  /// [ADMIN] Récupérer toutes les signatures d'un utilisateur — route hors contrat non-admin
   Future<Either<Failure, List<Signature>>> getUserSignatures(String userUuid);
 }
 
@@ -92,13 +92,17 @@ class SignatureRepository implements ISignatureRepository {
     }
   }
 
+  /// `GET /signatures/last` (contrat API §4.8) : s'il n'y a aucune signature, le
+  /// serveur répond 200 `{ success: true, message: "Aucune signature trouvée", signature: null }`.
   @override
-  Future<Either<Failure, Signature>> getLastSignature() async {
+  Future<Either<Failure, Signature?>> getLastSignature() async {
     try {
       final response = await _httpService.get(SignatureEndpoints.last);
 
-      final signature = Signature.fromJson(response['signature']);
-      return Right(signature);
+      final signatureJson = response['signature'];
+      if (signatureJson == null) return const Right(null);
+
+      return Right(Signature.fromJson(signatureJson as Map<String, dynamic>));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
     } on AuthException catch (e) {

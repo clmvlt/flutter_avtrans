@@ -28,18 +28,14 @@ class CouchetteRepository implements ICouchetteRepository {
       final body = <String, dynamic>{};
       if (date != null) body['date'] = date;
 
+      // `POST /couchettes` (contrat API §4.5) : body optionnel `{ date: yyyy-MM-dd }`,
+      // réponse = CouchetteDTO nu (pas d'enveloppe `success`).
       final response = await _httpService.post(
         CouchetteEndpoints.create,
         body: body.isNotEmpty ? body : null,
       );
 
-      // La réponse peut être directement le CouchetteDTO
-      final couchetteData = response is Map<String, dynamic> &&
-              response.containsKey('uuid')
-          ? response
-          : response;
-      final couchette =
-          Couchette.fromJson(couchetteData as Map<String, dynamic>);
+      final couchette = Couchette.fromJson(response as Map<String, dynamic>);
       return Right(couchette);
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
@@ -58,8 +54,10 @@ class CouchetteRepository implements ICouchetteRepository {
     int size = 10,
   }) async {
     try {
+      // `GET /couchettes/me?page&size` → PagedResponse (success, content, page, size, ...)
       final response = await _httpService.get(
-        '${CouchetteEndpoints.my}?page=$page&size=$size',
+        CouchetteEndpoints.my,
+        queryParameters: {'page': page.toString(), 'size': size.toString()},
       );
 
       final couchettes = (response['content'] as List)
@@ -89,6 +87,8 @@ class CouchetteRepository implements ICouchetteRepository {
     }
   }
 
+  /// `DELETE /couchettes/{uuid}` : 204 No Content (corps vide) en succès.
+  /// La couchette doit m'appartenir ET être datée d'aujourd'hui.
   @override
   Future<Either<Failure, bool>> deleteCouchette(String uuid) async {
     try {
