@@ -11,11 +11,38 @@ import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/shell/main_shell.dart';
 import 'presentation/widgets/update_dialog.dart';
 
+/// Clé de navigation globale : permet de rediriger vers le login depuis la couche
+/// réseau (401) sans dépendre d'un BuildContext.
+final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
+
+bool _isHandlingUnauthorized = false;
+
+/// Contrat API §1.2 : un 401 d'authentification (token invalide, compte désactivé,
+/// aucun rôle) doit déconnecter l'utilisateur et le renvoyer au login.
+/// Le cas "rôle insuffisant" ne passe pas par ici (voir HttpService).
+Future<void> _handleUnauthorized() async {
+  if (_isHandlingUnauthorized) return;
+  if (!sl.authRepository.isLoggedIn()) return;
+  _isHandlingUnauthorized = true;
+  try {
+    // Naviguer d'abord : les écrans en cours sont démontés avant de traiter leur
+    // propre échec, ce qui évite une double navigation vers le login.
+    appNavigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+    await sl.authRepository.logout();
+  } finally {
+    _isHandlingUnauthorized = false;
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await dotenv.load(fileName: '.env');
   await ServiceLocator().init();
+  sl.httpService.onUnauthorized = _handleUnauthorized;
   await initializeDateFormatting('fr_FR', null);
 
   runApp(
@@ -34,6 +61,7 @@ class MyApp extends StatelessWidget {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
+      navigatorKey: appNavigatorKey,
       title: 'Pointage AVTRANS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,

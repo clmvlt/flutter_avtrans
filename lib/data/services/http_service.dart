@@ -13,6 +13,15 @@ class HttpService {
   final String _baseUrl;
   String? _authToken;
 
+  /// Callback déclenché sur un 401 d'authentification (token absent/invalide,
+  /// compte inactif, aucun rôle). Le cas "rôle insuffisant" n'est PAS concerné :
+  /// c'est un problème d'autorisation, il remonte en [AuthException].
+  /// Contrat API §1.2 : un 401 doit déconnecter l'utilisateur et le renvoyer au login.
+  void Function()? onUnauthorized;
+
+  /// Préfixe du message serveur pour un rôle insuffisant (contrat API §1.2)
+  static const String _insufficientRolePrefix = 'Access denied: Required role is';
+
   HttpService({
     http.Client? client,
     String? baseUrl,
@@ -145,79 +154,95 @@ class HttpService {
     }
   }
 
-  /// Traite la réponse HTTP
+  /// Traite la réponse HTTP.
+  ///
+  /// Contrat API §1.4 : le corps d'erreur est `{"success": false, "message": "..."}`
+  /// (plus `errors: string[]` sur un 400 "Validation error"). Certaines erreurs
+  /// (404 `/auth/status/{id}`, 204 `DELETE /couchettes/{uuid}`) ont un corps vide.
+  /// "Introuvable" est un 400 dans la majorité des routes : le client se base sur
+  /// `message`, pas uniquement sur le code HTTP.
   dynamic _handleResponse(http.Response response) {
-    // 204 No Content - pas de body à parser
-    if (response.statusCode == 204 || response.body.isEmpty) {
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        return <String, dynamic>{};
-      }
+    final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+
+    // 204 No Content ou corps vide en succès : rien à parser
+    if (response.body.trim().isEmpty) {
+      if (isSuccess) return <String, dynamic>{};
+      _throwForStatus(response.statusCode, null);
     }
 
     final dynamic body;
-
     try {
       body = jsonDecode(response.body);
     } catch (_) {
       throw ServerException(
-        message: 'Erreur de format de réponse du serveur.',
+        message: isSuccess
+            ? 'Erreur de format de réponse du serveur.'
+            : _defaultMessageFor(response.statusCode),
         statusCode: response.statusCode,
       );
     }
 
-    switch (response.statusCode) {
-      case 200:
-      case 201:
-      case 204:
-        return body;
+    if (isSuccess) return body;
+
+    _throwForStatus(
+      response.statusCode,
+      body is Map<String, dynamic> ? body : null,
+    );
+  }
+
+  /// Message par défaut si le serveur n'en fournit pas
+  String _defaultMessageFor(int statusCode) {
+    switch (statusCode) {
       case 400:
-        final message = body is Map<String, dynamic>
-            ? (body['message'] as String? ?? 'Requête invalide.')
-            : 'Requête invalide.';
-        throw ServerException(
-          message: message,
-          statusCode: 400,
-        );
+        return 'Requête invalide.';
       case 401:
-        final message = body is Map<String, dynamic>
-            ? (body['message'] as String? ?? 'Non autorisé.')
-            : 'Non autorisé.';
-        throw UnauthorizedException(
-          message: message,
-        );
+        return 'Session expirée. Veuillez vous reconnecter.';
       case 403:
-        final message = body is Map<String, dynamic>
-            ? (body['message'] as String? ?? 'Accès refusé.')
-            : 'Accès refusé.';
-        throw AuthException(
-          message: message,
-          statusCode: 403,
-        );
+        return 'Accès refusé.';
       case 404:
-        final message = body is Map<String, dynamic>
-            ? (body['message'] as String? ?? 'Ressource non trouvée.')
-            : 'Ressource non trouvée.';
-        throw ServerException(
-          message: message,
-          statusCode: 404,
-        );
-      case 422:
-        final message = body is Map<String, dynamic>
-            ? (body['message'] as String? ?? 'Erreur de validation.')
-            : 'Erreur de validation.';
-        throw ValidationException(
-          message: message,
-          statusCode: 422,
-        );
-      case 500:
+        return 'Ressource non trouvée.';
       default:
-        final message = body is Map<String, dynamic>
-            ? (body['message'] as String? ?? 'Erreur serveur.')
-            : 'Erreur serveur.';
-        throw ServerException(
-          message: message,
-          statusCode: response.statusCode,
-        );
+        return 'Erreur serveur.';
+    }
+  }
+
+  /// Lève l'exception typée correspondant au code HTTP et au corps d'erreur
+  Never _throwForStatus(int statusCode, Map<String, dynamic>? body) {
+    final message = body?['message'] as String? ?? _defaultMessageFor(statusCode);
+
+    switch (statusCode) {
+      case 400:
+        // Body @Valid invalide : { message: "Validation error", errors: ["champ: message"] }
+        final rawErrors = body?['errors'];
+        if (rawErrors is List && rawErrors.isNotEmpty) {
+          final errors = <String, List<String>>{};
+          for (final entry in rawErrors) {
+            final text = entry.toString();
+            final sep = text.indexOf(': ');
+            final field = sep > 0 ? text.substring(0, sep) : '';
+            final detail = sep > 0 ? text.substring(sep + 2) : text;
+            errors.putIfAbsent(field, () => []).add(detail);
+          }
+          throw ValidationException(
+            message: errors.values.expand((e) => e).join('\n'),
+            errors: errors,
+            statusCode: 400,
+          );
+        }
+        throw ServerException(message: message, statusCode: 400);
+      case 401:
+        // Rôle insuffisant = autorisation, pas authentification : ne pas déconnecter
+        if (message.startsWith(_insufficientRolePrefix)) {
+          throw AuthException(message: message, statusCode: 401);
+        }
+        onUnauthorized?.call();
+        throw UnauthorizedException(message: message);
+      case 403:
+        throw AuthException(message: message, statusCode: 403);
+      case 404:
+        throw ServerException(message: message, statusCode: 404);
+      default:
+        throw ServerException(message: message, statusCode: statusCode);
     }
   }
 
