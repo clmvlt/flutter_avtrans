@@ -148,7 +148,11 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
       ));
     }
 
-    if (actions.isEmpty) return const SizedBox.shrink();
+    // Sans action : simple espaceur pour que le contenu ne passe pas sous la
+    // barre de navigation flottante.
+    if (actions.isEmpty) {
+      return SizedBox(height: MediaQuery.paddingOf(context).bottom);
+    }
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.base),

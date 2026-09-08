@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../widgets/glass_nav_bar.dart';
 import '../services/services_screen.dart';
 import '../ypsium/ypsium_login_screen.dart';
 import 'home_dashboard_screen.dart';
@@ -96,6 +97,9 @@ class _MainShellState extends State<MainShell> {
       },
       child: Scaffold(
         backgroundColor: colors.background,
+        // Le corps passe sous la barre flottante (effet verre). Chaque onglet
+        // réserve `MediaQuery.paddingOf(context).bottom` en bas de sa liste.
+        extendBody: true,
         body: IndexedStack(
           index: _index,
           children: List.generate(
@@ -105,41 +109,31 @@ class _MainShellState extends State<MainShell> {
                 : const SizedBox.shrink(),
           ),
         ),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: colors.card,
-            boxShadow: colors.navShadow,
-            border: colors.isDarkMode
-                ? Border(top: BorderSide(color: colors.border))
-                : null,
-          ),
-          child: NavigationBar(
-            selectedIndex: _index,
-            onDestinationSelected: _goTo,
-            backgroundColor: Colors.transparent,
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home_rounded),
-                label: 'Accueil',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.access_time_outlined),
-                selectedIcon: Icon(Icons.access_time_filled_rounded),
-                label: 'Pointage',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.local_shipping_outlined),
-                selectedIcon: Icon(Icons.local_shipping_rounded),
-                label: 'Ypsium',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded),
-                selectedIcon: Icon(Icons.person_rounded),
-                label: 'Moi',
-              ),
-            ],
-          ),
+        bottomNavigationBar: GlassNavBar(
+          selectedIndex: _index,
+          onDestinationSelected: _goTo,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Accueil',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.access_time_outlined),
+              selectedIcon: Icon(Icons.access_time_filled_rounded),
+              label: 'Pointage',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.local_shipping_outlined),
+              selectedIcon: Icon(Icons.local_shipping_rounded),
+              label: 'Ypsium',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded),
+              selectedIcon: Icon(Icons.person_rounded),
+              label: 'Moi',
+            ),
+          ],
         ),
       ),
     );

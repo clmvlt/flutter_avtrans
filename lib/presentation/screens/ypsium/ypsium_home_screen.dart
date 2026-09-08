@@ -257,7 +257,13 @@ class _YpsiumHomeScreenState extends State<YpsiumHomeScreen> {
         backgroundColor: colors.card,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(AppSpacing.base),
+          // Réserve l'espace de la barre de navigation flottante.
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.base,
+            AppSpacing.base,
+            AppSpacing.base,
+            AppSpacing.base + MediaQuery.paddingOf(context).bottom,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

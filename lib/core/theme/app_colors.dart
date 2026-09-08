@@ -215,6 +215,30 @@ class AppColors {
           ),
         ];
 
+  // ============ Verre (barre de navigation flottante) ============
+  /// Fond translucide de la barre « verre dépoli » (posé sur un BackdropFilter).
+  Color get glassSurface => isDarkMode
+      ? const Color(0xB81D1F24) // card ~72 %
+      : const Color(0xBFFFFFFF); // blanc ~75 %
+
+  /// Liseré de reflet sur le bord du verre.
+  Color get glassBorder => isDarkMode
+      ? const Color(0x1AFFFFFF) // blanc 10 %
+      : const Color(0xB3FFFFFF); // blanc 70 %
+
+  /// Ombre portée de la pilule flottante. Dessinée uniquement à l'extérieur
+  /// de la forme (`BlurStyle.outer`) pour ne pas assombrir le verre translucide.
+  List<BoxShadow> get glassNavShadow => isDarkMode
+      ? const []
+      : const [
+          BoxShadow(
+            color: Color(0x1F1E293B), // ~12 %
+            blurRadius: 24,
+            offset: Offset(0, 8),
+            blurStyle: BlurStyle.outer,
+          ),
+        ];
+
   // ============ Aliases (compat ascendante) ============
   Color get bgPrimary => background;
   Color get bgSecondary => card;

@@ -130,11 +130,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
           backgroundColor: colors.card,
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(
+            padding: EdgeInsets.fromLTRB(
               AppSpacing.screen,
               AppSpacing.sm,
               AppSpacing.screen,
-              AppSpacing.lg,
+              // Réserve l'espace de la barre de navigation flottante.
+              AppSpacing.lg + MediaQuery.paddingOf(context).bottom,
             ),
             children: [
               _header(colors, textTheme),

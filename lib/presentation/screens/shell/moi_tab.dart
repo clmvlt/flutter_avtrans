@@ -104,11 +104,12 @@ class _MoiTabState extends State<MoiTab> {
       body: SafeArea(
         bottom: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(
+          padding: EdgeInsets.fromLTRB(
             AppSpacing.screen,
             AppSpacing.base,
             AppSpacing.screen,
-            AppSpacing.xxl,
+            // Réserve l'espace de la barre de navigation flottante.
+            AppSpacing.lg + MediaQuery.paddingOf(context).bottom,
           ),
           children: [
             Text('Moi', style: textTheme.headlineMedium),

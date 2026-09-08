@@ -10,5 +10,6 @@ export 'app_searchable_select.dart';
 export 'app_separator.dart';
 export 'app_skeleton.dart';
 export 'app_text_field.dart';
+export 'glass_nav_bar.dart';
 export 'loading_overlay.dart';
 export 'service_day_tile.dart';

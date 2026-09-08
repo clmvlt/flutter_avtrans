@@ -702,11 +702,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
               backgroundColor: colors.card,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(
+                padding: EdgeInsets.fromLTRB(
                   AppSpacing.screen,
                   AppSpacing.md,
                   AppSpacing.screen,
-                  AppSpacing.lg,
+                  // Réserve l'espace de la barre de navigation flottante.
+                  AppSpacing.lg + MediaQuery.paddingOf(context).bottom,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
