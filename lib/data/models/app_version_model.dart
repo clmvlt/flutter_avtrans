@@ -12,7 +12,7 @@ class AppVersion extends Equatable {
   final int downloadCount;
   final String downloadUrl;
   final DateTime createdAt;
-  final String createdByUuid;
+  final String? createdByUuid;
   final String? createdByName;
 
   const AppVersion({
@@ -26,7 +26,7 @@ class AppVersion extends Equatable {
     required this.downloadCount,
     required this.downloadUrl,
     required this.createdAt,
-    required this.createdByUuid,
+    this.createdByUuid,
     this.createdByName,
   });
 
@@ -42,16 +42,16 @@ class AppVersion extends Equatable {
   factory AppVersion.fromJson(Map<String, dynamic> json) {
     return AppVersion(
       id: json['id'] as String,
-      versionCode: json['versionCode'] as int,
+      versionCode: (json['versionCode'] as num).toInt(),
       versionName: json['versionName'] as String,
-      originalFileName: json['originalFileName'] as String,
-      fileSize: json['fileSize'] as int,
+      originalFileName: json['originalFileName'] as String? ?? '',
+      fileSize: (json['fileSize'] as num?)?.toInt() ?? 0,
       changelog: json['changelog'] as String?,
-      isActive: json['isActive'] as bool,
-      downloadCount: json['downloadCount'] as int,
+      isActive: json['isActive'] as bool? ?? true,
+      downloadCount: (json['downloadCount'] as num?)?.toInt() ?? 0,
       downloadUrl: json['downloadUrl'] as String,
       createdAt: DateTime.parse(json['createdAt'] as String),
-      createdByUuid: json['createdByUuid'] as String,
+      createdByUuid: json['createdByUuid'] as String?,
       createdByName: json['createdByName'] as String?,
     );
   }
