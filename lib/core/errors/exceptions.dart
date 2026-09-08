@@ -59,3 +59,10 @@ class CacheException extends AppException {
     super.message = 'Erreur lors de l\'accès au cache local.',
   });
 }
+
+/// Exception levée quand l'utilisateur annule lui-même une opération
+/// (ex. fermeture du sélecteur de compte Google). Ce n'est pas une erreur
+/// à afficher.
+class OperationCancelledException extends AppException {
+  const OperationCancelledException({super.message = 'Opération annulée.'});
+}

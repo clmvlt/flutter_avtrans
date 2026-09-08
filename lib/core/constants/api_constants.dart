@@ -46,6 +46,12 @@ abstract class AuthEndpoints {
 
   /// GET - Vérifier le statut d'un utilisateur par ID
   static String status(String userId) => '$_base/status/$userId';
+
+  /// POST - Connexion via Google `{ idToken }` (sans Authorization) — fiche Google §2
+  static const String google = '$_base/google';
+
+  /// POST - Création de compte via Google `{ idToken, firstName?, lastName? }` — fiche Google §3
+  static const String googleRegister = '$_base/google/register';
 }
 
 /// Endpoints de l'API du profil utilisateur

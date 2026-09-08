@@ -22,6 +22,21 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<!-- Google Sign-In : schéma URL de retour OAuth = client iOS inversé
+	     (REVERSED_CLIENT_ID du client OAuth *iOS* du projet Google Cloud).
+	     À remplacer par la vraie valeur, en cohérence avec GOOGLE_IOS_CLIENT_ID
+	     dans .env. Sans lui, le SDK iOS refuse d'ouvrir la connexion Google. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.REPLACE-WITH-IOS-CLIENT-ID</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>

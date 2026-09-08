@@ -19,6 +19,7 @@ import '../../data/repositories/ypsium_referentiel_repository.dart';
 import '../../data/repositories/ypsium_transport_repository.dart';
 import '../../data/repositories/ypsium_vehicule_repository.dart';
 import '../../data/services/download_service.dart';
+import '../../data/services/google_sign_in_service.dart';
 import '../../data/services/http_service.dart';
 import '../../data/services/navigation_preference_service.dart';
 import '../../data/services/ors_http_service.dart';
@@ -38,6 +39,7 @@ class ServiceLocator {
 
   HttpService? _httpService;
   TokenStorageService? _tokenStorage;
+  GoogleSignInService? _googleSignInService;
   AuthRepository? _authRepository;
   ServiceRepository? _serviceRepository;
   AbsenceRepository? _absenceRepository;
@@ -76,10 +78,14 @@ class ServiceLocator {
     // Initialise le service HTTP
     _httpService = HttpService();
 
+    // Initialise l'enveloppe du SDK Google Sign-In (ID token pour /auth/google)
+    _googleSignInService = GoogleSignInService();
+
     // Initialise le repository d'authentification
     _authRepository = AuthRepository(
       httpService: _httpService!,
       tokenStorage: _tokenStorage!,
+      googleSignInService: _googleSignInService!,
     );
 
     // Initialise le repository des services (pointage)
@@ -184,6 +190,12 @@ class ServiceLocator {
   TokenStorageService get tokenStorage {
     _ensureInitialized();
     return _tokenStorage!;
+  }
+
+  /// Récupère l'enveloppe du SDK Google Sign-In
+  GoogleSignInService get googleSignInService {
+    _ensureInitialized();
+    return _googleSignInService!;
   }
 
   /// Récupère le repository d'authentification
@@ -344,6 +356,7 @@ class ServiceLocator {
     _httpService?.dispose();
     _httpService = null;
     _tokenStorage = null;
+    _googleSignInService = null;
     _authRepository = null;
     _serviceRepository = null;
     _absenceRepository = null;

@@ -55,3 +55,8 @@ class CacheFailure extends Failure {
     super.message = 'Erreur lors de l\'accès au cache local.',
   });
 }
+
+/// Échec « annulé par l'utilisateur » — à ignorer silencieusement côté UI
+class CancelledFailure extends Failure {
+  const CancelledFailure({super.message = 'Opération annulée.'});
+}

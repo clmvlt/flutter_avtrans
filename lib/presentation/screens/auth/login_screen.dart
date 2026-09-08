@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/di/service_locator.dart';
+import '../../../core/errors/failures.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
 import '../shell/main_shell.dart';
+import 'google_register_screen.dart';
 import 'register_screen.dart';
 
 /// Page de connexion — Z-pattern, CTA en bas, accessibilite
@@ -22,7 +24,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordFocusNode = FocusNode();
 
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   String? _errorMessage;
+
+  /// Le SDK Google n'est disponible que sur Android / iOS / macOS.
+  late final bool _isGoogleSignInAvailable;
+
+  bool get _isBusy => _isLoading || _isGoogleLoading;
+
+  @override
+  void initState() {
+    super.initState();
+    _isGoogleSignInAvailable = sl.googleSignInService.isSupported;
+  }
 
   @override
   void dispose() {
@@ -52,10 +66,60 @@ class _LoginScreenState extends State<LoginScreen> {
 
     result.fold(
       (failure) => setState(() => _errorMessage = failure.message),
-      (user) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainShell()),
-        );
+      (user) => _navigateToHome(),
+    );
+  }
+
+  void _navigateToHome() {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const MainShell()),
+    );
+  }
+
+  /// Fiche Google §5 : SDK → `POST /auth/google` → `AUTHENTICATED` (accueil)
+  /// ou `NEEDS_REGISTRATION` (inscription pré-remplie). Une annulation du
+  /// sélecteur de compte n'affiche aucune erreur.
+  Future<void> _signInWithGoogle() async {
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
+
+    final result = await sl.authRepository.signInWithGoogle();
+
+    if (!mounted) return;
+    setState(() => _isGoogleLoading = false);
+
+    result.fold(
+      (failure) {
+        if (failure is CancelledFailure) return;
+        setState(() => _errorMessage = failure.message);
+      },
+      (auth) {
+        switch (auth.status) {
+          case GoogleAuthStatus.authenticated:
+            _navigateToHome();
+          case GoogleAuthStatus.needsRegistration:
+            final profile = auth.googleProfile;
+            if (profile == null) {
+              setState(() => _errorMessage =
+                  'Réponse inattendue du serveur : profil Google manquant.');
+              return;
+            }
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => GoogleRegisterScreen(
+                  idToken: auth.idToken,
+                  profile: profile,
+                ),
+              ),
+            );
+          case GoogleAuthStatus.pendingActivation:
+          case GoogleAuthStatus.unknown:
+            setState(() => _errorMessage = auth.message.isNotEmpty
+                ? auth.message
+                : 'Réponse inattendue du serveur. Veuillez réessayer.');
+        }
       },
     );
   }
@@ -75,8 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: colors.background,
       body: SafeArea(
         child: LoadingOverlay(
-          isLoading: _isLoading,
-          message: 'Connexion en cours...',
+          isLoading: _isBusy,
+          message: _isGoogleLoading
+              ? 'Connexion Google en cours...'
+              : 'Connexion en cours...',
           child: Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
@@ -140,7 +206,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                             EmailTextField(
                               controller: _emailController,
-                              enabled: !_isLoading,
+                              enabled: !_isBusy,
                               onSubmitted: (_) => _passwordFocusNode.requestFocus(),
                             ),
                             const SizedBox(height: AppSpacing.base),
@@ -148,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             PasswordTextField(
                               controller: _passwordController,
                               focusNode: _passwordFocusNode,
-                              enabled: !_isLoading,
+                              enabled: !_isBusy,
                               onSubmitted: (_) => _login(),
                             ),
                             const SizedBox(height: AppSpacing.lg),
@@ -156,9 +222,21 @@ class _LoginScreenState extends State<LoginScreen> {
                             // CTA principal — zone terminale du Z-pattern
                             AppButton(
                               text: 'Se connecter',
-                              onPressed: _login,
+                              onPressed: _isGoogleLoading ? null : _login,
                               isLoading: _isLoading,
                             ),
+
+                            // Connexion Google (Android / iOS / macOS)
+                            if (_isGoogleSignInAvailable) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              _buildOrDivider(colors, textTheme),
+                              const SizedBox(height: AppSpacing.lg),
+                              GoogleSignInButton(
+                                onPressed:
+                                    _isLoading ? null : _signInWithGoogle,
+                                isLoading: _isGoogleLoading,
+                              ),
+                            ],
                           ],
                         ),
                       ),
@@ -174,7 +252,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           AppTextButton(
                             text: 'S\'inscrire',
-                            onPressed: _isLoading ? null : _goToRegister,
+                            onPressed: _isBusy ? null : _goToRegister,
                           ),
                         ],
                       ),
@@ -186,6 +264,23 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// Séparateur « ou » entre la connexion classique et Google
+  Widget _buildOrDivider(AppColors colors, TextTheme textTheme) {
+    return Row(
+      children: [
+        const Expanded(child: AppSeparator()),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Text(
+            'ou',
+            style: textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
+          ),
+        ),
+        const Expanded(child: AppSeparator()),
+      ],
     );
   }
 }
