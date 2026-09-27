@@ -5,7 +5,11 @@ import '../../../core/theme/app_theme.dart';
 import '../../widgets/widgets.dart';
 import 'ypsium_home_screen.dart';
 
-/// Page de connexion Ypsium - authentification vers l'API de transport
+/// Connexion à Ypsium (API de transport).
+///
+/// Au montage, tente de reprendre la session (hero « Connexion… ») ; sinon
+/// affiche le formulaire. Le bouton « Se connecter » vit dans le dock, et
+/// une erreur de connexion s'y affiche.
 class YpsiumLoginScreen extends StatefulWidget {
   const YpsiumLoginScreen({super.key, this.onExit});
 
@@ -17,7 +21,8 @@ class YpsiumLoginScreen extends StatefulWidget {
   State<YpsiumLoginScreen> createState() => _YpsiumLoginScreenState();
 }
 
-class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
+class _YpsiumLoginScreenState extends State<YpsiumLoginScreen>
+    with DockNoticeMixin {
   final _formKey = GlobalKey<FormState>();
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -26,7 +31,6 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
   bool _isLoading = false;
   bool _isRestoringSession = true;
   bool _rememberMe = false;
-  String? _errorMessage;
 
   @override
   void initState() {
@@ -73,10 +77,8 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    clearDockNotice();
+    setState(() => _isLoading = true);
 
     final result = await sl.ypsiumAuthRepository.login(
       login: _loginController.text.trim(),
@@ -88,203 +90,147 @@ class _YpsiumLoginScreenState extends State<YpsiumLoginScreen> {
     setState(() => _isLoading = false);
 
     result.fold(
-      (failure) => setState(() => _errorMessage = failure.message),
+      (failure) => showDockError(failure.message),
       (session) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const YpsiumHomeScreen()),
+          MaterialPageRoute(
+            builder: (_) => YpsiumHomeScreen(onExit: widget.onExit),
+          ),
         );
       },
     );
   }
 
+  void _exit() {
+    if (widget.onExit != null) {
+      widget.onExit!();
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final leading = IconButton(
+      icon: Icon(Icons.arrow_back_rounded, color: colors.foreground),
+      tooltip: 'Retour',
+      constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      onPressed: _exit,
+    );
 
     if (_isRestoringSession) {
-      return Scaffold(
-        backgroundColor: colors.background,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(color: colors.primary, strokeWidth: 2),
-              const SizedBox(height: AppSpacing.base),
-              Text(
-                'Connexion à Ypsium...',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          onPressed: widget.onExit ?? () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Ypsium',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            color: colors.foreground,
-          ),
-        ),
-      ),
-      body: SafeArea(
-        child: LoadingOverlay(
-          isLoading: _isLoading,
-          message: 'Connexion en cours...',
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Icon
-                    Center(
-                      child: Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          color: colors.chart4.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                        ),
-                        child: Icon(
-                          Icons.local_shipping,
-                          size: 36,
-                          color: colors.chart4,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-
-                    // Title
-                    Text(
-                      'Ypsium Transport',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: colors.foreground,
-                        letterSpacing: -0.5,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      'Connectez-vous pour accéder aux commandes',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colors.mutedForeground,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-
-                    // Login card
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: colors.card,
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                        border: Border.all(color: colors.border),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (_errorMessage != null) ...[
-                            AppAlert(
-                              description: _errorMessage!,
-                              variant: AlertVariant.destructive,
-                            ),
-                            const SizedBox(height: AppSpacing.base),
-                          ],
-
-                          // Identifiant
-                          AppTextField(
-                            controller: _loginController,
-                            label: 'Identifiant',
-                            hint: 'Votre identifiant Ypsium',
-                            prefixIcon: const Icon(Icons.person_outline, size: 18),
-                            enabled: !_isLoading,
-                            textInputAction: TextInputAction.next,
-                            onSubmitted: (_) => _passwordFocusNode.requestFocus(),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Veuillez entrer votre identifiant';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: AppSpacing.base),
-
-                          // Mot de passe
-                          _YpsiumPasswordField(
-                            controller: _passwordController,
-                            focusNode: _passwordFocusNode,
-                            enabled: !_isLoading,
-                            onSubmitted: (_) => _login(),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-
-                          // Remember me
-                          GestureDetector(
-                            onTap: _isLoading
-                                ? null
-                                : () => setState(() => _rememberMe = !_rememberMe),
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: Checkbox(
-                                    value: _rememberMe,
-                                    onChanged: _isLoading
-                                        ? null
-                                        : (value) =>
-                                            setState(() => _rememberMe = value ?? false),
-                                    activeColor: colors.primary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    side: BorderSide(color: colors.border, width: 1.5),
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                  ),
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Text(
-                                  'Se souvenir de moi',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: colors.foreground,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-
-                          AppButton(
-                            text: 'Se connecter',
-                            onPressed: _login,
-                            isLoading: _isLoading,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+      return AppPage(
+        title: 'Ypsium',
+        leading: leading,
+        body: AppScrollView(
+          children: [
+            AppHeroCard(
+              icon: Icons.local_shipping_rounded,
+              accent: colors.domainYpsium,
+              title: 'Connexion…',
+              subtitle: 'Reprise de ta session Ypsium',
+              trailing: SizedBox(
+                width: 24,
+                height: 24,
+                child: Padding(
+                  padding: const EdgeInsets.all(3),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: colors.primary,
+                  ),
                 ),
               ),
             ),
-          ),
+          ],
         ),
+        dock: const AppDock(skeleton: true, bottomGap: AppSpacing.lg),
+      );
+    }
+
+    return AppPage(
+      title: 'Ypsium',
+      leading: leading,
+      body: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: AppScrollView(
+          children: [
+            AppHeroCard(
+              icon: Icons.local_shipping_rounded,
+              accent: colors.domainYpsium,
+              title: 'Ypsium Transport',
+              subtitle: 'Connecte-toi pour voir tes commandes',
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AppTextField(
+                    controller: _loginController,
+                    label: 'Identifiant',
+                    hint: 'Ton identifiant Ypsium',
+                    prefixIcon:
+                        const Icon(Icons.person_outline_rounded, size: 20),
+                    enabled: !_isLoading,
+                    textInputAction: TextInputAction.next,
+                    onSubmitted: (_) => _passwordFocusNode.requestFocus(),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Saisis ton identifiant';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: AppSpacing.base),
+                  _YpsiumPasswordField(
+                    controller: _passwordController,
+                    focusNode: _passwordFocusNode,
+                    enabled: !_isLoading,
+                    onSubmitted: (_) => _login(),
+                  ),
+                  const SizedBox(height: AppSpacing.base),
+                  AppCard(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppSpacing.xs,
+                    ),
+                    child: AppListRow(
+                      icon: Icons.key_rounded,
+                      iconColor: colors.domainYpsium,
+                      title: 'Se souvenir de moi',
+                      subtitle: 'Identifiants gardés sur ce téléphone',
+                      showChevron: false,
+                      trailing: Switch(
+                        value: _rememberMe,
+                        onChanged: _isLoading
+                            ? null
+                            : (value) => setState(() => _rememberMe = value),
+                      ),
+                      onTap: _isLoading
+                          ? null
+                          : () => setState(() => _rememberMe = !_rememberMe),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      dock: AppDock(
+        actions: [
+          DockAction(
+            label: 'Se connecter',
+            icon: Icons.login_rounded,
+            isLoading: _isLoading,
+            onPressed: _isLoading ? null : _login,
+          ),
+        ],
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
+        absorbing: _isLoading,
+        bottomGap: AppSpacing.lg,
       ),
     );
   }
@@ -319,12 +265,17 @@ class _YpsiumPasswordFieldState extends State<_YpsiumPasswordField> {
       obscureText: _obscureText,
       keyboardType: TextInputType.visiblePassword,
       textInputAction: TextInputAction.done,
-      prefixIcon: const Icon(Icons.lock_outline, size: 18),
+      prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20),
       suffixIcon: IconButton(
         icon: Icon(
-          _obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+          _obscureText
+              ? Icons.visibility_outlined
+              : Icons.visibility_off_outlined,
           size: 20,
         ),
+        tooltip: _obscureText
+            ? 'Afficher le mot de passe'
+            : 'Masquer le mot de passe',
         constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         onPressed: () => setState(() => _obscureText = !_obscureText),
       ),
@@ -333,7 +284,7 @@ class _YpsiumPasswordFieldState extends State<_YpsiumPasswordField> {
       focusNode: widget.focusNode,
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Veuillez entrer votre mot de passe';
+          return 'Saisis ton mot de passe';
         }
         return null;
       },

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:signature/signature.dart';
 
 import '../../../core/theme/app_theme.dart';
+import '../../widgets/widgets.dart';
+import 'widgets/ypsium_signature_form.dart';
 
 /// Écran de signature en plein écran (paysage forcé)
 /// Retourne `true` si l'utilisateur a confirmé sa signature
@@ -37,90 +39,106 @@ class _YpsiumSignatureFullscreenState extends State<YpsiumSignatureFullscreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
     return Scaffold(
       backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Toolbar
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xs,
-              ),
-              decoration: BoxDecoration(
-                color: colors.card,
-                border: Border(bottom: BorderSide(color: colors.border)),
+            // Barre d'outils : fermer · titre · effacer · terminer
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xs,
+                AppSpacing.xs,
+                AppSpacing.md,
+                AppSpacing.xs,
               ),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: Icon(Icons.close, size: 22, color: colors.foreground),
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                    onPressed: () => Navigator.of(context).pop(false),
+                  AppIconButton(
+                    icon: Icons.close_rounded,
                     tooltip: 'Fermer',
-                  ),
-                  Text(
-                    'Signature',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: colors.foreground,
-                    ),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.refresh, size: 20, color: colors.mutedForeground),
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                    onPressed: () => widget.controller.clear(),
-                    tooltip: 'Effacer',
+                    color: colors.foreground,
+                    onPressed: () => Navigator.of(context).pop(false),
                   ),
                   const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('Signature', style: textTheme.titleMedium),
+                        Text(
+                          'Fais signer dans le cadre',
+                          style: textTheme.bodySmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => widget.controller.clear(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: colors.foreground,
+                      minimumSize: const Size(48, 48),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.md,
+                      ),
+                      textStyle: textTheme.labelLarge,
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    label: const Text('Effacer'),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
                   ElevatedButton.icon(
                     onPressed: () => Navigator.of(context).pop(true),
-                    icon: const Icon(Icons.check, size: 20),
-                    label: Text('OK', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: colors.primaryForeground)),
+                    icon: const Icon(Icons.check_rounded, size: 20),
+                    label: const Text('Terminer'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colors.primary,
                       foregroundColor: colors.primaryForeground,
+                      elevation: 0,
                       minimumSize: const Size(0, 48),
                       padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.base,
-                        vertical: AppSpacing.sm,
+                        horizontal: AppSpacing.lg,
                       ),
+                      textStyle: textTheme.labelLarge,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.xs),
                 ],
               ),
             ),
 
             // Zone de signature
             Expanded(
-              child: Container(
-                margin: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(
-                    color: colors.foreground.withValues(alpha: 0.25),
-                    width: 2,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  AppSpacing.md,
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: Signature(
-                    controller: widget.controller,
-                    backgroundColor: Colors.white,
+                child: Semantics(
+                  label: 'Zone de signature',
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: ypsiumSignaturePaper,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: colors.border, width: 1.5),
+                      boxShadow: colors.cardShadow,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      child: Signature(
+                        controller: widget.controller,
+                        backgroundColor: ypsiumSignaturePaper,
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -3,13 +3,15 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/ypsium_models.dart';
-import '../../widgets/app_badge.dart';
-import '../../widgets/app_button.dart';
+import '../../widgets/widgets.dart';
+import 'widgets/ypsium_order_visual.dart';
+import 'widgets/ypsium_place_card.dart';
 import 'ypsium_enlevement_flow_screen.dart';
 import 'ypsium_livraison_flow_screen.dart';
 
-/// Écran de détail d'un ordre de transport Ypsium
-/// Affiche les actions selon l'état : enlèvement, livraison, ou re-opération
+/// Détail d'un ordre de transport Ypsium : hero (client, état, heures),
+/// lieux d'enlèvement et de livraison (itinéraire, appel), photos requises,
+/// détails. Le dock lance l'étape suivante selon l'état de l'ordre.
 class YpsiumTransportDetailScreen extends StatelessWidget {
   final YpsiumTransportOrder order;
 
@@ -18,89 +20,132 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final (icon, accent) = YpsiumOrderVisual.group(order, colors);
+    final photos = _requiredPhotos();
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Ordre #${order.idOrdre}',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            color: colors.foreground,
-          ),
-        ),
-      ),
-      body: Column(
+    return AppPage(
+      title: 'Ordre #${order.idOrdre}',
+      body: AppScrollView(
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildHeader(context, colors),
-                  const SizedBox(height: AppSpacing.base),
-
-                  // Enlèvement
-                  _buildStopCard(
-                    context: context,
-                    colors: colors,
-                    title: 'Enlèvement',
-                    icon: Icons.upload_outlined,
-                    iconColor: colors.info,
-                    nom: order.eNom,
-                    adresse1: order.eAdresse1,
-                    adresse2: order.eAdresse2,
-                    adresse3: order.eAdresse3,
-                    codePostal: order.eCodePostal,
-                    ville: order.eVille,
-                    pays: order.ePays,
-                    heure: order.eHeureFormatted,
-                    contact: order.eContact,
-                    tel1: order.eTelephone1,
-                    tel2: order.eTelephone2,
-                  ),
-                  const SizedBox(height: AppSpacing.base),
-
-                  // Livraison
-                  _buildStopCard(
-                    context: context,
-                    colors: colors,
-                    title: 'Livraison',
-                    icon: Icons.download_outlined,
-                    iconColor: colors.success,
-                    nom: order.lNom,
-                    adresse1: order.lAdresse1,
-                    adresse2: order.lAdresse2,
-                    adresse3: order.lAdresse3,
-                    codePostal: order.lCodePostal,
-                    ville: order.lVille,
-                    pays: order.lPays,
-                    heure: order.lHeureFormatted,
-                    contact: order.lContact,
-                    tel1: order.lTelephone1,
-                    tel2: order.lTelephone2,
-                  ),
-                  const SizedBox(height: AppSpacing.base),
-
-                  // Photos requises
-                  if (_hasPhotoConfig()) _buildPhotoInfo(context, colors),
-                  if (_hasPhotoConfig()) const SizedBox(height: AppSpacing.base),
-
-                  // Infos complémentaires
-                  _buildDetails(context, colors),
-                ],
-              ),
+          AppHeroCard(
+            icon: icon,
+            accent: accent,
+            title: order.client.isNotEmpty
+                ? order.client
+                : 'Ordre #${order.idOrdre}',
+            subtitle: YpsiumOrderVisual.groupLabel(order),
+            trailing: YpsiumEtatChip(order: order),
+            child: AppMetricRow(
+              metrics: [
+                AppMetric(
+                  label: 'Enlèvement',
+                  value: _orDash(order.eHeureFormatted),
+                ),
+                AppMetric(
+                  label: 'Livraison',
+                  value: _orDash(order.lHeureFormatted),
+                ),
+              ],
             ),
           ),
-          _buildBottomBar(context, colors),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Enlèvement
+          const AppSectionHeader(title: 'Enlèvement'),
+          _stopCard(
+            colors: colors,
+            icon: Icons.upload_rounded,
+            accent: colors.info,
+            fallbackName: 'Enlèvement',
+            nom: order.eNom,
+            adresse1: order.eAdresse1,
+            adresse2: order.eAdresse2,
+            adresse3: order.eAdresse3,
+            codePostal: order.eCodePostal,
+            ville: order.eVille,
+            pays: order.ePays,
+            contact: order.eContact,
+            tel1: order.eTelephone1,
+            tel2: order.eTelephone2,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+
+          // Livraison
+          const AppSectionHeader(title: 'Livraison'),
+          _stopCard(
+            colors: colors,
+            icon: Icons.download_rounded,
+            accent: colors.success,
+            fallbackName: 'Livraison',
+            nom: order.lNom,
+            adresse1: order.lAdresse1,
+            adresse2: order.lAdresse2,
+            adresse3: order.lAdresse3,
+            codePostal: order.lCodePostal,
+            ville: order.lVille,
+            pays: order.lPays,
+            contact: order.lContact,
+            tel1: order.lTelephone1,
+            tel2: order.lTelephone2,
+          ),
+
+          // Photos requises
+          if (photos.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.lg),
+            AppSectionHeader(
+              title: 'Photos requises',
+              summary: '${photos.length}',
+            ),
+            YpsiumRowGroup(
+              children: [
+                for (final p in photos)
+                  AppListRow(
+                    icon: Icons.photo_camera_rounded,
+                    iconColor: colors.info,
+                    title: p,
+                  ),
+              ],
+            ),
+          ],
+
+          // Infos complémentaires
+          const SizedBox(height: AppSpacing.lg),
+          const AppSectionHeader(title: 'Détails'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.base,
+              vertical: AppSpacing.sm,
+            ),
+            child: Column(
+              children: [
+                AppRecapRow(
+                  label: 'État enlèvement',
+                  value: _sousEtatLabel(order.idEtatSousOrdreEnlevement),
+                ),
+                AppRecapRow(
+                  label: 'État livraison',
+                  value: _sousEtatLabel(order.idEtatSousOrdreLivraison),
+                ),
+                if (order.eSignatureAuto)
+                  const AppRecapRow(
+                    label: 'Signature enlèvement',
+                    value: 'Automatique',
+                  ),
+                if (order.lSignatureAuto)
+                  const AppRecapRow(
+                    label: 'Signature livraison',
+                    value: 'Automatique',
+                  ),
+                if (order.bEstUnService)
+                  const AppRecapRow(label: 'Type', value: 'Service'),
+              ],
+            ),
+          ),
         ],
+      ),
+      dock: AppDock(
+        actions: _dockActions(context),
+        bottomGap: AppSpacing.lg,
       ),
     );
   }
@@ -109,68 +154,44 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
   // Actions
   // ==========================================================
 
-  Widget _buildBottomBar(BuildContext context, AppColors colors) {
-    final actions = <Widget>[];
-
+  /// Le dock dit l'étape suivante : enlever, livrer, ou refaire l'une des
+  /// deux une fois l'ordre livré.
+  List<DockAction> _dockActions(BuildContext context) {
     if (order.isAEnlever) {
-      actions.add(Expanded(
-        child: AppButton(
-          text: 'Commencer l\'enlèvement',
-          icon: Icons.upload_outlined,
+      return [
+        DockAction(
+          label: 'Commencer l\'enlèvement',
+          icon: Icons.upload_rounded,
           onPressed: () => _startFlow(context, isEnlevement: true),
         ),
-      ));
-    } else if (order.isEnleve) {
-      actions.add(Expanded(
-        child: AppButton(
-          text: 'Commencer la livraison',
-          icon: Icons.download_outlined,
+      ];
+    }
+    if (order.isEnleve) {
+      return [
+        DockAction(
+          label: 'Commencer la livraison',
+          icon: Icons.download_rounded,
           onPressed: () => _startFlow(context, isEnlevement: false),
         ),
-      ));
-    } else if (order.isLivre) {
-      actions.add(Expanded(
-        child: AppButton(
-          text: 'Re-enlever',
-          icon: Icons.upload_outlined,
-          variant: ButtonVariant.outline,
+      ];
+    }
+    if (order.isLivre) {
+      return [
+        DockAction(
+          label: 'Re-enlever',
+          icon: Icons.upload_rounded,
+          tone: DockTone.secondary,
           onPressed: () => _startFlow(context, isEnlevement: true),
         ),
-      ));
-      actions.add(const SizedBox(width: AppSpacing.md));
-      actions.add(Expanded(
-        child: AppButton(
-          text: 'Re-livrer',
-          icon: Icons.download_outlined,
-          variant: ButtonVariant.outline,
+        DockAction(
+          label: 'Re-livrer',
+          icon: Icons.download_rounded,
+          tone: DockTone.secondary,
           onPressed: () => _startFlow(context, isEnlevement: false),
         ),
-      ));
+      ];
     }
-
-    // Sans action : simple espaceur pour que le contenu ne passe pas sous la
-    // barre de navigation flottante.
-    if (actions.isEmpty) {
-      return SizedBox(height: MediaQuery.paddingOf(context).bottom);
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        boxShadow: [
-          BoxShadow(
-            color: colors.foreground.withValues(alpha: 0.08),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(children: actions),
-      ),
-    );
+    return const [];
   }
 
   void _startFlow(BuildContext context, {required bool isEnlevement}) async {
@@ -219,62 +240,11 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
   // Widgets
   // ==========================================================
 
-  Widget _buildHeader(BuildContext context, AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  order.client,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Ordre #${order.idOrdre}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
-                ),
-              ],
-            ),
-          ),
-          _buildEtatBadge(colors),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEtatBadge(AppColors colors) {
-    BadgeVariant variant;
-    switch (order.idEtat) {
-      case 4:
-      case 5:
-        variant = BadgeVariant.success;
-        break;
-      case 2:
-        variant = BadgeVariant.warning;
-        break;
-      default:
-        variant = BadgeVariant.secondary;
-    }
-    return AppBadge(text: order.etatLabel, variant: variant);
-  }
-
-  Widget _buildStopCard({
-    required BuildContext context,
+  Widget _stopCard({
     required AppColors colors,
-    required String title,
     required IconData icon,
-    required Color iconColor,
+    required Color accent,
+    required String fallbackName,
     required String nom,
     required String adresse1,
     String adresse2 = '',
@@ -282,183 +252,38 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
     required String codePostal,
     required String ville,
     String pays = '',
-    required String heure,
     String contact = '',
     String tel1 = '',
     String tel2 = '',
   }) {
-    final hasAddress = adresse1.isNotEmpty || codePostal.isNotEmpty || ville.isNotEmpty;
-    final hasPhone = tel1.isNotEmpty || tel2.isNotEmpty;
+    final hasAddress =
+        adresse1.isNotEmpty || codePostal.isNotEmpty || ville.isNotEmpty;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 20, color: iconColor),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: colors.foreground,
-                ),
-              ),
-              const Spacer(),
-              if (heure.isNotEmpty)
-                AppBadge(text: heure, variant: BadgeVariant.secondary),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-
-          // Nom
-          if (nom.isNotEmpty)
-            Text(
-              nom,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-
-          // Adresse
-          if (adresse1.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                adresse1,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
-              ),
-            ),
-          if (adresse2.isNotEmpty)
-            Text(adresse2, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
-          if (adresse3.isNotEmpty)
-            Text(adresse3, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
-          if (codePostal.isNotEmpty || ville.isNotEmpty)
-            Text(
-              '$codePostal $ville'.trim(),
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-
-          // Contact
-          if (contact.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Icon(Icons.person_outline, size: 20, color: colors.mutedForeground),
-                const SizedBox(width: AppSpacing.xs),
-                Text(contact, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
-              ],
-            ),
-          ],
-
-          // Téléphones (texte)
-          if (tel1.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Row(
-                children: [
-                  Icon(Icons.phone_outlined, size: 20, color: colors.mutedForeground),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(tel1, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
-                ],
-              ),
-            ),
-          if (tel2.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Row(
-                children: [
-                  Icon(Icons.phone_outlined, size: 20, color: colors.mutedForeground),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(tel2, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
-                ],
-              ),
-            ),
-
-          if (hasPhone || hasAddress) ...[
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                if (tel1.isNotEmpty)
-                  _buildActionIcon(
-                    colors: colors,
-                    icon: Icons.phone,
-                    color: colors.success,
-                    onTap: () => _callPhone(tel1),
-                  ),
-                if (tel1.isNotEmpty && tel2.isNotEmpty)
-                  const SizedBox(width: AppSpacing.sm),
-                if (tel2.isNotEmpty)
-                  _buildActionIcon(
-                    colors: colors,
-                    icon: Icons.phone,
-                    color: colors.success,
-                    onTap: () => _callPhone(tel2),
-                  ),
-                if (hasPhone && hasAddress)
-                  const SizedBox(width: AppSpacing.sm),
-                if (hasAddress)
-                  _buildActionIcon(
-                    colors: colors,
-                    icon: Icons.navigation,
-                    color: colors.info,
-                    onTap: () => _openMaps(
-                      adresse1: adresse1,
-                      adresse2: adresse2,
-                      adresse3: adresse3,
-                      codePostal: codePostal,
-                      ville: ville,
-                      pays: pays,
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ],
-      ),
+    return YpsiumPlaceCard(
+      icon: icon,
+      accent: accent,
+      name: nom,
+      fallbackName: fallbackName,
+      addressLines: [adresse1, adresse2, adresse3, '$codePostal $ville'.trim()],
+      contact: contact,
+      phones: [tel1, tel2],
+      onCall: _callPhone,
+      onMaps: hasAddress
+          ? () => _openMaps(
+                adresse1: adresse1,
+                adresse2: adresse2,
+                adresse3: adresse3,
+                codePostal: codePostal,
+                ville: ville,
+                pays: pays,
+              )
+          : null,
     );
   }
 
-  Widget _buildActionIcon({
-    required AppColors colors,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          shape: BoxShape.circle,
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Icon(icon, size: 20, color: color),
-      ),
-    );
-  }
+  static String _orDash(String value) => value.isEmpty ? '—' : value;
 
-  Widget _buildPhotoInfo(BuildContext context, AppColors colors) {
+  List<String> _requiredPhotos() {
     final photos = <String>[];
     if (order.photoEnlDebut) photos.add('Enlèvement (début)');
     if (order.photoEnlFin) photos.add('Enlèvement (fin)');
@@ -466,92 +291,7 @@ class YpsiumTransportDetailScreen extends StatelessWidget {
     if (order.photoLivFin) photos.add('Livraison (fin)');
     if (order.photoDocEnl) photos.add('Documents enlèvement');
     if (order.photoDocLiv) photos.add('Documents livraison');
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Photos requises',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: colors.foreground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          ...photos.map((p) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                child: Row(
-                  children: [
-                    Icon(Icons.camera_alt_outlined, size: 20, color: colors.info),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(p, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.foreground)),
-                  ],
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetails(BuildContext context, AppColors colors) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Détails',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: colors.foreground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _row(context, colors, 'État enlèvement', _sousEtatLabel(order.idEtatSousOrdreEnlevement)),
-          _row(context, colors, 'État livraison', _sousEtatLabel(order.idEtatSousOrdreLivraison)),
-          if (order.eSignatureAuto) _row(context, colors, 'Signature enlèvement', 'Automatique'),
-          if (order.lSignatureAuto) _row(context, colors, 'Signature livraison', 'Automatique'),
-          if (order.bEstUnService) _row(context, colors, 'Type', 'Service'),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(BuildContext context, AppColors colors, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Row(
-        children: [
-          Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.mutedForeground)),
-          const Spacer(),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colors.foreground),
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool _hasPhotoConfig() {
-    return order.photoEnlDebut ||
-        order.photoEnlFin ||
-        order.photoLivDebut ||
-        order.photoLivFin ||
-        order.photoDocEnl ||
-        order.photoDocLiv;
+    return photos;
   }
 
   String _sousEtatLabel(int etat) {

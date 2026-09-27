@@ -2,10 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/display_format.dart';
 import '../../../data/models/ypsium_models.dart';
 import '../../widgets/widgets.dart';
+import 'widgets/ypsium_dock_lines.dart';
+import 'widgets/ypsium_order_visual.dart';
+import 'widgets/ypsium_vehicule_sheet.dart';
 
-/// Écran de sélection de véhicule Ypsium
+/// Choix du véhicule Ypsium : touche un véhicule, saisis son kilométrage et
+/// son état dans une feuille ; le hero confirme le véhicule enregistré.
 class YpsiumVehiculeScreen extends StatefulWidget {
   const YpsiumVehiculeScreen({super.key});
 
@@ -13,10 +18,14 @@ class YpsiumVehiculeScreen extends StatefulWidget {
   State<YpsiumVehiculeScreen> createState() => _YpsiumVehiculeScreenState();
 }
 
-class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
+class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen>
+    with DockNoticeMixin {
   List<YpsiumVehicule> _vehicules = [];
   bool _isLoading = true;
   bool _isSubmitting = false;
+
+  /// Échec du chargement de la liste (les échecs d'enregistrement passent
+  /// par le dock).
   String? _errorMessage;
   String? _successMessage;
   int? _selectedVehiculeId;
@@ -48,109 +57,20 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
     );
   }
 
-  void _selectVehicule(YpsiumVehicule vehicule) {
+  Future<void> _selectVehicule(YpsiumVehicule vehicule) async {
     setState(() => _selectedVehiculeId = vehicule.idVehicule);
-    _showConfirmDialog(vehicule);
-  }
-
-  void _showConfirmDialog(YpsiumVehicule vehicule) {
-    final colors = context.colors;
-    final kmController = TextEditingController(
-      text: vehicule.kilometrage.toString(),
-    );
-    final commentController = TextEditingController();
-    int noteEtat = 3;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => AlertDialog(
-          backgroundColor: colors.card,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          title: Text(
-            vehicule.immatriculation,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: colors.foreground,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AppTextField(
-                  controller: kmController,
-                  label: 'Kilométrage',
-                  keyboardType: TextInputType.number,
-                  prefixIcon: const Icon(Icons.speed, size: 18),
-                ),
-                const SizedBox(height: AppSpacing.base),
-                Text(
-                  'État du véhicule',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    final note = index + 1;
-                    final isSelected = note <= noteEtat;
-                    return GestureDetector(
-                      onTap: () => setDialogState(() => noteEtat = note),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Icon(
-                          isSelected ? Icons.star : Icons.star_border,
-                          color: isSelected ? colors.warning : colors.mutedForeground,
-                          size: 28,
-                        ),
-                      ),
-                    );
-                  }),
-                ),
-                const SizedBox(height: AppSpacing.base),
-                AppTextField(
-                  controller: commentController,
-                  label: 'Commentaire',
-                  hint: 'Optionnel',
-                  maxLines: 2,
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                setState(() => _selectedVehiculeId = null);
-              },
-              child: Text(
-                'Annuler',
-                style: TextStyle(color: colors.mutedForeground),
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(ctx).pop();
-                _confirmVehicule(
-                  vehicule,
-                  int.tryParse(kmController.text) ?? 0,
-                  noteEtat,
-                  commentController.text,
-                );
-              },
-              child: Text(
-                'Confirmer',
-                style: TextStyle(color: colors.primary),
-              ),
-            ),
-          ],
-        ),
-      ),
+    final choice = await YpsiumVehiculeSheet.show(context, vehicule);
+    if (!mounted) return;
+    if (choice == null) {
+      // Annulée ou fermée : rien n'est sélectionné.
+      setState(() => _selectedVehiculeId = null);
+      return;
+    }
+    _confirmVehicule(
+      vehicule,
+      choice.kilometrage,
+      choice.noteEtat,
+      choice.commentaire,
     );
   }
 
@@ -160,9 +80,9 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
     int note,
     String comment,
   ) async {
+    clearDockNotice();
     setState(() {
       _isSubmitting = true;
-      _errorMessage = null;
       _successMessage = null;
     });
 
@@ -181,10 +101,10 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
     setState(() => _isSubmitting = false);
 
     result.fold(
-      (failure) => setState(() {
-        _errorMessage = failure.message;
-        _selectedVehiculeId = null;
-      }),
+      (failure) {
+        setState(() => _selectedVehiculeId = null);
+        showDockError(failure.message);
+      },
       (_) => setState(() {
         _successMessage =
             'Véhicule ${vehicule.immatriculation} sélectionné';
@@ -194,179 +114,110 @@ class _YpsiumVehiculeScreenState extends State<YpsiumVehiculeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return AppPage(
+      title: 'Choix du véhicule',
+      body: AbsorbPointer(
+        absorbing: _isSubmitting,
+        child: AppScrollView(
+          onRefresh: _loadVehicules,
+          children: _buildContent(),
+        ),
+      ),
+      dock: AppDock(
+        status: _isSubmitting
+            ? const YpsiumBusyLine(text: 'Enregistrement du véhicule…')
+            : null,
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
+        bottomGap: AppSpacing.lg,
+      ),
+    );
+  }
+
+  List<Widget> _buildContent() {
     final colors = context.colors;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: colors.foreground, size: 20),
-          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Véhicules',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
-            color: colors.foreground,
+    if (_isLoading) {
+      return const [
+        AppHeroSkeleton(showFigure: false),
+        SizedBox(height: AppSpacing.lg),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: AppSkeleton(width: 160, height: 16),
           ),
         ),
-      ),
-      body: LoadingOverlay(
-        isLoading: _isSubmitting,
-        message: 'Enregistrement...',
-        child: RefreshIndicator(
-          onRefresh: _loadVehicules,
-          color: colors.primary,
-          backgroundColor: colors.card,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            // Réserve l'espace de la barre de navigation flottante.
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.base,
-              AppSpacing.base,
-              AppSpacing.base,
-              AppSpacing.base + MediaQuery.paddingOf(context).bottom,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (_successMessage != null) ...[
-                  AppAlert(description: _successMessage!),
-                  const SizedBox(height: AppSpacing.base),
-                ],
-                if (_errorMessage != null) ...[
-                  AppAlert(
-                    description: _errorMessage!,
-                    variant: AlertVariant.destructive,
-                  ),
-                  const SizedBox(height: AppSpacing.base),
-                ],
+        SizedBox(height: AppSpacing.md),
+        AppListSkeleton(rows: 4),
+      ];
+    }
 
-                Text(
-                  'Sélectionnez votre véhicule',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: colors.mutedForeground,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.sm),
+    if (_errorMessage != null) {
+      return [AppErrorState(message: _errorMessage!, onRetry: _loadVehicules)];
+    }
 
-                if (_isLoading)
-                  ...List.generate(
-                    4,
-                    (_) => Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: AppSkeleton(
-                        height: 80,
-                        borderRadius: AppRadius.lg,
-                      ),
-                    ),
-                  )
-                else if (_vehicules.isEmpty)
-                  _buildEmpty(colors)
-                else
-                  ..._vehicules.map((v) => _buildVehiculeCard(v, colors)),
-              ],
-            ),
-          ),
+    return [
+      if (_successMessage != null)
+        AppHeroCard(
+          icon: Icons.check_circle_rounded,
+          accent: colors.success,
+          title: 'Véhicule enregistré',
+          subtitle: _successMessage,
+        )
+      else
+        AppHeroCard(
+          icon: Icons.directions_car_rounded,
+          accent: colors.domainVehicule,
+          title: 'Choisis ton véhicule',
+          subtitle: 'Touche un véhicule pour saisir son kilométrage',
         ),
+      const SizedBox(height: AppSpacing.lg),
+      AppSectionHeader(
+        title: 'Véhicules disponibles',
+        summary: _vehicules.isEmpty
+            ? null
+            : DisplayFormat.plural(_vehicules.length, 'véhicule'),
       ),
-    );
+      if (_vehicules.isEmpty)
+        AppEmptyCard(
+          icon: Icons.directions_car_outlined,
+          message: 'Aucun véhicule disponible',
+          actionLabel: 'Réessayer',
+          onAction: _loadVehicules,
+        )
+      else
+        YpsiumRowGroup(
+          children: [for (final v in _vehicules) _buildVehiculeRow(v, colors)],
+        ),
+    ];
   }
 
-  Widget _buildVehiculeCard(YpsiumVehicule vehicule, AppColors colors) {
+  Widget _buildVehiculeRow(YpsiumVehicule vehicule, AppColors colors) {
     final isSelected = _selectedVehiculeId == vehicule.idVehicule;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Material(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: InkWell(
-          onTap: () => _selectVehicule(vehicule),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(
-                color: isSelected ? colors.primary : colors.border,
-                width: isSelected ? 2 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: colors.chart4.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Icon(
-                    Icons.directions_car,
-                    size: 22,
-                    color: colors.chart4,
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        vehicule.immatriculation,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: colors.foreground,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${_formatKm(vehicule.kilometrage)} km',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isSelected)
-                  Icon(Icons.check_circle, size: 22, color: colors.primary)
-                else
-                  Icon(
-                    Icons.chevron_right,
-                    size: 18,
-                    color: colors.mutedForeground,
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmpty(AppColors colors) {
-    return AppEmptyState(
-      icon: Icons.directions_car_outlined,
-      title: 'Aucun véhicule disponible',
-      actionText: 'Réessayer',
-      onAction: _loadVehicules,
-    );
-  }
-
-  String _formatKm(int km) {
-    if (km >= 1000) {
-      final str = km.toString();
-      final buffer = StringBuffer();
-      for (int i = 0; i < str.length; i++) {
-        if (i > 0 && (str.length - i) % 3 == 0) buffer.write(' ');
-        buffer.write(str[i]);
-      }
-      return buffer.toString();
+    Widget? trailing;
+    if (isSelected && _isSubmitting) {
+      trailing = SizedBox(
+        width: 22,
+        height: 22,
+        child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary),
+      );
+    } else if (isSelected) {
+      trailing = Icon(Icons.check_circle_rounded, size: 22, color: colors.primary);
     }
-    return km.toString();
+
+    return AppListRow(
+      icon: Icons.directions_car_rounded,
+      iconColor: isSelected ? colors.primary : colors.domainVehicule,
+      title: vehicule.immatriculation,
+      subtitle: DisplayFormat.km(vehicule.kilometrage),
+      trailing: trailing,
+      showChevron: !isSelected,
+      onTap: () => _selectVehicule(vehicule),
+      semanticsLabel: '${vehicule.immatriculation}, '
+          '${DisplayFormat.km(vehicule.kilometrage)}'
+          '${isSelected ? ', sélectionné' : ''}',
+    );
   }
 }
