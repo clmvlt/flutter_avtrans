@@ -224,6 +224,14 @@ class User extends Equatable {
   /// Retourne le nom complet de l'utilisateur
   String get fullName => '$firstName $lastName'.trim();
 
+  bool get isAdmin => role?.uuid == RoleIds.administrateur;
+
+  bool get isMecanicien => role?.uuid == RoleIds.mecanicien;
+
+  /// Atelier (entretiens, types, tâches) : l'API exige le rôle Mécanicien,
+  /// que l'Administrateur hérite.
+  bool get canManageFleet => isAdmin || isMecanicien;
+
   /// Copie l'utilisateur avec de nouvelles valeurs
   User copyWith({
     String? uuid,
