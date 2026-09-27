@@ -4,8 +4,18 @@ import 'package:open_filex/open_filex.dart';
 import '../../core/di/service_locator.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/app_version_model.dart';
+import 'app_alert.dart';
+import 'app_button.dart';
+import 'app_confirm_sheet.dart';
+import 'app_list_row.dart';
+import 'app_page.dart';
 
-/// Dialog shadcn/ui pour mise à jour disponible
+/// Proposition de mise à jour, affichée au démarrage (splash).
+///
+/// Malgré son nom (API historique conservée pour `main.dart`), c'est une
+/// feuille : versions installée et nouvelle, nouveautés, « Mettre à jour »
+/// (téléchargement puis ouverture de l'installateur) ou « Plus tard ».
+/// Elle ne se ferme ni au tap à côté ni au glissé : il faut choisir.
 class UpdateDialog extends StatefulWidget {
   final AppVersion version;
   final String currentVersion;
@@ -18,15 +28,24 @@ class UpdateDialog extends StatefulWidget {
     this.onSkip,
   });
 
+  /// Se termine à la fermeture de la feuille.
   static Future<void> show(
     BuildContext context, {
     required AppVersion version,
     required String currentVersion,
     VoidCallback? onSkip,
   }) {
-    return showDialog(
+    final colors = context.colors;
+    return showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: false,
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      showDragHandle: false,
+      backgroundColor: colors.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
       builder: (_) => UpdateDialog(
         version: version,
         currentVersion: currentVersion,
@@ -61,224 +80,183 @@ class _UpdateDialogState extends State<UpdateDialog> {
 
     if (!mounted) return;
 
-    result.fold(
+    final filePath = result.fold<String?>(
       (failure) {
         setState(() {
           _isDownloading = false;
           _error = failure.message;
         });
+        return null;
       },
-      (filePath) async {
-        setState(() => _isDownloading = false);
-        if (!mounted) return;
-        Navigator.of(context).pop();
-        final openResult = await OpenFilex.open(filePath);
-        if (openResult.type != ResultType.done && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Impossible d\'ouvrir le fichier: ${openResult.message}'),
-            ),
-          );
-        }
-      },
+      (path) => path,
     );
+    if (filePath == null) return;
+
+    // Ouvre l'installateur AVANT de fermer la feuille : en cas d'échec, le
+    // message reste lisible ici (fermée, la feuille ne pourrait plus
+    // l'afficher).
+    final openResult = await OpenFilex.open(filePath);
+    if (!mounted) return;
+    if (openResult.type == ResultType.done) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() {
+        _isDownloading = false;
+        _error = 'Impossible d\'ouvrir le fichier : ${openResult.message}';
+      });
+    }
+  }
+
+  void _skip() {
+    widget.onSkip?.call();
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
+    final media = MediaQuery.of(context);
+    final changelog = widget.version.changelog;
+    final error = _error;
+    final percent = (_progress * 100).clamp(0, 100).toStringAsFixed(0);
 
-    return AlertDialog(
-      backgroundColor: colors.card,
-      surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        side: BorderSide(color: colors.border),
-      ),
-      title: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: Icon(Icons.system_update, color: colors.primary, size: 22),
+    return SafeArea(
+      top: false,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: media.size.height * 0.92),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.screen,
+            AppSpacing.lg,
+            AppSpacing.screen,
+            AppSpacing.lg,
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              'Mise a jour disponible',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildVersionInfo(colors),
-            const SizedBox(height: 16),
-
-            if (widget.version.changelog != null &&
-                widget.version.changelog!.isNotEmpty) ...[
-              Text(
-                'Nouveautes',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: colors.muted,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                ),
-                child: Text(
-                  widget.version.changelog!,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.base),
-            ],
-
-            Row(
-              children: [
-                Icon(Icons.folder_outlined, size: 14, color: colors.mutedForeground),
-                const SizedBox(width: 8),
-                Text(
-                  'Taille: ${widget.version.formattedFileSize}',
-                  style: TextStyle(fontSize: 13, color: colors.mutedForeground),
-                ),
-              ],
-            ),
-
-            if (_isDownloading) ...[
-              const SizedBox(height: 20),
-              Text(
-                'Téléchargement en cours...',
-                style: TextStyle(fontSize: 13, color: colors.mutedForeground),
-              ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.full),
-                child: LinearProgressIndicator(
-                  value: _progress,
-                  backgroundColor: colors.muted,
-                  valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-                  minHeight: 4,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '${(_progress * 100).toStringAsFixed(0)}%',
-                style: TextStyle(fontSize: 12, color: colors.mutedForeground),
-              ),
-            ],
-
-            if (_error != null) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: colors.errorBg,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(
-                    color: colors.destructive.withValues(alpha: 0.3),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  AppIconBox(
+                    icon: Icons.system_update_rounded,
+                    color: colors.primary,
+                    size: AppLayout.heroIconBox,
+                    iconSize: 24,
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, size: 16, color: colors.destructive),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: TextStyle(fontSize: 13, color: colors.destructive),
-                      ),
+                  const SizedBox(width: AppSpacing.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Mise à jour disponible',
+                          style: textTheme.titleLarge,
+                        ),
+                        Text(
+                          'Installe la nouvelle version pour rester à jour.',
+                          style: textTheme.bodySmall,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ],
-        ),
-      ),
-      actions: _isDownloading
-          ? null
-          : [
-              TextButton(
-                onPressed: () {
-                  widget.onSkip?.call();
-                  Navigator.of(context).pop();
-                },
-                child: Text(
-                  'Plus tard',
-                  style: TextStyle(color: colors.mutedForeground),
-                ),
+              const SizedBox(height: AppSpacing.lg),
+              AppRecapBox(
+                rows: [
+                  AppRecapRow(
+                    icon: Icons.phone_android_rounded,
+                    label: 'Version installée',
+                    value: widget.currentVersion,
+                  ),
+                  AppRecapRow(
+                    icon: Icons.new_releases_outlined,
+                    label: 'Nouvelle version',
+                    value: widget.version.versionName,
+                    emphasized: true,
+                  ),
+                  AppRecapRow(
+                    icon: Icons.folder_outlined,
+                    label: 'Taille',
+                    value: widget.version.formattedFileSize,
+                  ),
+                ],
               ),
-              FilledButton(
+              if (changelog != null && changelog.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.lg),
+                Text('Nouveautés', style: textTheme.titleSmall),
+                const SizedBox(height: AppSpacing.sm),
+                Text(changelog, style: textTheme.bodyMedium),
+              ],
+              if (_isDownloading) ...[
+                const SizedBox(height: AppSpacing.lg),
+                Semantics(
+                  label: 'Téléchargement',
+                  value: '$percent %',
+                  excludeSemantics: true,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Téléchargement…',
+                              style: textTheme.bodySmall,
+                            ),
+                          ),
+                          Text(
+                            '$percent %',
+                            style: textTheme.labelMedium?.copyWith(
+                              fontFeatures: const [
+                                FontFeature.tabularFigures(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                        child: LinearProgressIndicator(
+                          value: _progress,
+                          minHeight: 6,
+                          backgroundColor: colors.surfaceSunken,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(colors.primary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (error != null) ...[
+                const SizedBox(height: AppSpacing.base),
+                AppAlert(variant: AlertVariant.destructive, description: error),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              AppButton(
+                text: 'Mettre à jour',
+                icon: Icons.download_rounded,
+                size: ButtonSize.lg,
+                isLoading: _isDownloading,
                 onPressed: _downloadAndInstall,
-                style: FilledButton.styleFrom(
-                  backgroundColor: colors.primary,
-                  foregroundColor: colors.primaryForeground,
-                ),
-                child: const Text('Mettre à jour'),
               ),
+              if (!_isDownloading) ...[
+                const SizedBox(height: AppSpacing.sm),
+                SizedBox(
+                  height: 52,
+                  child: TextButton(
+                    onPressed: _skip,
+                    style:
+                        TextButton.styleFrom(foregroundColor: colors.foreground),
+                    child: const Text('Plus tard'),
+                  ),
+                ),
+              ],
             ],
-    );
-  }
-
-  Widget _buildVersionInfo(AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.muted,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  'Actuelle',
-                  style: TextStyle(fontSize: 11, color: colors.mutedForeground),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.currentVersion,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: colors.foreground,
-                  ),
-                ),
-              ],
-            ),
           ),
-          Icon(Icons.arrow_forward, color: colors.mutedForeground, size: 16),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  'Nouvelle',
-                  style: TextStyle(fontSize: 11, color: colors.mutedForeground),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.version.versionName,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: colors.success,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

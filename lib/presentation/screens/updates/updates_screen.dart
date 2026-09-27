@@ -7,10 +7,17 @@ import 'package:package_info_plus/package_info_plus.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/services/update_checker_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/display_format.dart';
 import '../../../data/models/app_version_model.dart';
 import '../../../data/models/update_check_response.dart';
+import '../../widgets/widgets.dart';
+import 'widgets/update_hero_card.dart';
+import 'widgets/version_detail_sheet.dart';
+import 'widgets/version_row.dart';
 
-/// Page des mises à jour de l'application
+/// Page des mises à jour de l'application : état en carte hero (à jour ou
+/// mise à jour disponible), « Télécharger et installer » dans le dock
+/// (Android), historique des versions dont le détail s'ouvre en feuille.
 class UpdatesScreen extends StatefulWidget {
   const UpdatesScreen({super.key});
 
@@ -18,7 +25,7 @@ class UpdatesScreen extends StatefulWidget {
   State<UpdatesScreen> createState() => _UpdatesScreenState();
 }
 
-class _UpdatesScreenState extends State<UpdatesScreen> {
+class _UpdatesScreenState extends State<UpdatesScreen> with DockNoticeMixin {
   bool _isLoading = true;
   bool _isChecking = false;
   String? _error;
@@ -54,6 +61,20 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     await _loadAllVersions();
   }
 
+  /// « Réessayer » de l'état d'erreur : repart du squelette.
+  Future<void> _retry() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    await _initialize();
+  }
+
+  Future<void> _refresh() async {
+    await _checkForUpdates();
+    await _loadAllVersions();
+  }
+
   Future<void> _loadPackageInfo() async {
     final packageInfo = await PackageInfo.fromPlatform();
     if (!mounted) return;
@@ -64,7 +85,13 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   }
 
   Future<void> _checkForUpdates() async {
-    if (_currentVersionCode == 0) return;
+    if (!mounted) return;
+    if (_currentVersionCode == 0) {
+      // Numéro de build illisible : pas de vérification possible, mais la
+      // page ne reste pas bloquée sur le chargement.
+      if (_isLoading) setState(() => _isLoading = false);
+      return;
+    }
 
     setState(() => _isChecking = true);
 
@@ -74,13 +101,22 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     if (!mounted) return;
 
     result.fold(
-      (failure) => setState(() {
-        _error = failure.message;
-        _isChecking = false;
-        _isLoading = false;
-      }),
+      (failure) {
+        if (_updateCheck != null) {
+          // Un état est déjà affiché : on le garde, l'erreur va au dock.
+          setState(() => _isChecking = false);
+          showDockError(failure.message);
+        } else {
+          setState(() {
+            _error = failure.message;
+            _isChecking = false;
+            _isLoading = false;
+          });
+        }
+      },
       (response) => setState(() {
         _updateCheck = response;
+        _error = null;
         _isChecking = false;
         _isLoading = false;
       }),
@@ -93,14 +129,17 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     if (!mounted) return;
 
     result.fold(
-      (failure) => {}, // Silent fail for version list
+      (failure) {}, // Échec silencieux pour l'historique
       (versions) => setState(() => _allVersions = versions),
     );
   }
 
   Future<void> _downloadAndInstall(AppVersion version) async {
+    if (_downloadingVersionId != null) return;
+    clearDockNotice();
+
     if (!Platform.isAndroid) {
-      _showError(
+      showDockError(
           'L\'installation automatique n\'est disponible que sur Android');
       return;
     }
@@ -121,415 +160,171 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     );
 
     if (!mounted) return;
+    setState(() => _downloadingVersionId = null);
 
-    result.fold(
+    final filePath = result.fold<String?>(
       (failure) {
-        setState(() => _downloadingVersionId = null);
-        _showError(failure.message);
+        showDockError(failure.message);
+        return null;
       },
-      (filePath) async {
-        setState(() => _downloadingVersionId = null);
-
-        // Ouvre l'APK pour installation
-        final openResult = await OpenFilex.open(filePath);
-        if (openResult.type != ResultType.done) {
-          _showError('Impossible d\'ouvrir le fichier: ${openResult.message}');
-        }
-      },
+      (path) => path,
     );
+    if (filePath == null) return;
+
+    // Ouvre l'APK pour installation
+    final openResult = await OpenFilex.open(filePath);
+    if (!mounted) return;
+    if (openResult.type != ResultType.done) {
+      showDockError('Impossible d\'ouvrir le fichier : ${openResult.message}');
+    }
   }
 
-  void _showError(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.card,
-        behavior: SnackBarBehavior.floating,
-      ),
+  Future<void> _openVersion(AppVersion version) async {
+    final isCurrent = version.versionCode == _currentVersionCode;
+    final install = await VersionDetailSheet.show(
+      context,
+      version: version,
+      isCurrent: isCurrent,
+      canInstall:
+          !isCurrent && Platform.isAndroid && _downloadingVersionId == null,
     );
+    if (!install || !mounted) return;
+    await _downloadAndInstall(version);
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final latest = _hasRealUpdate ? _updateCheck!.latestVersion : null;
+    final ready = !_isLoading && _error == null;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Mises à jour'),
-        actions: [
-          IconButton(
-            icon: _isChecking
-                ? SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colors.primary,
-                    ),
-                  )
-                : const Icon(Icons.refresh),
-            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-            onPressed: _isChecking
-                ? null
-                : () {
-                    _checkForUpdates();
-                    _loadAllVersions();
-                  },
-          ),
-        ],
-      ),
-      body: _buildBody(colors),
-    );
-  }
-
-  Widget _buildBody(AppColors colors) {
-    if (_isLoading) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(color: colors.primary),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              'Vérification des mises à jour...',
-              style: TextStyle(color: colors.mutedForeground),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline, size: 48, color: colors.destructive),
-              const SizedBox(height: AppSpacing.base),
-              Text(
-                _error!,
-                style: TextStyle(color: colors.mutedForeground),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.base),
-              ElevatedButton(
-                onPressed: _initialize,
-                style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
-                child: const Text('Réessayer'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async {
-        await _checkForUpdates();
-        await _loadAllVersions();
-      },
-      color: colors.primary,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        children: [
-          _buildCurrentVersionCard(colors),
-          const SizedBox(height: AppSpacing.base),
-          if (_hasRealUpdate) _buildUpdateAvailableCard(colors),
-          if (_allVersions.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.lg),
-            _buildVersionHistorySection(colors),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentVersionCard(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(Icons.phone_android, color: colors.primary, size: 22),
-          ),
-          const SizedBox(width: AppSpacing.base),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Version actuelle',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colors.mutedForeground,
-                  ),
-                ),
-                Text(
-                  '$_currentVersion ($_currentVersionCode)',
-                  style: textTheme.titleMedium?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (!_isChecking && !_hasRealUpdate)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: colors.success.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle, color: colors.success, size: 16),
-                  const SizedBox(width: AppSpacing.xs),
-                  Text(
-                    'À jour',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: colors.success,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildUpdateAvailableCard(AppColors colors) {
-    final latestVersion = _updateCheck!.latestVersion!;
-    final isDownloading = _downloadingVersionId == latestVersion.id;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.primary.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.system_update, color: colors.primary, size: 22),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Mise à jour disponible',
-                  style: textTheme.titleMedium?.copyWith(
+    return AppPage(
+      title: 'Mises à jour',
+      actions: [
+        if (_isChecking)
+          Semantics(
+            label: 'Vérification en cours',
+            child: SizedBox(
+              width: 48,
+              height: 48,
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
                     color: colors.primary,
                   ),
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Text(
-                  'v${latestVersion.versionName}',
-                  style: textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: colors.primaryForeground,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Icon(Icons.storage, size: 16, color: colors.mutedForeground),
-              const SizedBox(width: AppSpacing.xs),
-              Text(
-                latestVersion.formattedFileSize,
-                style: textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
-              ),
-            ],
-          ),
-          if (latestVersion.changelog != null &&
-              latestVersion.changelog!.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
-            Text(
-              'Nouveautés:',
-              style: textTheme.labelMedium?.copyWith(
-                color: colors.foreground,
-              ),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              latestVersion.changelog!,
-              style: textTheme.bodySmall?.copyWith(
-                color: colors.mutedForeground,
-              ),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.base),
-          if (isDownloading)
-            Column(
-              children: [
-                LinearProgressIndicator(
-                  value: _downloadProgress,
-                  backgroundColor: colors.muted,
-                  valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  '${(_downloadProgress * 100).toStringAsFixed(0)}%',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colors.mutedForeground,
-                  ),
-                ),
-              ],
-            )
-          else if (Platform.isAndroid)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => _downloadAndInstall(latestVersion),
-                icon: const Icon(Icons.download, size: 20),
-                label: const Text('Télécharger et installer'),
-                style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
-              ),
+          )
+        else
+          AppIconButton(
+            icon: Icons.refresh_rounded,
+            tooltip: 'Vérifier les mises à jour',
+            color: colors.foreground,
+            onPressed: _refresh,
+          ),
+      ],
+      body: _buildBody(latest),
+      dock: AppDock(
+        actions: [
+          if (ready && latest != null && Platform.isAndroid)
+            DockAction(
+              label: 'Télécharger et installer',
+              icon: Icons.download_rounded,
+              isLoading: _downloadingVersionId == latest.id,
+              onPressed: _downloadingVersionId != null
+                  ? null
+                  : () => _downloadAndInstall(latest),
             ),
         ],
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
       ),
     );
   }
 
-  Widget _buildVersionHistorySection(AppColors colors) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBody(AppVersion? latest) {
+    if (_isLoading) {
+      return const AppScrollView(
+        children: [
+          AppHeroSkeleton(showFigure: false),
+          SizedBox(height: AppSpacing.lg),
+          AppListSkeleton(rows: 3),
+        ],
+      );
+    }
+
+    final error = _error;
+    if (error != null) {
+      return AppScrollView(
+        children: [
+          AppErrorState(message: error, onRetry: _retry),
+        ],
+      );
+    }
+
+    return AppScrollView(
+      onRefresh: _refresh,
       children: [
-        Text(
-          'Historique des versions',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            color: colors.foreground,
-          ),
+        UpdateHeroCard(
+          currentVersion: _currentVersion,
+          currentVersionCode: _currentVersionCode,
+          checking: _isChecking,
+          checked: _updateCheck != null,
+          latest: latest,
+          downloadProgress:
+              latest != null && _downloadingVersionId == latest.id
+                  ? _downloadProgress
+                  : null,
         ),
-        const SizedBox(height: AppSpacing.md),
-        ...(_allVersions.map((version) => _buildVersionItem(version, colors))),
+        const SizedBox(height: AppSpacing.lg),
+        AppSectionHeader(
+          title: 'Historique des versions',
+          summary: _allVersions.isEmpty
+              ? null
+              : DisplayFormat.plural(_allVersions.length, 'version'),
+        ),
+        if (_allVersions.isEmpty)
+          const AppEmptyCard(
+            icon: Icons.history_rounded,
+            message: 'Aucune version dans l\'historique',
+          )
+        else
+          _buildHistory(),
       ],
     );
   }
 
-  Widget _buildVersionItem(AppVersion version, AppColors colors) {
-    final isCurrentVersion = version.versionCode == _currentVersionCode;
-    final isDownloading = _downloadingVersionId == version.id;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: isCurrentVersion ? colors.primary : colors.border,
-        ),
-      ),
-      child: Row(
+  Widget _buildHistory() {
+    final colors = context.colors;
+    return AppCard(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      child: Column(
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'v${version.versionName}',
-                      style: textTheme.titleSmall?.copyWith(
-                        color: colors.foreground,
-                      ),
-                    ),
-                    if (isCurrentVersion) ...[
-                      const SizedBox(width: AppSpacing.sm),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: colors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Text(
-                          'Installée',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: colors.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  '${version.formattedFileSize} - ${_formatDate(version.createdAt)}',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: colors.mutedForeground,
-                  ),
-                ),
-                if (version.changelog != null &&
-                    version.changelog!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    version.changelog!,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: colors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ],
+          for (var i = 0; i < _allVersions.length; i++) ...[
+            if (i > 0)
+              // Aligné sur le texte : marge 16 + boîte d'icône 40 + 12.
+              Divider(
+                height: 1,
+                thickness: 1,
+                color: colors.border,
+                indent: 68,
+              ),
+            VersionRow(
+              key: ValueKey(_allVersions[i].id),
+              version: _allVersions[i],
+              isCurrent: _allVersions[i].versionCode == _currentVersionCode,
+              downloadProgress: _downloadingVersionId == _allVersions[i].id
+                  ? _downloadProgress
+                  : null,
+              onTap: () => _openVersion(_allVersions[i]),
             ),
-          ),
-          if (!isCurrentVersion && Platform.isAndroid)
-            isDownloading
-                ? SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      value: _downloadProgress,
-                      color: colors.primary,
-                    ),
-                  )
-                : IconButton(
-                    icon: Icon(Icons.download, color: colors.primary, size: 22),
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                    onPressed: () => _downloadAndInstall(version),
-                  ),
+          ],
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }
