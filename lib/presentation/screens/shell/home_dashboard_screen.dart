@@ -1,20 +1,34 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
-import '../../widgets/app_avatar.dart';
-import '../../widgets/app_card.dart';
+import '../../widgets/widgets.dart';
 import '../absences/absences_screen.dart';
 import '../acomptes/acomptes_screen.dart';
 import '../circuit/circuit_screen.dart';
+import '../entretiens/entretiens_screen.dart';
+import '../entretiens/widgets/atelier_home_card.dart';
 import '../notifications/notifications_screen.dart';
 import '../services/mes_heures_screen.dart';
+import '../services/widgets/hours_strip.dart';
 import '../signatures/sign_screen.dart';
+import '../vehicules/vehicules_list_screen.dart';
+import 'widgets/circuit_card.dart';
+import 'widgets/home_pointage_card.dart';
+import 'widgets/home_skeleton.dart';
+import 'widgets/notification_bell_button.dart';
+import 'widgets/profile_avatar_button.dart';
+import 'widgets/quick_access_card.dart';
+import 'widgets/signature_callout.dart';
 
-/// Onglet « Accueil » — tableau de bord chaleureux.
+/// Onglet « Accueil » : l'état du pointage en point focal, ce qui est à
+/// faire, les repères d'heures, puis les accès rapides.
 ///
-/// Met en scène l'action reine (le pointage) au lieu d'une grille d'outils.
+/// Racine d'onglet : elle vit dans `MainShell`, au-dessus de la tab bar en
+/// verre, dont `AppScrollView` réserve déjà la hauteur.
 class HomeDashboardScreen extends StatefulWidget {
   const HomeDashboardScreen({
     super.key,
@@ -42,6 +56,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   bool _needsSignature = false;
   double? _heuresLastMonth;
 
+  /// Premier chargement en cours : squelette du haut de page.
+  bool _loading = true;
+
+  /// Statut de pointage introuvable : carte d'erreur à la place du hero.
+  String? _statusError;
+
+  // Atelier (Administrateur, Mécanicien) : échéances de la flotte.
+  FleetSummary? _fleet;
+  bool _fleetLoading = false;
+  bool _fleetError = false;
+
+  bool get _showAtelier => _user?.canManageFleet ?? false;
+
   @override
   void initState() {
     super.initState();
@@ -50,67 +77,79 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   Future<void> _load() async {
-    final results = await Future.wait([
+    if (_showAtelier) unawaited(_loadFleet());
+    final (userRes, activeRes, hoursRes, unreadRes, signatureRes) = await (
       sl.authRepository.getCurrentUser(),
       sl.serviceRepository.getActiveService(),
       sl.serviceRepository.getWorkedHours(const WorkedHoursParams()),
       sl.notificationRepository.getUnreadCount(),
       sl.signatureRepository.getLastSignatureSummary(),
-    ]);
+    ).wait;
     if (!mounted) return;
 
     setState(() {
-      (results[0] as dynamic).fold((_) {}, (u) => _user = u as User);
-      (results[1] as dynamic).fold((_) {}, (s) => _activeService = s as Service?);
-      (results[2] as dynamic).fold((_) {}, (h) => _hours = h as WorkedHours);
-      (results[3] as dynamic).fold((_) {}, (c) => _unread = c as int);
-      (results[4] as dynamic).fold((_) {}, (sum) {
-        _needsSignature = (sum as dynamic).needsToSign as bool;
-        _heuresLastMonth = (sum).heuresLastMonth as double?;
+      _loading = false;
+      userRes.fold((_) {}, (u) {
+        _user = u;
+      });
+      activeRes.fold(
+        (failure) {
+          _statusError = failure.message;
+        },
+        (s) {
+          _activeService = s;
+          _statusError = null;
+        },
+      );
+      // Échec : « 0h » comme avant, plutôt qu'un squelette sans fin.
+      hoursRes.fold((_) {
+        _hours ??= const WorkedHours();
+      }, (h) {
+        _hours = h;
+      });
+      unreadRes.fold((_) {}, (c) {
+        _unread = c;
+      });
+      signatureRes.fold((_) {}, (summary) {
+        _needsSignature = summary.needsToSign;
+        _heuresLastMonth = summary.heuresLastMonth;
       });
     });
   }
 
-  // ---- helpers ---------------------------------------------------------
+  Future<void> _loadFleet() async {
+    setState(() => _fleetLoading = true);
+    final result = await FleetSummary.load();
+    if (!mounted) return;
+    setState(() {
+      _fleetLoading = false;
+      result.fold((_) => _fleetError = true, (s) {
+        _fleet = s;
+        _fleetError = false;
+      });
+    });
+  }
+
+  // ---- navigation ------------------------------------------------------
+
+  Future<void> _push(Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+    if (!mounted) return;
+    await _load();
+  }
+
+  // Comme depuis la page Pointage : sans total connu, l'écran le demande.
+  void _openSign() => _push(SignScreen(heuresLastMonth: _heuresLastMonth));
 
   String get _greeting {
     final h = DateTime.now().hour;
-    if (h < 12) return 'Bonjour';
-    if (h < 18) return 'Bon après-midi';
-    return 'Bonsoir';
-  }
-
-  String _initials() {
-    final f = (_user?.firstName ?? '').trim();
-    final l = (_user?.lastName ?? '').trim();
-    final a = f.isNotEmpty ? f[0] : '';
-    final b = l.isNotEmpty ? l[0] : '';
-    final s = '$a$b'.toUpperCase();
-    return s.isEmpty ? 'U' : s;
-  }
-
-  /// Convertit un nombre d'heures décimal en « Xh YY » / « X min ».
-  String _fmtHours(double? hours) {
-    if (hours == null || hours <= 0) return '0h';
-    final totalMin = (hours * 60).round();
-    final h = totalMin ~/ 60;
-    final m = totalMin % 60;
-    if (h == 0) return '$m min';
-    if (m == 0) return '${h}h';
-    return '${h}h ${m.toString().padLeft(2, '0')}';
-  }
-
-  _PointageVisual _visual(AppColors c) {
-    if (_activeService == null) {
-      return _PointageVisual('Hors service', Icons.bedtime_outlined,
-          c.mutedForeground, c.surfaceSunken);
-    }
-    if (_activeService!.isBreak) {
-      return _PointageVisual(
-          'En pause', Icons.pause_circle_outline, c.warning, c.warningMuted);
-    }
-    return _PointageVisual(
-        'En service', Icons.bolt_rounded, c.primary, c.primarySoft);
+    final hello = h < 12
+        ? 'Bonjour'
+        : h < 18
+            ? 'Bon après-midi'
+            : 'Bonsoir';
+    final name = _user?.firstName.trim() ?? '';
+    return name.isEmpty ? hello : '$hello, $name';
   }
 
   // ---- build -----------------------------------------------------------
@@ -120,414 +159,90 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-          onRefresh: _load,
-          color: colors.primary,
-          backgroundColor: colors.card,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.screen,
-              AppSpacing.sm,
-              AppSpacing.screen,
-              // Réserve l'espace de la barre de navigation flottante.
-              AppSpacing.lg + MediaQuery.paddingOf(context).bottom,
-            ),
-            children: [
-              _header(colors, textTheme),
-              const SizedBox(height: AppSpacing.lg),
-              _pointageHero(colors, textTheme),
-              const SizedBox(height: AppSpacing.md),
-              _weekStats(colors, textTheme),
-              if (_needsSignature) ...[
-                const SizedBox(height: AppSpacing.md),
-                _signatureBanner(colors, textTheme),
-              ],
-              const SizedBox(height: AppSpacing.lg),
-              Text('Accès rapide', style: textTheme.titleMedium),
-              const SizedBox(height: AppSpacing.md),
-              _quickAccess(colors, textTheme),
-              const SizedBox(height: AppSpacing.md),
-              _circuitCard(colors, textTheme),
-            ],
-          ),
+    return AppPage(
+      title: 'Accueil',
+      actions: [
+        NotificationBellButton(
+          count: _unread,
+          onPressed: () => _push(const NotificationsScreen()),
         ),
-      ),
-    );
-  }
-
-  Widget _header(AppColors colors, TextTheme textTheme) {
-    return Row(
-      children: [
-        GestureDetector(
-          onTap: widget.onOpenMoi,
-          child: AppAvatar(
-            imageUrl: _user?.pictureUrl,
-            fallbackText: _initials(),
-            size: 46,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(_greeting, style: textTheme.bodySmall),
-              Text(
-                _user?.firstName.isNotEmpty == true
-                    ? _user!.firstName
-                    : 'Bienvenue',
-                style: textTheme.titleLarge,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-        ),
-        _NotifBell(count: _unread, onTap: _openNotifications),
+        ProfileAvatarButton(user: _user, onPressed: widget.onOpenMoi),
       ],
-    );
-  }
-
-  Widget _pointageHero(AppColors colors, TextTheme textTheme) {
-    final v = _visual(colors);
-    final today = _fmtHours(_hours?.day);
-
-    return AppCard(
-      elevation: AppCardElevation.hero,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      onTap: widget.onOpenPointage,
-      color: v.soft,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: AppScrollView(
+        onRefresh: _load,
+        topPadding: AppSpacing.xs,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: v.accent.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(v.icon, color: v.accent, size: 24),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Pointage', style: textTheme.bodySmall),
-                    Text(v.label,
-                        style: textTheme.titleLarge?.copyWith(color: v.accent)),
-                  ],
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: colors.mutedForeground),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text("Aujourd'hui", style: textTheme.bodySmall),
-          const SizedBox(height: 2),
-          Text(today, style: textTheme.displaySmall),
-        ],
-      ),
-    );
-  }
-
-  Widget _weekStats(AppColors colors, TextTheme textTheme) {
-    return Row(
-      children: [
-        Expanded(
-          child: _StatCard(
-            icon: Icons.calendar_view_week_rounded,
-            accent: colors.domainHours,
-            label: 'Cette semaine',
-            value: _fmtHours(_hours?.week),
-            onTap: () => _push(const MesHeuresScreen()),
-          ),
-        ),
-        const SizedBox(width: AppSpacing.md),
-        Expanded(
-          child: _StatCard(
-            icon: Icons.calendar_month_rounded,
-            accent: colors.domainPointage,
-            label: 'Ce mois',
-            value: _fmtHours(_hours?.month),
-            onTap: () => _push(const MesHeuresScreen()),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _signatureBanner(AppColors colors, TextTheme textTheme) {
-    return AppCard(
-      color: colors.warningMuted,
-      elevation: AppCardElevation.flat,
-      onTap: () => _push(SignScreen(heuresLastMonth: _heuresLastMonth ?? 0)),
-      child: Row(
-        children: [
-          Icon(Icons.draw_rounded, color: colors.warning),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Signature requise',
-                    style: textTheme.titleSmall
-                        ?.copyWith(color: colors.warningForeground)),
-                Text('Tu dois signer tes heures du mois dernier',
-                    style: textTheme.bodySmall),
-              ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: Text(
+              _greeting,
+              style:
+                  textTheme.bodyLarge?.copyWith(color: colors.mutedForeground),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
-          Icon(Icons.chevron_right_rounded, color: colors.warning),
-        ],
-      ),
-    );
-  }
-
-  Widget _circuitCard(AppColors colors, TextTheme textTheme) {
-    return AppCard(
-      elevation: AppCardElevation.raised,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      onTap: () => _push(const CircuitScreen()),
-      color: colors.primarySoft,
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(Icons.route_rounded, color: colors.primary, size: 24),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text('Circuit', style: textTheme.titleMedium),
-                    const SizedBox(width: AppSpacing.sm),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: colors.primary,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Text(
-                        'Nouveauté',
-                        style: textTheme.labelSmall?.copyWith(
-                          color: colors.primaryForeground,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text('Optimisez vos tournées', style: textTheme.bodySmall),
-              ],
-            ),
-          ),
-          Icon(Icons.chevron_right_rounded, color: colors.mutedForeground),
-        ],
-      ),
-    );
-  }
-
-  Widget _quickAccess(AppColors colors, TextTheme textTheme) {
-    final items = [
-      _Quick('Mes heures', Icons.schedule_rounded, colors.domainHours,
-          () => _push(const MesHeuresScreen())),
-      _Quick('Absences', Icons.event_busy_rounded, colors.domainAbsence,
-          () => _push(const AbsencesScreen())),
-      _Quick('Acomptes', Icons.payments_rounded, colors.domainAcompte,
-          () => _push(const AcomptesScreen())),
-    ];
-
-    return Row(
-      children: [
-        for (var i = 0; i < items.length; i++) ...[
-          if (i > 0) const SizedBox(width: AppSpacing.md),
-          Expanded(child: _QuickPill(item: items[i])),
-        ],
-      ],
-    );
-  }
-
-  // ---- navigation ------------------------------------------------------
-
-  void _push(Widget screen) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => screen))
-        .then((_) {
-      if (mounted) _load();
-    });
-  }
-
-  void _openNotifications() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const NotificationsScreen()))
-        .then((_) {
-      if (mounted) _load();
-    });
-  }
-}
-
-// ---- petits widgets internes ------------------------------------------
-
-class _PointageVisual {
-  final String label;
-  final IconData icon;
-  final Color accent;
-  final Color soft;
-  _PointageVisual(this.label, this.icon, this.accent, this.soft);
-}
-
-class _Quick {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  _Quick(this.label, this.icon, this.color, this.onTap);
-}
-
-class _StatCard extends StatelessWidget {
-  const _StatCard({
-    required this.icon,
-    required this.accent,
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final Color accent;
-  final String label;
-  final String value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: accent, size: 22),
           const SizedBox(height: AppSpacing.md),
-          Text(value, style: textTheme.headlineSmall),
-          const SizedBox(height: 1),
-          Text(label, style: textTheme.bodySmall),
+          if (_loading) const HomeSkeleton() else ..._buildFocus(),
+          // ---- Cartes métier -------------------------------------------
+          // Cartes propres à un rôle, juste après le point focal, chacune
+          // précédée de `const SizedBox(height: AppSpacing.md)`.
+          if (_showAtelier) ...[
+            const SizedBox(height: AppSpacing.md),
+            AtelierHomeCard(
+              summary: _fleet,
+              loading: _fleetLoading,
+              error: _fleetError,
+              onTap: () => _push(const EntretiensScreen()),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          ..._buildShortcuts(),
         ],
       ),
     );
   }
-}
 
-class _QuickPill extends StatelessWidget {
-  const _QuickPill({required this.item});
-  final _Quick item;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return AppCard(
-      onTap: item.onTap,
-      padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.base, horizontal: AppSpacing.sm),
-      child: Column(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: item.color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(item.icon, color: item.color, size: 22),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            item.label,
-            style: textTheme.labelMedium,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NotifBell extends StatelessWidget {
-  const _NotifBell({required this.count, required this.onTap});
-  final int count;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
-          color: colors.card,
-          shape: const CircleBorder(),
-          child: InkWell(
-            onTap: onTap,
-            customBorder: const CircleBorder(),
-            child: Container(
-              width: 46,
-              height: 46,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: colors.cardShadow,
-              ),
-              child: Icon(Icons.notifications_none_rounded,
-                  color: colors.foreground, size: 24),
-            ),
-          ),
+  /// Point focal : état du pointage, signature à faire, repères d'heures.
+  List<Widget> _buildFocus() {
+    final error = _statusError;
+    return [
+      if (error != null)
+        AppErrorState(
+          title: 'Statut du pointage indisponible',
+          message: error,
+          onRetry: _load,
+        )
+      else
+        HomePointageCard(
+          activeService: _activeService,
+          hoursToday: _hours?.day,
+          onTap: widget.onOpenPointage,
         ),
-        if (count > 0)
-          Positioned(
-            right: -2,
-            top: -2,
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-              decoration: BoxDecoration(
-                color: colors.destructive,
-                shape: BoxShape.circle,
-                border: Border.all(color: colors.background, width: 2),
-              ),
-              child: Text(
-                count > 99 ? '99+' : '$count',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colors.destructiveForeground,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
+      if (_needsSignature) ...[
+        const SizedBox(height: AppSpacing.md),
+        SignatureCallout(heuresLastMonth: _heuresLastMonth, onTap: _openSign),
       ],
-    );
+      const SizedBox(height: AppSpacing.md),
+      HoursStrip(
+        hours: _hours,
+        onTap: () => _push(const MesHeuresScreen()),
+      ),
+    ];
+  }
+
+  /// Accès rapides et carte Circuit.
+  List<Widget> _buildShortcuts() {
+    return [
+      const AppSectionHeader(title: 'Accès rapide'),
+      QuickAccessCard(
+        onHours: () => _push(const MesHeuresScreen()),
+        onAbsences: () => _push(const AbsencesScreen()),
+        onAcomptes: () => _push(const AcomptesScreen()),
+        onVehicules: () => _push(const VehiculesListScreen()),
+      ),
+      const SizedBox(height: AppSpacing.md),
+      CircuitCard(onTap: () => _push(const CircuitScreen())),
+    ];
   }
 }
