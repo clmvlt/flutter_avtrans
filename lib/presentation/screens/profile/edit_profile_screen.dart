@@ -9,6 +9,12 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
+import 'widgets/password_sheet.dart';
+import 'widgets/photo_source_sheet.dart';
+import 'widgets/profile_address_fields.dart';
+import 'widgets/profile_info_fields.dart';
+import 'widgets/profile_photo_header.dart';
+import 'widgets/profile_skeleton.dart';
 
 /// Fonction pour encoder en base64 dans un isolate (ne bloque pas l'UI)
 Future<String> _encodeImageToBase64(Uint8List bytes) async {
@@ -19,7 +25,9 @@ String _encodeInIsolate(Uint8List bytes) {
   return base64Encode(bytes);
 }
 
-/// Page d'édition du profil utilisateur
+/// Modification du profil : formulaire long en page pleine (photo, infos
+/// personnelles, adresse), « Enregistrer le profil » dans le dock. Le
+/// changement de mot de passe passe par sa propre feuille.
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
 
@@ -27,7 +35,8 @@ class EditProfileScreen extends StatefulWidget {
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
+class _EditProfileScreenState extends State<EditProfileScreen>
+    with DockNoticeMixin {
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -37,22 +46,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _cityController = TextEditingController();
   final _postalCodeController = TextEditingController();
   final _countryController = TextEditingController();
-  final _currentPasswordController = TextEditingController();
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
 
   User? _user;
   bool _isLoading = true;
+  String? _loadError;
   bool _isSaving = false;
-  bool _isChangingPassword = false;
   File? _selectedImage;
   String? _selectedImageBase64;
-  bool _showPasswordSection = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUser();
+    // Le cache d'abord, pour un affichage instantané.
+    final cachedUser = sl.authRepository.getCachedUser();
+    if (cachedUser != null) {
+      _fill(cachedUser);
+      _isLoading = false;
+    } else {
+      _loadUser();
+    }
   }
 
   @override
@@ -65,155 +77,66 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _cityController.dispose();
     _postalCodeController.dispose();
     _countryController.dispose();
-    _currentPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadUser() async {
-    // Utiliser le cache d'abord pour un affichage instantané
-    final cachedUser = sl.authRepository.getCachedUser();
-    if (cachedUser != null) {
-      setState(() {
-        _user = cachedUser;
-        _firstNameController.text = cachedUser.firstName;
-        _lastNameController.text = cachedUser.lastName;
-        _emailController.text = cachedUser.email;
-        _driverLicenseController.text = cachedUser.driverLicenseNumber ?? '';
-        _streetController.text = cachedUser.address?.street ?? '';
-        _cityController.text = cachedUser.address?.city ?? '';
-        _postalCodeController.text = cachedUser.address?.postalCode ?? '';
-        _countryController.text = cachedUser.address?.country ?? '';
-        _isLoading = false;
-      });
-      return;
-    }
+  void _fill(User user) {
+    _user = user;
+    _firstNameController.text = user.firstName;
+    _lastNameController.text = user.lastName;
+    _emailController.text = user.email;
+    _driverLicenseController.text = user.driverLicenseNumber ?? '';
+    _streetController.text = user.address?.street ?? '';
+    _cityController.text = user.address?.city ?? '';
+    _postalCodeController.text = user.address?.postalCode ?? '';
+    _countryController.text = user.address?.country ?? '';
+  }
 
-    // Si pas de cache, charger depuis l'API
-    setState(() => _isLoading = true);
+  /// Pas de cache : chargement depuis l'API.
+  Future<void> _loadUser() async {
+    if (!_isLoading) {
+      setState(() {
+        _isLoading = true;
+        _loadError = null;
+      });
+    }
 
     final result = await sl.authRepository.getCurrentUser();
 
     if (!mounted) return;
 
     result.fold(
-      (failure) {
-        _showError(failure.message);
-        setState(() => _isLoading = false);
-      },
-      (user) {
-        setState(() {
-          _user = user;
-          _firstNameController.text = user.firstName;
-          _lastNameController.text = user.lastName;
-          _emailController.text = user.email;
-          _driverLicenseController.text = user.driverLicenseNumber ?? '';
-          _streetController.text = user.address?.street ?? '';
-          _cityController.text = user.address?.city ?? '';
-          _postalCodeController.text = user.address?.postalCode ?? '';
-          _countryController.text = user.address?.country ?? '';
-          _isLoading = false;
-        });
-      },
+      (failure) => setState(() {
+        _loadError = failure.message;
+        _isLoading = false;
+      }),
+      (user) => setState(() {
+        _fill(user);
+        _isLoading = false;
+      }),
     );
   }
 
+  // ---- photo -------------------------------------------------------------
+
   Future<void> _pickImage() async {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: context.colors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (ctx) {
-        final colors = context.colors;
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.base),
-                Text(
-                  'Choisir une photo',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.base),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: colors.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Icon(Icons.camera_alt, color: colors.primary),
-                  ),
-                  title: Text(
-                    'Prendre une photo',
-                    style: TextStyle(color: colors.foreground),
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _getImage(ImageSource.camera);
-                  },
-                ),
-                ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: colors.secondary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Icon(Icons.photo_library, color: colors.secondary),
-                  ),
-                  title: Text(
-                    'Choisir depuis la galerie',
-                    style: TextStyle(color: colors.foreground),
-                  ),
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _getImage(ImageSource.gallery);
-                  },
-                ),
-                if (_selectedImage != null || _user?.pictureUrl != null)
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: colors.destructive.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      child: Icon(Icons.delete, color: colors.destructive),
-                    ),
-                    title: Text(
-                      'Supprimer la photo',
-                      style: TextStyle(color: colors.destructive),
-                    ),
-                    onTap: () {
-                      Navigator.pop(ctx);
-                      setState(() {
-                        _selectedImage = null;
-                        _selectedImageBase64 = '';
-                      });
-                    },
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
+    final action = await PhotoSourceSheet.show(
+      context,
+      canRemove: _selectedImage != null || _user?.pictureUrl != null,
     );
+    if (action == null || !mounted) return;
+
+    switch (action) {
+      case PhotoAction.camera:
+        await _getImage(ImageSource.camera);
+      case PhotoAction.gallery:
+        await _getImage(ImageSource.gallery);
+      case PhotoAction.remove:
+        setState(() {
+          _selectedImage = null;
+          _selectedImageBase64 = '';
+        });
+    }
   }
 
   Future<void> _getImage(ImageSource source) async {
@@ -221,9 +144,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(
         source: source,
-        maxWidth: 512,  // Réduit pour un upload plus rapide
+        maxWidth: 512, // Réduit pour un upload plus rapide
         maxHeight: 512,
-        imageQuality: 70,  // Compression plus agressive
+        imageQuality: 70, // Compression plus agressive
       );
 
       if (pickedFile == null) return;
@@ -254,12 +177,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showError('Erreur lors de la sélection de l\'image: $e');
+        showDockError('Erreur lors de la sélection de l\'image : $e');
       }
     }
   }
 
+  // ---- enregistrement ----------------------------------------------------
+
   Future<void> _saveProfile() async {
+    clearDockNotice();
     if (!_formKey.currentState!.validate()) return;
 
     // Vérifier si des modifications ont été faites
@@ -288,7 +214,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         hasImageChange;
 
     if (!hasChanges) {
-      _showSuccess('Aucune modification à enregistrer');
+      showDockNotice(
+        'Aucune modification à enregistrer',
+        variant: AlertVariant.info,
+        duration: const Duration(seconds: 4),
+      );
       return;
     }
 
@@ -324,519 +254,131 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     setState(() => _isSaving = false);
 
     result.fold(
-      (failure) => _showError(failure.message),
+      (failure) => showDockError(failure.message),
       (user) {
         setState(() {
           _user = user;
           _selectedImage = null;
           _selectedImageBase64 = null;
         });
-        _showSuccess('Profil mis à jour avec succès');
+        showDockSuccess('Profil mis à jour');
       },
     );
   }
 
-  Future<void> _changePassword() async {
-    if (_currentPasswordController.text.isEmpty ||
-        _newPasswordController.text.isEmpty) {
-      _showError('Veuillez remplir tous les champs');
-      return;
-    }
+  // ---- mot de passe ------------------------------------------------------
 
-    if (_newPasswordController.text != _confirmPasswordController.text) {
-      _showError('Les mots de passe ne correspondent pas');
-      return;
-    }
-
-    if (_newPasswordController.text.length < 6) {
-      _showError('Le mot de passe doit contenir au moins 6 caractères');
-      return;
-    }
-
-    setState(() => _isChangingPassword = true);
-
-    final request = UpdatePasswordRequest(
-      currentPassword: _currentPasswordController.text,
-      newPassword: _newPasswordController.text,
-    );
-
-    final result = await sl.authRepository.updatePassword(request);
-
-    if (!mounted) return;
-
-    setState(() => _isChangingPassword = false);
-
-    result.fold(
-      (failure) => _showError(failure.message),
-      (_) {
-        _currentPasswordController.clear();
-        _newPasswordController.clear();
-        _confirmPasswordController.clear();
-        setState(() => _showPasswordSection = false);
-        _showSuccess('Mot de passe modifié avec succès');
-      },
-    );
+  Future<void> _openPasswordSheet() async {
+    clearDockNotice();
+    final changed = await PasswordSheet.show(context, onSubmit: _changePassword);
+    if (!changed || !mounted) return;
+    showDockSuccess('Mot de passe modifié');
   }
 
-  void _showError(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.card,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.destructive),
-        ),
-      ),
+  /// Retourne le message d'erreur, ou `null` si le mot de passe est changé.
+  Future<String?> _changePassword(
+    String current,
+    String next,
+    String confirm,
+  ) async {
+    if (current.isEmpty || next.isEmpty) {
+      return 'Remplis tous les champs';
+    }
+    if (next != confirm) {
+      return 'Les mots de passe ne correspondent pas';
+    }
+    if (next.length < 6) {
+      return 'Le mot de passe doit contenir au moins 6 caractères';
+    }
+
+    final result = await sl.authRepository.updatePassword(
+      UpdatePasswordRequest(currentPassword: current, newPassword: next),
     );
+    return result.fold((failure) => failure.message, (_) => null);
   }
 
-  void _showSuccess(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle_outline, color: colors.success, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.card,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.success),
-        ),
-      ),
-    );
-  }
+  // ---- build -------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final ready = !_isLoading && _loadError == null;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Modifier le profil'),
-      ),
-      body: _isLoading
-          ? const LoadingIndicator(message: 'Chargement...')
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildProfilePicture(colors),
-                    const SizedBox(height: AppSpacing.lg),
-                    _buildInfoSection(colors),
-                    const SizedBox(height: AppSpacing.base),
-                    _buildAddressSection(colors),
-                    const SizedBox(height: AppSpacing.base),
-                    _buildPasswordSection(colors),
-                    const SizedBox(height: AppSpacing.lg),
-                    AppButton(
-                      text: 'Enregistrer les modifications',
-                      icon: Icons.save,
-                      onPressed: _saveProfile,
-                      isLoading: _isSaving,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-    );
-  }
-
-  Widget _buildProfilePicture(AppColors colors) {
-    return Center(
-      child: Stack(
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colors.card,
-              border: Border.all(color: colors.border, width: 3),
-              boxShadow: [
-                BoxShadow(
-                  color: colors.primary.withValues(alpha: 0.1),
-                  blurRadius: 20,
-                  spreadRadius: 5,
+    return AppPage(
+      title: 'Modifier le profil',
+      body: _buildBody(),
+      dock: ready
+          ? AppDock(
+              actions: [
+                DockAction(
+                  label: 'Enregistrer le profil',
+                  icon: Icons.check_rounded,
+                  isLoading: _isSaving,
+                  onPressed: _isSaving ? null : _saveProfile,
                 ),
               ],
-            ),
-            child: ClipOval(
-              child: _buildProfileImage(colors),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: GestureDetector(
-              onTap: _pickImage,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colors.background, width: 2),
-                ),
-                child: Icon(
-                  Icons.camera_alt,
-                  color: colors.primaryForeground,
-                  size: 20,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+              notice: dockNotice,
+              onDismissNotice: clearDockNotice,
+            )
+          : null,
     );
   }
 
-  Widget _buildDefaultAvatar(AppColors colors) {
-    return Container(
-      color: colors.muted,
-      child: Icon(
-        Icons.person,
-        size: 60,
-        color: colors.mutedForeground,
-      ),
-    );
-  }
-
-  Widget _buildProfileImage(AppColors colors) {
-    // Si l'utilisateur a demandé la suppression de la photo (chaîne vide)
-    if (_selectedImageBase64 == '') {
-      return _buildDefaultAvatar(colors);
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const AppScrollView(children: [ProfileSkeleton()]);
     }
 
-    // Priorité 1: Image sélectionnée depuis un fichier (mobile uniquement)
-    if (_selectedImage != null && !kIsWeb) {
-      return Image.file(
-        _selectedImage!,
-        fit: BoxFit.cover,
-        width: 120,
-        height: 120,
-        errorBuilder: (_, __, ___) => _buildDefaultAvatar(colors),
+    final loadError = _loadError;
+    if (loadError != null) {
+      return AppScrollView(
+        children: [AppErrorState(message: loadError, onRetry: _loadUser)],
       );
     }
 
-    // Priorité 2: Image sélectionnée en base64 (web ou fallback)
-    if (_selectedImageBase64 != null && _selectedImageBase64!.isNotEmpty) {
-      return Image.memory(
-        base64Decode(_selectedImageBase64!),
-        fit: BoxFit.cover,
-        width: 120,
-        height: 120,
-        errorBuilder: (_, __, ___) => _buildDefaultAvatar(colors),
-      );
-    }
+    final colors = context.colors;
 
-    // Priorité 3: Image du profil existante depuis l'URL
-    if (_user?.pictureUrl != null) {
-      return Image.network(
-        _user!.pictureUrl!,
-        fit: BoxFit.cover,
-        width: 120,
-        height: 120,
-        errorBuilder: (_, __, ___) => _buildDefaultAvatar(colors),
-      );
-    }
-
-    // Défaut: Avatar par défaut
-    return _buildDefaultAvatar(colors);
-  }
-
-  Widget _buildInfoSection(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Form(
+      key: _formKey,
+      child: AppScrollView(
+        topPadding: AppSpacing.lg,
         children: [
-          Row(
-            children: [
-              Icon(Icons.person_outline, color: colors.primary, size: 20),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Informations personnelles',
-                style: textTheme.titleMedium?.copyWith(
-                  color: colors.foreground,
-                ),
-              ),
-            ],
+          ProfilePhotoHeader(
+            name: _user?.fullName ?? '',
+            email: _user?.email ?? '',
+            selectedFile: _selectedImage,
+            selectedBase64: _selectedImageBase64,
+            pictureUrl: _user?.pictureUrl,
+            onEdit: _pickImage,
           ),
-          const SizedBox(height: AppSpacing.base),
-          _buildTextField(
-            controller: _firstNameController,
-            label: 'Prénom',
-            icon: Icons.badge_outlined,
-            colors: colors,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Le prénom est requis';
-              }
-              return null;
-            },
+          const SizedBox(height: AppSpacing.lg),
+          const AppSectionHeader(title: 'Informations personnelles'),
+          ProfileInfoFields(
+            firstName: _firstNameController,
+            lastName: _lastNameController,
+            email: _emailController,
+            driverLicense: _driverLicenseController,
           ),
-          const SizedBox(height: AppSpacing.md),
-          _buildTextField(
-            controller: _lastNameController,
-            label: 'Nom',
-            icon: Icons.badge_outlined,
-            colors: colors,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Le nom est requis';
-              }
-              return null;
-            },
+          const SizedBox(height: AppSpacing.lg),
+          const AppSectionHeader(title: 'Adresse'),
+          ProfileAddressFields(
+            street: _streetController,
+            postalCode: _postalCodeController,
+            city: _cityController,
+            country: _countryController,
           ),
-          const SizedBox(height: AppSpacing.md),
-          _buildTextField(
-            controller: _emailController,
-            label: 'Email',
-            icon: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            colors: colors,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'L\'email est requis';
-              }
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'Email invalide';
-              }
-              return null;
-            },
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _buildTextField(
-            controller: _driverLicenseController,
-            label: 'Numéro de permis de conduire',
-            icon: Icons.credit_card,
-            colors: colors,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAddressSection(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.location_on_outlined, color: colors.primary, size: 20),
-              const SizedBox(width: AppSpacing.sm),
-              Text(
-                'Adresse',
-                style: textTheme.titleMedium?.copyWith(
-                  color: colors.foreground,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.base),
-          _buildTextField(
-            controller: _streetController,
-            label: 'Rue et numéro',
-            icon: Icons.home_outlined,
-            colors: colors,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: _buildTextField(
-                  controller: _postalCodeController,
-                  label: 'Code postal',
-                  icon: Icons.pin_drop_outlined,
-                  keyboardType: TextInputType.number,
-                  colors: colors,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                flex: 3,
-                child: _buildTextField(
-                  controller: _cityController,
-                  label: 'Ville',
-                  icon: Icons.location_city_outlined,
-                  colors: colors,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          _buildTextField(
-            controller: _countryController,
-            label: 'Pays',
-            icon: Icons.flag_outlined,
-            colors: colors,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPasswordSection(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        children: [
-          InkWell(
-            onTap: () => setState(() => _showPasswordSection = !_showPasswordSection),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              child: Row(
-                children: [
-                  Icon(Icons.lock_outline, color: colors.secondary, size: 20),
-                  const SizedBox(width: AppSpacing.sm),
-                  Expanded(
-                    child: Text(
-                      'Modifier le mot de passe',
-                      style: textTheme.titleMedium?.copyWith(
-                        color: colors.foreground,
-                      ),
-                    ),
-                  ),
-                  Icon(
-                    _showPasswordSection
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: colors.mutedForeground,
-                  ),
-                ],
-              ),
+          const SizedBox(height: AppSpacing.lg),
+          const AppSectionHeader(title: 'Mot de passe'),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: AppListRow(
+              icon: Icons.lock_rounded,
+              iconColor: colors.domainVehicule,
+              title: 'Changer le mot de passe',
+              subtitle: 'Ton mot de passe actuel te sera demandé',
+              onTap: _openPasswordSheet,
             ),
           ),
-          if (_showPasswordSection) ...[
-            Divider(color: colors.border, height: 1),
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.base),
-              child: Column(
-                children: [
-                  _buildTextField(
-                    controller: _currentPasswordController,
-                    label: 'Mot de passe actuel',
-                    icon: Icons.lock_outline,
-                    obscureText: true,
-                    colors: colors,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _buildTextField(
-                    controller: _newPasswordController,
-                    label: 'Nouveau mot de passe',
-                    icon: Icons.lock_outline,
-                    obscureText: true,
-                    colors: colors,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  _buildTextField(
-                    controller: _confirmPasswordController,
-                    label: 'Confirmer le mot de passe',
-                    icon: Icons.lock_outline,
-                    obscureText: true,
-                    colors: colors,
-                  ),
-                  const SizedBox(height: AppSpacing.base),
-                  AppButton(
-                    text: 'Modifier le mot de passe',
-                    icon: Icons.security,
-                    onPressed: _changePassword,
-                    isLoading: _isChangingPassword,
-                    backgroundColor: colors.secondary,
-                    foregroundColor: colors.primaryForeground,
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required AppColors colors,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      validator: validator,
-      style: TextStyle(color: colors.foreground),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: colors.mutedForeground),
-        prefixIcon: Icon(icon, color: colors.mutedForeground, size: 20),
-        filled: true,
-        fillColor: colors.muted,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: colors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: colors.primary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: colors.destructive),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: BorderSide(color: colors.destructive, width: 2),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.base,
-          vertical: AppSpacing.md,
-        ),
       ),
     );
   }
