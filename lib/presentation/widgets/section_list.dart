@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import 'app_card.dart';
+import 'app_list_row.dart';
 
 /// Section de réglages/outils — un titre discret + un groupe de tuiles
 /// dans une [AppCard] (pattern « Réglages iOS », très « app mobile »).
@@ -34,7 +35,8 @@ class AppSection extends StatelessWidget {
     final rows = <Widget>[];
     for (var i = 0; i < children.length; i++) {
       if (i > 0) {
-        rows.add(Divider(height: 1, thickness: 1, color: colors.border, indent: 56));
+        // Aligné sur le texte : marge 16 + boîte d'icône 40 + écart 12.
+        rows.add(Divider(height: 1, thickness: 1, color: colors.border, indent: 68));
       }
       rows.add(children[i]);
     }
@@ -62,7 +64,8 @@ class AppSection extends StatelessWidget {
   }
 }
 
-/// Tuile d'une [AppSection] — chip d'icône coloré + libellé + accessoire.
+/// Tuile d'une [AppSection] : une [AppListRow] (boîte d'icône teintée,
+/// libellé, accessoire) aux coins arrondis en tête et en fin de groupe.
 class AppTile extends StatelessWidget {
   const AppTile({
     super.key,
@@ -100,79 +103,52 @@ class AppTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
-    final accent = color ?? colors.mutedForeground;
 
     final radius = BorderRadius.vertical(
       top: Radius.circular(isFirst ? AppRadius.lg : 0),
       bottom: Radius.circular(isLast ? AppRadius.lg : 0),
     );
 
-    return Material(
-      type: MaterialType.transparency,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: radius,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.base,
-            vertical: 14,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(icon, size: 20, color: accent),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: textTheme.titleSmall),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 1),
-                      Text(
-                        subtitle!,
-                        style: textTheme.bodySmall,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (badgeText != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: (badgeColor ?? colors.primary).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                  ),
-                  child: Text(
-                    badgeText!,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: badgeColor ?? colors.primary,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-              ],
-              trailing ??
-                  (onTap != null
-                      ? Icon(Icons.chevron_right_rounded,
-                          size: 20, color: colors.mutedForeground)
-                      : const SizedBox.shrink()),
-            ],
+    Widget? badge;
+    if (badgeText != null) {
+      badge = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: (badgeColor ?? colors.primary).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(AppRadius.full),
+        ),
+        child: Text(
+          badgeText!,
+          style: textTheme.labelSmall?.copyWith(
+            color: badgeColor ?? colors.primary,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0,
           ),
         ),
-      ),
+      );
+    }
+
+    final accessory = switch ((badge, trailing)) {
+      (null, null) => null,
+      (final Widget b, null) => b,
+      (null, final Widget t) => t,
+      (final Widget b, final Widget t) => Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [b, const SizedBox(width: AppSpacing.sm), t],
+        ),
+    };
+
+    return AppListRow(
+      title: label,
+      subtitle: subtitle,
+      subtitleMaxLines: 1,
+      icon: icon,
+      iconColor: color ?? colors.mutedForeground,
+      trailing: accessory,
+      // Un [trailing] explicite remplace le chevron.
+      showChevron: trailing == null && onTap != null,
+      onTap: onTap,
+      borderRadius: radius,
     );
   }
 }

@@ -24,6 +24,11 @@ abstract class AppSheet {
     Widget? trailing,
     bool isScrollControlled = true,
     bool showHandle = true,
+    bool isDismissible = true,
+    bool enableDrag = true,
+    // Au-dessus de tout, tab bar en verre comprise (l'onglet Ypsium a son
+    // propre Navigator : sans ça, la feuille passerait sous la barre).
+    bool useRootNavigator = true,
     EdgeInsetsGeometry contentPadding = const EdgeInsets.fromLTRB(
       AppSpacing.screen,
       AppSpacing.sm,
@@ -36,6 +41,9 @@ abstract class AppSheet {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: isScrollControlled,
+      isDismissible: isDismissible,
+      enableDrag: enableDrag,
+      useRootNavigator: useRootNavigator,
       backgroundColor: colors.surfaceElevated,
       // La poignée est gérée ici pour pouvoir la masquer au besoin.
       showDragHandle: false,

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'app_list_row.dart';
+import 'app_picker_field.dart';
 
-/// Widget de sélection avec recherche - style shadcn/ui
+/// Champ de sélection avec recherche : un [AppPickerField] qui ouvre une
+/// feuille (recherche + liste de lignes). Recherche sur le libellé et la
+/// sous-ligne.
 class AppSearchableSelect<T> extends StatelessWidget {
   final List<T> items;
   final T? selectedItem;
@@ -18,6 +22,13 @@ class AppSearchableSelect<T> extends StatelessWidget {
   final bool enabled;
   final IconData? prefixIcon;
 
+  /// Libellé au-dessus du champ.
+  final String? label;
+  final bool optional;
+
+  /// Une croix efface la sélection (`onChanged(null)`).
+  final bool clearable;
+
   const AppSearchableSelect({
     super.key,
     required this.items,
@@ -28,158 +39,98 @@ class AppSearchableSelect<T> extends StatelessWidget {
     this.itemIcon,
     this.placeholder = 'Sélectionner',
     this.sheetTitle = 'Sélectionner',
-    this.searchHint = 'Rechercher...',
+    this.searchHint = 'Rechercher…',
     this.emptyMessage = 'Aucun résultat',
     this.validator,
     this.enabled = true,
     this.prefixIcon,
+    this.label,
+    this.optional = false,
+    this.clearable = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
     return FormField<T>(
+      // La valeur vit chez le parent : le FormField ne sert qu'à valider.
+      key: ValueKey(selectedItem),
       initialValue: selectedItem,
       validator: validator,
       builder: (field) {
-        final showError = field.hasError && field.errorText != null;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            InkWell(
-              onTap: enabled ? () => _showSelectionSheet(context) : null,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(
-                    color: showError ? colors.destructive : colors.input,
-                    width: showError ? 2 : 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    if (prefixIcon != null) ...[
-                      Icon(
-                        prefixIcon,
-                        size: 18,
-                        color: colors.mutedForeground,
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    Expanded(
-                      child: selectedItem != null
-                          ? _buildSelectedContent(colors)
-                          : Text(
-                              placeholder,
-                              style: TextStyle(
-                                color: colors.mutedForeground,
-                                fontSize: 16,
-                              ),
-                            ),
-                    ),
-                    Icon(
-                      Icons.unfold_more_rounded,
-                      size: 18,
-                      color: colors.mutedForeground,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (showError)
-              Padding(
-                padding: const EdgeInsets.only(top: 6, left: 2),
-                child: Text(
-                  field.errorText!,
-                  style: TextStyle(
-                    color: colors.destructive,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-          ],
+        final item = selectedItem;
+        return AppPickerField(
+          label: label,
+          optional: optional,
+          value: item == null ? null : itemLabel(item),
+          subtitle: item == null ? null : itemSubtitle?.call(item),
+          placeholder: placeholder,
+          icon: prefixIcon ?? (item == null ? null : itemIcon?.call(item)),
+          enabled: enabled,
+          errorText: field.errorText,
+          onTap: () => showAppSelectSheet<T>(
+            context,
+            title: sheetTitle,
+            items: items,
+            selectedItem: selectedItem,
+            itemLabel: itemLabel,
+            itemSubtitle: itemSubtitle,
+            itemIcon: itemIcon,
+            searchHint: searchHint,
+            emptyMessage: emptyMessage,
+          ).then((picked) {
+            if (picked != null) onChanged(picked);
+          }),
+          onClear: clearable ? () => onChanged(null) : null,
         );
       },
     );
   }
+}
 
-  Widget _buildSelectedContent(AppColors colors) {
-    final item = selectedItem as T;
-    final subtitle = itemSubtitle?.call(item);
-    final icon = itemIcon?.call(item);
-
-    return Row(
-      children: [
-        if (icon != null) ...[
-          Icon(icon, size: 16, color: colors.primary),
-          const SizedBox(width: 8),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                itemLabel(item),
-                style: TextStyle(
-                  color: colors.foreground,
-                  fontSize: 16,
-                ),
-              ),
-              if (subtitle != null)
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: colors.mutedForeground,
-                    fontSize: 14,
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showSelectionSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _SelectionSheet<T>(
-        items: items,
-        selectedItem: selectedItem,
-        onChanged: (value) {
-          onChanged(value);
-          Navigator.pop(context);
-        },
-        itemLabel: itemLabel,
-        itemSubtitle: itemSubtitle,
-        itemIcon: itemIcon,
-        title: sheetTitle,
-        searchHint: searchHint,
-        emptyMessage: emptyMessage,
-      ),
-    );
-  }
+/// Ouvre la feuille de sélection avec recherche et retourne l'élément choisi
+/// (`null` si fermée sans choix).
+Future<T?> showAppSelectSheet<T>(
+  BuildContext context, {
+  required String title,
+  required List<T> items,
+  required String Function(T) itemLabel,
+  T? selectedItem,
+  String Function(T)? itemSubtitle,
+  IconData Function(T)? itemIcon,
+  Color Function(T)? itemIconColor,
+  String searchHint = 'Rechercher…',
+  String emptyMessage = 'Aucun résultat',
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    useRootNavigator: true,
+    backgroundColor: context.colors.surfaceElevated,
+    showDragHandle: false,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+    ),
+    builder: (ctx) => _SelectionSheet<T>(
+      items: items,
+      selectedItem: selectedItem,
+      itemLabel: itemLabel,
+      itemSubtitle: itemSubtitle,
+      itemIcon: itemIcon,
+      itemIconColor: itemIconColor,
+      title: title,
+      searchHint: searchHint,
+      emptyMessage: emptyMessage,
+    ),
+  );
 }
 
 class _SelectionSheet<T> extends StatefulWidget {
   final List<T> items;
   final T? selectedItem;
-  final void Function(T?) onChanged;
   final String Function(T) itemLabel;
   final String Function(T)? itemSubtitle;
   final IconData Function(T)? itemIcon;
+  final Color Function(T)? itemIconColor;
   final String title;
   final String searchHint;
   final String emptyMessage;
@@ -187,10 +138,10 @@ class _SelectionSheet<T> extends StatefulWidget {
   const _SelectionSheet({
     required this.items,
     required this.selectedItem,
-    required this.onChanged,
     required this.itemLabel,
     this.itemSubtitle,
     this.itemIcon,
+    this.itemIconColor,
     required this.title,
     required this.searchHint,
     required this.emptyMessage,
@@ -235,207 +186,116 @@ class _SelectionSheetState<T> extends State<_SelectionSheet<T>> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final viewInsets = MediaQuery.of(context).viewInsets;
-    final screenHeight = MediaQuery.of(context).size.height;
+    final textTheme = Theme.of(context).textTheme;
+    final media = MediaQuery.of(context);
+    final showSearch = widget.items.length > 5;
 
-    return Container(
-      constraints: BoxConstraints(maxHeight: screenHeight * 0.75),
-      padding: EdgeInsets.only(bottom: viewInsets.bottom),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(AppRadius.xl),
-        ),
-        border: Border(
-          top: BorderSide(color: colors.border),
-          left: BorderSide(color: colors.border),
-          right: BorderSide(color: colors.border),
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Handle bar
-          Container(
-            margin: const EdgeInsets.only(top: 12),
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: colors.muted,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-
-          // Header
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: Theme.of(context).textTheme.titleLarge,
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: SafeArea(
+        top: false,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: media.size.height * 0.8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 4),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colors.border,
+                    borderRadius: BorderRadius.circular(AppRadius.full),
                   ),
                 ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(
-                    Icons.close_rounded,
-                    color: colors.mutedForeground,
-                    size: 20,
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screen,
+                  AppSpacing.sm,
+                  AppSpacing.screen,
+                  AppSpacing.md,
+                ),
+                child: Text(widget.title, style: textTheme.titleLarge),
+              ),
+              if (showSearch)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.screen,
+                    0,
+                    AppSpacing.screen,
+                    AppSpacing.sm,
                   ),
-                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                  style: IconButton.styleFrom(
-                    backgroundColor: colors.muted,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                  child: TextField(
+                    controller: _searchController,
+                    autofocus: false,
+                    textInputAction: TextInputAction.search,
+                    style: textTheme.bodyLarge,
+                    decoration: InputDecoration(
+                      hintText: widget.searchHint,
+                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              onPressed: _searchController.clear,
+                              tooltip: 'Effacer',
+                              icon: const Icon(Icons.close_rounded, size: 18),
+                            )
+                          : null,
                     ),
                   ),
                 ),
-              ],
-            ),
-          ),
-
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
-            child: TextField(
-              controller: _searchController,
-              autofocus: widget.items.length > 5,
-              style: TextStyle(
-                fontSize: 16,
-                color: colors.foreground,
-              ),
-              decoration: InputDecoration(
-                hintText: widget.searchHint,
-                prefixIcon: Icon(
-                  Icons.search_rounded,
-                  color: colors.mutedForeground,
-                  size: 18,
-                ),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        onPressed: () => _searchController.clear(),
-                        icon: Icon(
-                          Icons.clear_rounded,
-                          color: colors.mutedForeground,
-                          size: 16,
+              Flexible(
+                child: _filteredItems.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.all(AppSpacing.xl),
+                        child: Text(
+                          widget.emptyMessage,
+                          textAlign: TextAlign.center,
+                          style: textTheme.bodyLarge
+                              ?.copyWith(color: colors.mutedForeground),
                         ),
                       )
-                    : null,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: AppSpacing.sm),
-          Container(height: 1, color: colors.border),
-
-          // List
-          Flexible(
-            child: _filteredItems.isEmpty
-                ? _buildEmptyState(colors)
-                : ListView.builder(
-                    shrinkWrap: true,
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-                    itemCount: _filteredItems.length,
-                    itemBuilder: (context, index) {
-                      final item = _filteredItems[index];
-                      final isSelected = item == widget.selectedItem;
-                      return _buildItem(item, isSelected, colors);
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(AppColors colors) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.search_off_rounded,
-            size: 40,
-            color: colors.mutedForeground,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            widget.emptyMessage,
-            style: TextStyle(
-              color: colors.mutedForeground,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildItem(T item, bool isSelected, AppColors colors) {
-    final subtitle = widget.itemSubtitle?.call(item);
-    final icon = widget.itemIcon?.call(item);
-
-    return InkWell(
-      onTap: () => widget.onChanged(item),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.base,
-          vertical: AppSpacing.md,
-        ),
-        color: isSelected ? colors.accent : Colors.transparent,
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              Container(
-                width: 32,
-                height: 32,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? colors.primary.withValues(alpha: 0.1)
-                      : colors.muted,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Icon(
-                  icon,
-                  size: 16,
-                  color: isSelected ? colors.primary : colors.mutedForeground,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    widget.itemLabel(item),
-                    style: TextStyle(
-                      color: colors.foreground,
-                      fontSize: 16,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                  ),
-                  if (subtitle != null)
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: colors.mutedForeground,
-                        fontSize: 14,
+                    : ListView.builder(
+                        shrinkWrap: true,
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.sm,
+                          0,
+                          AppSpacing.sm,
+                          AppSpacing.base,
+                        ),
+                        itemCount: _filteredItems.length,
+                        itemBuilder: (context, index) {
+                          final item = _filteredItems[index];
+                          final isSelected = item == widget.selectedItem;
+                          return AppListRow(
+                            title: widget.itemLabel(item),
+                            subtitle: widget.itemSubtitle?.call(item),
+                            icon: widget.itemIcon?.call(item),
+                            iconColor: widget.itemIconColor?.call(item) ??
+                                (isSelected
+                                    ? colors.primary
+                                    : colors.mutedForeground),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            trailing: isSelected
+                                ? Icon(
+                                    Icons.check_rounded,
+                                    color: colors.primary,
+                                    size: 22,
+                                  )
+                                : null,
+                            showChevron: false,
+                            onTap: () => Navigator.of(context).pop(item),
+                          );
+                        },
                       ),
-                    ),
-                ],
               ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_rounded,
-                color: colors.primary,
-                size: 18,
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

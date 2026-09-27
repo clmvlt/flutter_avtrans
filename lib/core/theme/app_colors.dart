@@ -204,6 +204,18 @@ class AppColors {
           ),
         ];
 
+  /// Ombre courte d'un petit élément posé sur une piste (segment actif) :
+  /// l'ombre de carte, trop diffuse, déborderait de la piste.
+  List<BoxShadow> get controlShadow => isDarkMode
+      ? const []
+      : const [
+          BoxShadow(
+            color: Color(0x141E293B), // ~8%
+            blurRadius: 4,
+            offset: Offset(0, 1),
+          ),
+        ];
+
   /// Ombre de la barre de navigation basse (vers le haut).
   List<BoxShadow> get navShadow => isDarkMode
       ? const []

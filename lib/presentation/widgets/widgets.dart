@@ -1,16 +1,26 @@
-// Barrel file — widgets partagés
+// Barrel file — widgets partagés (système de design : voir docs/DESIGN.md)
 export 'app_alert.dart';
 export 'app_avatar.dart';
 export 'app_badge.dart';
 export 'app_button.dart';
+export 'app_callout_card.dart';
 export 'app_card.dart';
-export 'app_sheet.dart';
+export 'app_confirm_sheet.dart';
+export 'app_dock.dart';
 export 'app_empty_state.dart';
+export 'app_hero_card.dart';
+export 'app_list_row.dart';
+export 'app_page.dart';
+export 'app_picker_field.dart';
 export 'app_searchable_select.dart';
+export 'app_segmented.dart';
 export 'app_separator.dart';
+export 'app_sheet.dart';
 export 'app_skeleton.dart';
+export 'app_state_views.dart';
 export 'app_text_field.dart';
 export 'glass_nav_bar.dart';
 export 'google_sign_in_button.dart';
 export 'loading_overlay.dart';
+export 'section_list.dart';
 export 'service_day_tile.dart';

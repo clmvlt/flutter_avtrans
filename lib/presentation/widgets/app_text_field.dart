@@ -54,11 +54,8 @@ class AppTextField extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Text(
               label!,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: colors.foreground,
-              ),
+              // Même style que AppFieldLabel / AppPickerField.
+              style: Theme.of(context).textTheme.titleSmall,
             ),
           ),
         TextFormField(
@@ -124,10 +121,10 @@ class EmailTextField extends StatelessWidget {
       focusNode: focusNode,
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Veuillez entrer votre email';
+          return 'Entre ton email';
         }
         if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-          return 'Veuillez entrer un email valide';
+          return 'Entre un email valide';
         }
         return null;
       },
@@ -189,10 +186,10 @@ class _PasswordTextFieldState extends State<PasswordTextField> {
       focusNode: widget.focusNode,
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Veuillez entrer votre mot de passe';
+          return 'Entre ton mot de passe';
         }
         if (value.length < 6) {
-          return 'Le mot de passe doit contenir au moins 6 caracteres';
+          return 'Au moins 6 caractères';
         }
         return null;
       },
