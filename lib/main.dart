@@ -179,53 +179,64 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
+    final logoRadius = BorderRadius.circular(AppRadius.xl);
 
+    // Même en-tête que la page de connexion (logo, nom, raison d'être) pour
+    // un passage sans rupture vers elle.
     return Scaffold(
       backgroundColor: colors.background,
       body: FadeTransition(
         opacity: _fadeAnimation,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Logo avec app icon
-              ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.xl),
-                child: Image.asset(
-                  'lib/assets/icons/icon-512x512.png',
-                  width: 88,
-                  height: 88,
-                  fit: BoxFit.contain,
-                ),
+        child: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: logoRadius,
+                      boxShadow: colors.cardShadow,
+                    ),
+                    child: ClipRRect(
+                      borderRadius: logoRadius,
+                      child: Image.asset(
+                        'lib/assets/icons/icon-512x512.png',
+                        width: 80,
+                        height: 80,
+                        fit: BoxFit.contain,
+                        semanticLabel: 'Logo AVTRANS',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.base),
+                  Text(
+                    'Pointage AVTRANS',
+                    textAlign: TextAlign.center,
+                    style: textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Gestion du temps de travail',
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyLarge
+                        ?.copyWith(color: colors.mutedForeground),
+                  ),
+                  const SizedBox(height: AppSpacing.xxl),
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: colors.primary,
+                      semanticsLabel: 'Chargement',
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: AppSpacing.lg),
-              Text(
-                'AVTRANS',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: colors.foreground,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Gestion du temps de travail',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: colors.mutedForeground,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xxl),
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: colors.primary,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),

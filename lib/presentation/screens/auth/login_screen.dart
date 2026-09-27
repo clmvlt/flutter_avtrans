@@ -8,8 +8,14 @@ import '../../widgets/widgets.dart';
 import '../shell/main_shell.dart';
 import 'google_register_screen.dart';
 import 'register_screen.dart';
+import 'widgets/auth_form_message.dart';
+import 'widgets/auth_header.dart';
+import 'widgets/auth_link_row.dart';
+import 'widgets/auth_scaffold.dart';
 
-/// Page de connexion — Z-pattern, CTA en bas, accessibilite
+/// Page de connexion : logo et nom de l'app, une carte qui porte les champs
+/// et le bouton « Se connecter » (56 dp), puis Google et le lien
+/// d'inscription. Les erreurs du repository s'affichent au-dessus du bouton.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -26,6 +32,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   bool _isGoogleLoading = false;
   String? _errorMessage;
+
+  /// Retour de l'inscription quand l'administrateur a activé le compte.
+  String? _successMessage;
 
   /// Le SDK Google n'est disponible que sur Android / iOS / macOS.
   late final bool _isGoogleSignInAvailable;
@@ -52,6 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _successMessage = null;
     });
 
     final result = await sl.authRepository.login(
@@ -83,6 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() {
       _isGoogleLoading = true;
       _errorMessage = null;
+      _successMessage = null;
     });
 
     final result = await sl.authRepository.signInWithGoogle();
@@ -118,168 +129,88 @@ class _LoginScreenState extends State<LoginScreen> {
           case GoogleAuthStatus.unknown:
             setState(() => _errorMessage = auth.message.isNotEmpty
                 ? auth.message
-                : 'Réponse inattendue du serveur. Veuillez réessayer.');
+                : 'Réponse inattendue du serveur. Réessaie dans un instant.');
         }
       },
     );
   }
 
-  void _goToRegister() {
-    Navigator.of(context).push(
+  /// L'inscription renvoie `true` quand un administrateur a activé le compte
+  /// pendant l'attente : on l'annonce ici, au-dessus du bouton.
+  Future<void> _goToRegister() async {
+    final activated = await Navigator.of(context).push<bool>(
       MaterialPageRoute(builder: (_) => const RegisterScreen()),
     );
+    if (!mounted || activated != true) return;
+    setState(() {
+      _errorMessage = null;
+      _successMessage = 'Ton compte est activé. Tu peux te connecter.';
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      body: SafeArea(
-        child: LoadingOverlay(
-          isLoading: _isBusy,
-          message: _isGoogleLoading
-              ? 'Connexion Google en cours...'
-              : 'Connexion en cours...',
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.lg,
-                vertical: AppSpacing.xl,
-              ),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Z-pattern: logo en haut-gauche (zone primaire optique)
-                      Center(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(AppRadius.xl),
-                          child: Image.asset(
-                            'lib/assets/icons/icon-512x512.png',
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-
-                      // Titre
-                      Text(
-                        'Pointage AVTRANS',
-                        textAlign: TextAlign.center,
-                        style: textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Connectez-vous pour continuer',
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodySmall,
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // Carte de connexion
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          color: colors.card,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: colors.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (_errorMessage != null) ...[
-                              AppAlert(
-                                description: _errorMessage!,
-                                variant: AlertVariant.destructive,
-                              ),
-                              const SizedBox(height: AppSpacing.base),
-                            ],
-
-                            EmailTextField(
-                              controller: _emailController,
-                              enabled: !_isBusy,
-                              onSubmitted: (_) => _passwordFocusNode.requestFocus(),
-                            ),
-                            const SizedBox(height: AppSpacing.base),
-
-                            PasswordTextField(
-                              controller: _passwordController,
-                              focusNode: _passwordFocusNode,
-                              enabled: !_isBusy,
-                              onSubmitted: (_) => _login(),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-
-                            // CTA principal — zone terminale du Z-pattern
-                            AppButton(
-                              text: 'Se connecter',
-                              onPressed: _isGoogleLoading ? null : _login,
-                              isLoading: _isLoading,
-                            ),
-
-                            // Connexion Google (Android / iOS / macOS)
-                            if (_isGoogleSignInAvailable) ...[
-                              const SizedBox(height: AppSpacing.lg),
-                              _buildOrDivider(colors, textTheme),
-                              const SizedBox(height: AppSpacing.lg),
-                              GoogleSignInButton(
-                                onPressed:
-                                    _isLoading ? null : _signInWithGoogle,
-                                isLoading: _isGoogleLoading,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-
-                      // Lien inscription
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Pas encore de compte ?',
-                            style: textTheme.bodySmall,
-                          ),
-                          AppTextButton(
-                            text: 'S\'inscrire',
-                            onPressed: _isBusy ? null : _goToRegister,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+    return AuthScaffold(
+      busy: _isBusy,
+      children: [
+        const AuthHeader(
+          title: 'Pointage AVTRANS',
+          subtitle: 'Gestion du temps de travail',
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        AppCard(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                EmailTextField(
+                  controller: _emailController,
+                  enabled: !_isBusy,
+                  onSubmitted: (_) => _passwordFocusNode.requestFocus(),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.base),
+                PasswordTextField(
+                  controller: _passwordController,
+                  focusNode: _passwordFocusNode,
+                  enabled: !_isBusy,
+                  onSubmitted: (_) => _login(),
+                ),
+                AuthFormMessage(
+                  error: _errorMessage,
+                  success: _successMessage,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppButton(
+                  text: 'Se connecter',
+                  icon: Icons.login_rounded,
+                  size: ButtonSize.lg,
+                  onPressed: _isGoogleLoading ? null : _login,
+                  isLoading: _isLoading,
+                ),
+              ],
             ),
           ),
         ),
-      ),
-    );
-  }
 
-  /// Séparateur « ou » entre la connexion classique et Google
-  Widget _buildOrDivider(AppColors colors, TextTheme textTheme) {
-    return Row(
-      children: [
-        const Expanded(child: AppSeparator()),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-          child: Text(
-            'ou',
-            style: textTheme.bodySmall?.copyWith(color: colors.mutedForeground),
+        // Connexion Google (Android / iOS / macOS)
+        if (_isGoogleSignInAvailable) ...[
+          const SizedBox(height: AppSpacing.lg),
+          const AuthOrDivider(),
+          const SizedBox(height: AppSpacing.lg),
+          GoogleSignInButton(
+            onPressed: _isLoading ? null : _signInWithGoogle,
+            isLoading: _isGoogleLoading,
           ),
+        ],
+
+        const SizedBox(height: AppSpacing.lg),
+        AuthLinkRow(
+          prompt: 'Pas encore de compte ?',
+          actionLabel: 'Créer un compte',
+          onPressed: _isBusy ? null : _goToRegister,
         ),
-        const Expanded(child: AppSeparator()),
       ],
     );
   }

@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// Bouton « Continuer avec Google » — outline, touch target 48dp, logo « G »
-/// vectoriel (aucun asset requis).
+/// Bouton « Continuer avec Google » : mêmes métriques qu'un `AppButton lg`
+/// (56 dp, rayon `lg`, texte 18 sp), surface `card` bordée, logo « G »
+/// vectoriel (aucun asset requis). Pendant la connexion, un spinner remplace
+/// le logo.
 class GoogleSignInButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final bool isLoading;
@@ -21,56 +23,73 @@ class GoogleSignInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final enabled = onPressed != null && !isLoading;
 
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: OutlinedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: colors.foreground,
-          backgroundColor: colors.card,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          side: BorderSide(color: colors.input),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          textStyle: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            if (isLoading)
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  valueColor:
-                      AlwaysStoppedAnimation<Color>(colors.mutedForeground),
-                ),
-              )
-            else
-              const GoogleLogo(size: 20),
-            const SizedBox(width: AppSpacing.md),
-            Flexible(
-              child: Text(
-                text,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: isLoading ? 'Connexion Google en cours' : text,
+      excludeSemantics: true,
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: OutlinedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colors.foreground,
+            backgroundColor: colors.card,
+            disabledForegroundColor: colors.mutedForeground,
+            disabledBackgroundColor: colors.card,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.base,
             ),
-          ],
+            side: BorderSide(color: colors.border),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+            ),
+            // Même typo que `AppButton` en taille `lg`.
+            textStyle: const TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (isLoading)
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(colors.mutedForeground),
+                  ),
+                )
+              else
+                Opacity(
+                  opacity: enabled ? 1 : 0.5,
+                  child: const GoogleLogo(size: 22),
+                ),
+              const SizedBox(width: AppSpacing.md),
+              Flexible(
+                child: Text(
+                  text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/// Logo « G » de Google (couleurs officielles), dessiné au CustomPainter.
+/// Logo « G » de Google, dessiné au CustomPainter.
 class GoogleLogo extends StatelessWidget {
   final double size;
 
@@ -88,6 +107,9 @@ class GoogleLogo extends StatelessWidget {
 class _GoogleLogoPainter extends CustomPainter {
   const _GoogleLogoPainter();
 
+  // Exception assumée à la règle « couleurs via `context.colors` » : la
+  // charte Google impose les quatre couleurs officielles du « G », quel que
+  // soit le thème.
   static const Color _blue = Color(0xFF4285F4);
   static const Color _red = Color(0xFFEA4335);
   static const Color _yellow = Color(0xFFFBBC05);

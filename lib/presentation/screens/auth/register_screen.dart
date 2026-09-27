@@ -6,8 +6,18 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
+import 'widgets/auth_form_message.dart';
+import 'widgets/auth_header.dart';
+import 'widgets/auth_link_row.dart';
+import 'widgets/auth_scaffold.dart';
+import 'widgets/register_verification_view.dart';
 
-/// Page d'inscription
+/// Page d'inscription : formulaire dans une carte, puis attente de la
+/// vérification de l'email et de l'activation par un administrateur
+/// ([RegisterVerificationView], interrogation de l'API toutes les 5 s).
+///
+/// Quand le compte est activé, la page se ferme avec `true` : la connexion
+/// l'annonce au-dessus de son bouton.
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -90,7 +100,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           setState(() {
             _registeredUserId = response.userId;
             _isWaitingForEmailVerification = true;
-            _successMessage = 'Compte créé ! Veuillez vérifier votre email.';
+            _successMessage = 'Compte créé. Vérifie ton email.';
           });
           _startStatusCheck();
         } else {
@@ -136,414 +146,125 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  /// Compte activé : retour à la connexion, qui affiche le message de succès
+  /// (plus de snackbar).
   void _navigateToLogin() {
     if (!mounted) return;
+    Navigator.of(context).pop(true);
+  }
 
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Votre compte a été activé ! Vous pouvez maintenant vous connecter.'),
-        backgroundColor: colors.success,
-      ),
-    );
+  void _backToLogin() {
+    _statusCheckTimer?.cancel();
     Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-
     // Afficher l'écran de vérification si le compte est créé
     if (_isWaitingForEmailVerification || _isWaitingForAdminActivation) {
-      return _buildVerificationScreen(colors);
+      return RegisterVerificationView(
+        email: _emailController.text,
+        isEmailVerified: _isEmailVerified,
+        isWaitingForEmailVerification: _isWaitingForEmailVerification,
+        isWaitingForAdminActivation: _isWaitingForAdminActivation,
+        onBackToLogin: _backToLogin,
+      );
     }
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Inscription'),
-        surfaceTintColor: Colors.transparent,
-      ),
-      body: SafeArea(
-        child: LoadingOverlay(
-          isLoading: _isLoading,
-          message: 'Inscription en cours...',
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Titre
-                      Text(
-                        'Créer un compte',
-                        textAlign: TextAlign.center,
-                        style: textTheme.headlineSmall?.copyWith(
-                          color: colors.foreground,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Remplissez les informations ci-dessous',
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colors.mutedForeground,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      // Card du formulaire
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          color: colors.card,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: colors.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Message de succès
-                            if (_successMessage != null) ...[
-                              AppAlert(
-                                description: _successMessage!,
-                                variant: AlertVariant.success,
-                              ),
-                              const SizedBox(height: AppSpacing.base),
-                            ],
-
-                            // Message d'erreur
-                            if (_errorMessage != null) ...[
-                              AppAlert(
-                                description: _errorMessage!,
-                                variant: AlertVariant.destructive,
-                              ),
-                              const SizedBox(height: AppSpacing.base),
-                            ],
-
-                            // Prénom
-                            AppTextField(
-                              controller: _firstNameController,
-                              label: 'Prénom',
-                              hint: 'Jean',
-                              prefixIcon: const Icon(Icons.person_outline),
-                              enabled: !_isLoading,
-                              textInputAction: TextInputAction.next,
-                              onSubmitted: (_) => _lastNameFocusNode.requestFocus(),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Veuillez entrer votre prénom';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.base),
-
-                            // Nom
-                            AppTextField(
-                              controller: _lastNameController,
-                              focusNode: _lastNameFocusNode,
-                              label: 'Nom',
-                              hint: 'Dupont',
-                              prefixIcon: const Icon(Icons.person_outline),
-                              enabled: !_isLoading,
-                              textInputAction: TextInputAction.next,
-                              onSubmitted: (_) => _emailFocusNode.requestFocus(),
-                              validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Veuillez entrer votre nom';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.base),
-
-                            // Email
-                            EmailTextField(
-                              controller: _emailController,
-                              focusNode: _emailFocusNode,
-                              enabled: !_isLoading,
-                              onSubmitted: (_) => _passwordFocusNode.requestFocus(),
-                            ),
-                            const SizedBox(height: AppSpacing.base),
-
-                            // Mot de passe
-                            PasswordTextField(
-                              controller: _passwordController,
-                              focusNode: _passwordFocusNode,
-                              enabled: !_isLoading,
-                              textInputAction: TextInputAction.next,
-                              onSubmitted: (_) => _confirmPasswordFocusNode.requestFocus(),
-                            ),
-                            const SizedBox(height: AppSpacing.base),
-
-                            // Confirmation mot de passe
-                            PasswordTextField(
-                              controller: _confirmPasswordController,
-                              focusNode: _confirmPasswordFocusNode,
-                              label: 'Confirmer le mot de passe',
-                              enabled: !_isLoading,
-                              onSubmitted: (_) => _register(),
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-
-                            // Bouton d'inscription
-                            SizedBox(
-                              height: 48,
-                              child: AppButton(
-                                text: 'S\'inscrire',
-                                onPressed: _register,
-                                isLoading: _isLoading,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-
-                      // Lien vers connexion
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Déjà un compte ?',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: colors.mutedForeground,
-                            ),
-                          ),
-                          AppTextButton(
-                            text: 'Se connecter',
-                            onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+    return AuthScaffold(
+      showBack: true,
+      busy: _isLoading,
+      children: [
+        const AuthHeader(
+          title: 'Créer un compte',
+          subtitle: 'Un administrateur activera ensuite ton compte',
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        AppCard(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppTextField(
+                  controller: _firstNameController,
+                  label: 'Prénom',
+                  hint: 'Jean',
+                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                  enabled: !_isLoading,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _lastNameFocusNode.requestFocus(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Entre ton prénom';
+                    }
+                    return null;
+                  },
                 ),
-              ),
+                const SizedBox(height: AppSpacing.base),
+                AppTextField(
+                  controller: _lastNameController,
+                  focusNode: _lastNameFocusNode,
+                  label: 'Nom',
+                  hint: 'Dupont',
+                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                  enabled: !_isLoading,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _emailFocusNode.requestFocus(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Entre ton nom';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.base),
+                EmailTextField(
+                  controller: _emailController,
+                  focusNode: _emailFocusNode,
+                  enabled: !_isLoading,
+                  onSubmitted: (_) => _passwordFocusNode.requestFocus(),
+                ),
+                const SizedBox(height: AppSpacing.base),
+                PasswordTextField(
+                  controller: _passwordController,
+                  focusNode: _passwordFocusNode,
+                  enabled: !_isLoading,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _confirmPasswordFocusNode.requestFocus(),
+                ),
+                const SizedBox(height: AppSpacing.base),
+                PasswordTextField(
+                  controller: _confirmPasswordController,
+                  focusNode: _confirmPasswordFocusNode,
+                  label: 'Confirmer le mot de passe',
+                  enabled: !_isLoading,
+                  onSubmitted: (_) => _register(),
+                ),
+                AuthFormMessage(
+                  error: _errorMessage,
+                  success: _successMessage,
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                AppButton(
+                  text: 'Créer mon compte',
+                  icon: Icons.person_add_alt_1_rounded,
+                  size: ButtonSize.lg,
+                  onPressed: _register,
+                  isLoading: _isLoading,
+                ),
+              ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildVerificationScreen(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Vérification'),
-        surfaceTintColor: Colors.transparent,
-        automaticallyImplyLeading: false,
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Icône animée
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: _isWaitingForAdminActivation
-                          ? colors.warningMuted
-                          : colors.primaryLight,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _isWaitingForAdminActivation
-                          ? Icons.admin_panel_settings_outlined
-                          : Icons.mark_email_unread_outlined,
-                      size: 48,
-                      color: _isWaitingForAdminActivation
-                          ? colors.warning
-                          : colors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-
-                  // Titre
-                  Text(
-                    _isWaitingForAdminActivation
-                        ? 'Email vérifié !'
-                        : 'Vérifiez votre email',
-                    textAlign: TextAlign.center,
-                    style: textTheme.headlineSmall?.copyWith(
-                      color: colors.foreground,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.base),
-
-                  // Description
-                  Text(
-                    _isWaitingForAdminActivation
-                        ? 'Votre email a été vérifié avec succès.\n\nVeuillez patienter pendant qu\'un administrateur active votre compte. Vous serez redirigé automatiquement.'
-                        : 'Un email de vérification a été envoyé à :\n${_emailController.text}\n\nCliquez sur le lien dans l\'email pour vérifier votre compte.',
-                    textAlign: TextAlign.center,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colors.mutedForeground,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-
-                  // Indicateur de chargement
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            _isWaitingForAdminActivation
-                                ? colors.warning
-                                : colors.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        _isWaitingForAdminActivation
-                            ? 'En attente d\'activation...'
-                            : 'En attente de vérification...',
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
-
-                  // Étapes de progression
-                  _buildProgressSteps(colors),
-
-                  const Spacer(),
-
-                  // Bouton retour à la connexion
-                  SizedBox(
-                    height: 48,
-                    child: AppTextButton(
-                      text: 'Retour à la connexion',
-                      onPressed: () {
-                        _statusCheckTimer?.cancel();
-                        Navigator.of(context).pop();
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        const SizedBox(height: AppSpacing.lg),
+        AuthLinkRow(
+          prompt: 'Déjà un compte ?',
+          actionLabel: 'Se connecter',
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
         ),
-      ),
-    );
-  }
-
-  Widget _buildProgressSteps(AppColors colors) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        children: [
-          _buildStepItem(
-            colors: colors,
-            icon: Icons.check_circle,
-            title: 'Compte créé',
-            isCompleted: true,
-            isActive: false,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildStepItem(
-            colors: colors,
-            icon: _isEmailVerified ? Icons.check_circle : Icons.radio_button_unchecked,
-            title: 'Email vérifié',
-            isCompleted: _isEmailVerified,
-            isActive: _isWaitingForEmailVerification,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _buildStepItem(
-            colors: colors,
-            icon: Icons.radio_button_unchecked,
-            title: 'Compte activé par l\'admin',
-            isCompleted: false,
-            isActive: _isWaitingForAdminActivation,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStepItem({
-    required AppColors colors,
-    required IconData icon,
-    required String title,
-    required bool isCompleted,
-    required bool isActive,
-  }) {
-    final textTheme = Theme.of(context).textTheme;
-
-    final Color iconColor;
-    if (isCompleted) {
-      iconColor = colors.success;
-    } else if (isActive) {
-      iconColor = colors.primary;
-    } else {
-      iconColor = colors.mutedForeground;
-    }
-
-    return SizedBox(
-      height: 48,
-      child: Row(
-        children: [
-          Icon(
-            isCompleted ? Icons.check_circle : icon,
-            size: 24,
-            color: iconColor,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              title,
-              style: isActive
-                  ? textTheme.titleSmall?.copyWith(
-                      color: colors.foreground,
-                    )
-                  : textTheme.bodySmall?.copyWith(
-                      color: isCompleted
-                          ? colors.foreground
-                          : colors.mutedForeground,
-                    ),
-            ),
-          ),
-          if (isActive)
-            SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(colors.primary),
-              ),
-            ),
-        ],
-      ),
+      ],
     );
   }
 }

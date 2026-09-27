@@ -4,6 +4,10 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
+import 'widgets/auth_form_message.dart';
+import 'widgets/auth_header.dart';
+import 'widgets/auth_link_row.dart';
+import 'widgets/auth_scaffold.dart';
 
 /// Création de compte après un `NEEDS_REGISTRATION` de `POST /auth/google`
 /// (fiche d'intégration §3) : email Google non modifiable, prénom / nom
@@ -90,7 +94,7 @@ class _GoogleRegisterScreenState extends State<GoogleRegisterScreen> {
         setState(() {
           _errorMessage = response.message.isNotEmpty
               ? response.message
-              : 'Réponse inattendue du serveur. Veuillez réessayer.';
+              : 'Réponse inattendue du serveur. Réessaie dans un instant.';
         });
       },
     );
@@ -102,165 +106,99 @@ class _GoogleRegisterScreenState extends State<GoogleRegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
     if (_pendingActivationMessage != null) {
-      return _buildPendingActivationScreen(colors);
+      return _buildPendingActivationScreen();
     }
 
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Inscription'),
-        surfaceTintColor: Colors.transparent,
-      ),
-      body: SafeArea(
-        child: LoadingOverlay(
-          isLoading: _isLoading,
-          message: 'Création du compte...',
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Center(
-                        child: AppAvatar(
-                          imageUrl: widget.profile.pictureUrl,
-                          fallbackText: widget.profile.initials,
-                          size: 72,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.base),
-
-                      Text(
-                        'Finaliser votre inscription',
-                        textAlign: TextAlign.center,
-                        style: textTheme.headlineSmall?.copyWith(
-                          color: colors.foreground,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        'Aucun compte n\'existe pour ce compte Google. Vérifiez vos informations avant de créer votre compte.',
-                        textAlign: TextAlign.center,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colors.mutedForeground,
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xl),
-
-                      Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          color: colors.card,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: colors.border),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (_errorMessage != null) ...[
-                              AppAlert(
-                                description: _errorMessage!,
-                                variant: AlertVariant.destructive,
-                              ),
-                              const SizedBox(height: AppSpacing.base),
-                            ],
-
-                            // Email : toujours extrait du token côté API,
-                            // jamais du formulaire — non modifiable.
-                            AppTextField(
-                              controller: _emailController,
-                              label: 'Email',
-                              prefixIcon:
-                                  const Icon(Icons.mail_outline, size: 20),
-                              enabled: false,
-                            ),
-                            const SizedBox(height: AppSpacing.xs),
-                            Text(
-                              'Adresse fournie par Google, non modifiable.',
-                              style: textTheme.bodySmall?.copyWith(
-                                color: colors.mutedForeground,
-                              ),
-                            ),
-                            const SizedBox(height: AppSpacing.base),
-
-                            AppTextField(
-                              controller: _firstNameController,
-                              label: 'Prénom',
-                              hint: 'Jean',
-                              prefixIcon: const Icon(Icons.person_outline),
-                              enabled: !_isLoading,
-                              textInputAction: TextInputAction.next,
-                              onSubmitted: (_) =>
-                                  _lastNameFocusNode.requestFocus(),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Veuillez entrer votre prénom';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.base),
-
-                            AppTextField(
-                              controller: _lastNameController,
-                              focusNode: _lastNameFocusNode,
-                              label: 'Nom',
-                              hint: 'Dupont',
-                              prefixIcon: const Icon(Icons.person_outline),
-                              enabled: !_isLoading,
-                              textInputAction: TextInputAction.done,
-                              onSubmitted: (_) => _register(),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Veuillez entrer votre nom';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
-
-                            AppButton(
-                              text: 'Créer mon compte',
-                              onPressed: _register,
-                              isLoading: _isLoading,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Déjà un compte ?',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: colors.mutedForeground,
-                            ),
-                          ),
-                          AppTextButton(
-                            text: 'Se connecter',
-                            onPressed: _isLoading ? null : _backToLogin,
-                          ),
-                        ],
-                      ),
-                    ],
+    return AuthScaffold(
+      showBack: true,
+      busy: _isLoading,
+      children: [
+        AuthHeader(
+          leading: _GoogleAvatar(profile: widget.profile),
+          title: 'Finalise ton inscription',
+          subtitle: 'Aucun compte n\'existe pour ce compte Google. '
+              'Vérifie tes informations avant de créer ton compte.',
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        AppCard(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Email : toujours extrait du token côté API, jamais du
+                // formulaire — non modifiable.
+                AppTextField(
+                  controller: _emailController,
+                  label: 'Email',
+                  prefixIcon: const Icon(Icons.mail_outline, size: 20),
+                  enabled: false,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Padding(
+                  padding: const EdgeInsets.only(left: AppSpacing.xs),
+                  child: Text(
+                    'Adresse fournie par Google, non modifiable.',
+                    style: textTheme.bodySmall,
                   ),
                 ),
-              ),
+                const SizedBox(height: AppSpacing.base),
+                AppTextField(
+                  controller: _firstNameController,
+                  label: 'Prénom',
+                  hint: 'Jean',
+                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                  enabled: !_isLoading,
+                  textInputAction: TextInputAction.next,
+                  onSubmitted: (_) => _lastNameFocusNode.requestFocus(),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Entre ton prénom';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: AppSpacing.base),
+                AppTextField(
+                  controller: _lastNameController,
+                  focusNode: _lastNameFocusNode,
+                  label: 'Nom',
+                  hint: 'Dupont',
+                  prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
+                  enabled: !_isLoading,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _register(),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Entre ton nom';
+                    }
+                    return null;
+                  },
+                ),
+                AuthFormMessage(error: _errorMessage),
+                const SizedBox(height: AppSpacing.lg),
+                AppButton(
+                  text: 'Créer mon compte',
+                  icon: Icons.person_add_alt_1_rounded,
+                  size: ButtonSize.lg,
+                  onPressed: _register,
+                  isLoading: _isLoading,
+                ),
+              ],
             ),
           ),
         ),
-      ),
+        const SizedBox(height: AppSpacing.lg),
+        AuthLinkRow(
+          prompt: 'Déjà un compte ?',
+          actionLabel: 'Se connecter',
+          onPressed: _isLoading ? null : _backToLogin,
+        ),
+      ],
     );
   }
 
@@ -268,79 +206,89 @@ class _GoogleRegisterScreenState extends State<GoogleRegisterScreen> {
   /// administrateur. Aucun identifiant utilisateur n'est renvoyé par l'API
   /// (fiche §3), il n'y a donc pas de polling possible : l'utilisateur relance
   /// « Continuer avec Google » une fois activé.
-  Widget _buildPendingActivationScreen(AppColors colors) {
+  Widget _buildPendingActivationScreen() {
+    final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
+    final message = _pendingActivationMessage!;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Compte créé'),
-        surfaceTintColor: Colors.transparent,
-        automaticallyImplyLeading: false,
+    return AuthScaffold(
+      title: 'Inscription',
+      centered: false,
+      dock: AppDock(
+        actions: [
+          DockAction(
+            label: 'Retour à la connexion',
+            icon: Icons.arrow_back_rounded,
+            onPressed: _backToLogin,
+          ),
+        ],
       ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        color: colors.warningMuted,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        Icons.admin_panel_settings_outlined,
-                        size: 48,
-                        color: colors.warning,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.xl),
+      children: [
+        AppHeroCard(
+          icon: Icons.admin_panel_settings_rounded,
+          accent: colors.warning,
+          title: 'Compte créé',
+          subtitle: 'En attente d\'activation',
+          child: message.isEmpty
+              ? null
+              : Text(
+                  message,
+                  style: textTheme.bodyMedium
+                      ?.copyWith(color: colors.mutedForeground),
+                ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AppAlert(
+          variant: AlertVariant.info,
+          description: 'Une fois ton compte activé, reviens sur l\'application '
+              'et appuie à nouveau sur « Continuer avec Google » avec '
+              '${widget.profile.email}.',
+        ),
+      ],
+    );
+  }
+}
 
-                  Text(
-                    'Compte créé !',
-                    textAlign: TextAlign.center,
-                    style: textTheme.headlineSmall?.copyWith(
-                      color: colors.foreground,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.base),
+/// Photo (ou initiales) du compte Google, marquée du « G » en bas à droite.
+class _GoogleAvatar extends StatelessWidget {
+  const _GoogleAvatar({required this.profile});
 
-                  Text(
-                    _pendingActivationMessage!,
-                    textAlign: TextAlign.center,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colors.mutedForeground,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.lg),
+  final GoogleProfile profile;
 
-                  AppAlert(
-                    variant: AlertVariant.info,
-                    description:
-                        'Une fois votre compte activé, revenez sur l\'application et appuyez à nouveau sur « Continuer avec Google » avec ${widget.profile.email}.',
-                  ),
+  static const double _size = 72;
+  static const double _badge = 28;
 
-                  const Spacer(),
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
 
-                  AppButton(
-                    text: 'Retour à la connexion',
-                    onPressed: _backToLogin,
-                  ),
-                ],
+    return SizedBox(
+      width: _size + AppSpacing.xs,
+      height: _size + AppSpacing.xs,
+      child: Stack(
+        children: [
+          AppAvatar(
+            imageUrl: profile.pictureUrl,
+            fallbackText: profile.initials,
+            size: _size,
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              width: _badge,
+              height: _badge,
+              decoration: BoxDecoration(
+                color: colors.card,
+                shape: BoxShape.circle,
+                border: Border.all(color: colors.border),
+                boxShadow: colors.cardShadow,
               ),
+              alignment: Alignment.center,
+              child: const GoogleLogo(size: 16),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
