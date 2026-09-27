@@ -1,12 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../core/di/service_locator.dart';
+import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
+import 'history/history_calendar_card.dart';
+import 'history/history_day_section.dart';
+import 'history/history_filter.dart';
+import 'widgets/service_detail_sheet.dart';
 
-/// Historique des pointages — vue calendrier mensuelle.
+/// Historique des pointages : calendrier du mois, puis le fil du jour choisi
+/// (même dessin que « Aujourd'hui » sur la page Pointage). Un tap sur une
+/// ligne ouvre son détail.
 ///
 /// Chaque mois affiché déclenche un `GET /services/month` (mis en cache
 /// mémoire). La sélection d'un jour filtre localement les services du mois.
@@ -21,17 +29,33 @@ class _HistoryScreenState extends State<HistoryScreen> {
   final Map<String, List<Service>> _cache = {};
   final Set<String> _loadingMonths = {};
 
+  /// Échec du dernier chargement d'un mois (affiché sous le calendrier).
+  final Map<String, String> _monthErrors = {};
+
+  /// Horloge des lignes « en cours » du fil.
+  final ValueNotifier<DateTime> _clock = ValueNotifier(DateTime.now());
+  Timer? _ticker;
+
   DateTime _focusedDay = _today();
   DateTime? _selectedDay = _today();
   CalendarFormat _calendarFormat = CalendarFormat.month;
-
-  /// `null` = Tout, `false` = Services, `true` = Pauses.
-  bool? _typeFilter;
+  HistoryTypeFilter _typeFilter = HistoryTypeFilter.all;
 
   @override
   void initState() {
     super.initState();
+    _ticker = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _clock.value = DateTime.now(),
+    );
     _loadMonth(_focusedDay);
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _clock.dispose();
+    super.dispose();
   }
 
   static DateTime _today() {
@@ -56,7 +80,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
       return;
     }
 
-    setState(() => _loadingMonths.add(key));
+    setState(() {
+      _loadingMonths.add(key);
+      _monthErrors.remove(key);
+    });
 
     final result = await sl.serviceRepository.getMonthServices(
       year: month.year,
@@ -67,8 +94,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     result.fold(
       (failure) {
-        setState(() => _loadingMonths.remove(key));
-        _showError(failure.message);
+        setState(() {
+          _loadingMonths.remove(key);
+          _monthErrors[key] = failure.message;
+        });
       },
       (services) {
         final sorted = [...services]..sort((a, b) => a.debut.compareTo(b.debut));
@@ -80,15 +109,20 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  List<Service> _servicesOfFocusedMonth() {
-    final services = _cache[_monthKey(_focusedDay)] ?? const [];
-    if (_typeFilter == null) return services;
-    return services.where((s) => s.isBreak == _typeFilter).toList();
+  List<Service> _servicesOfMonth(DateTime month) {
+    final services = _cache[_monthKey(month)] ?? const [];
+    final isBreak = _typeFilter.isBreak;
+    if (isBreak == null) return services;
+    return services.where((s) => s.isBreak == isBreak).toList();
   }
 
-  List<Service> _servicesForDay(DateTime day) {
+  /// Pointages d'un jour, lus dans le mois affiché (marqueurs du
+  /// calendrier) ou, pour la liste du jour choisi, dans le mois de ce jour
+  /// ([month]) : après un changement de mois, le jour choisi garde ses
+  /// pointages au lieu d'apparaître vide.
+  List<Service> _servicesForDay(DateTime day, {DateTime? month}) {
     final normalized = DateTime(day.year, day.month, day.day);
-    return _servicesOfFocusedMonth().where((s) {
+    return _servicesOfMonth(month ?? _focusedDay).where((s) {
       final local = s.debut.toLocal();
       return local.year == normalized.year &&
           local.month == normalized.month &&
@@ -109,149 +143,47 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _loadMonth(today);
   }
 
-  void _showError(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: colors.card,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.destructive),
-        ),
-      ),
-    );
+  Future<void> _openFilter() async {
+    final picked = await HistoryFilterSheet.show(context, current: _typeFilter);
+    if (picked == null || !mounted) return;
+    setState(() => _typeFilter = picked);
   }
+
+  void _openDetail(Service service) =>
+      ServiceDetailSheet.show(context, service, now: DateTime.now());
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final selected = _selectedDay;
+    // Mois du jour choisi : c'est lui qui alimente la liste du jour.
+    final dayMonth = selected ?? _focusedDay;
+    final dayKey = _monthKey(dayMonth);
+    final monthMissing = !_cache.containsKey(dayKey);
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Historique'),
-        actions: [
-          if (!_isOnCurrentMonth)
-            IconButton(
-              icon: const Icon(Icons.today, size: 24),
-              tooltip: 'Aujourd\'hui',
-              onPressed: _jumpToToday,
-            ),
-          PopupMenuButton<bool?>(
-            tooltip: 'Filtrer',
-            icon: Icon(
-              _typeFilter == null
-                  ? Icons.filter_list_outlined
-                  : Icons.filter_list,
-              color: _typeFilter == null ? null : colors.primary,
-            ),
-            onSelected: (value) => setState(() => _typeFilter = value),
-            itemBuilder: (context) => [
-              _buildFilterItem(null, 'Tout', Icons.list, colors.primary),
-              _buildFilterItem(false, 'Services', Icons.work, colors.success),
-              _buildFilterItem(true, 'Pauses', Icons.coffee, colors.warning),
-            ],
+    return AppPage(
+      title: 'Historique',
+      actions: [
+        if (!_isOnCurrentMonth)
+          AppIconButton(
+            icon: Icons.today_rounded,
+            tooltip: 'Aujourd\'hui',
+            color: colors.foreground,
+            onPressed: _jumpToToday,
           ),
-        ],
-      ),
-      body: RefreshIndicator(
-        color: colors.primary,
-        backgroundColor: colors.card,
-        onRefresh: _onRefresh,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(child: _buildCalendar(colors)),
-            SliverToBoxAdapter(child: _buildDayHeader(colors)),
-            _buildDayServices(colors),
-            const SliverToBoxAdapter(
-              child: SizedBox(height: AppSpacing.xl),
-            ),
-          ],
+        HistoryFilterButton(
+          active: _typeFilter != HistoryTypeFilter.all,
+          onPressed: _openFilter,
         ),
-      ),
-    );
-  }
-
-  PopupMenuItem<bool?> _buildFilterItem(
-    bool? value,
-    String label,
-    IconData icon,
-    Color accent,
-  ) {
-    final colors = context.colors;
-    final selected = _typeFilter == value;
-    return PopupMenuItem<bool?>(
-      value: value,
-      child: Row(
+      ],
+      body: AppScrollView(
+        onRefresh: _onRefresh,
         children: [
-          Icon(icon, size: 20, color: accent),
-          const SizedBox(width: AppSpacing.md),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-              color: colors.foreground,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            ),
-          ),
-          const Spacer(),
-          if (selected)
-            Icon(Icons.check, size: 18, color: colors.primary),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCalendar(AppColors colors) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        AppSpacing.md,
-        AppSpacing.screen,
-        AppSpacing.base,
-      ),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: colors.isDarkMode ? Border.all(color: colors.border) : null,
-        boxShadow: colors.cardShadow,
-      ),
-      child: Column(
-        children: [
-          if (_isCurrentMonthLoading)
-            LinearProgressIndicator(
-              minHeight: 2,
-              color: colors.primary,
-              backgroundColor: Colors.transparent,
-            )
-          else
-            const SizedBox(height: 2),
-          TableCalendar<Service>(
-            firstDay: DateTime(2020),
-            lastDay: DateTime.now().add(const Duration(days: 365)),
+          HistoryCalendarCard(
             focusedDay: _focusedDay,
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            calendarFormat: _calendarFormat,
-            locale: 'fr_FR',
-            startingDayOfWeek: StartingDayOfWeek.monday,
-            availableCalendarFormats: const {
-              CalendarFormat.month: 'Mois',
-              CalendarFormat.twoWeeks: '2 sem.',
-              CalendarFormat.week: 'Semaine',
-            },
+            selectedDay: _selectedDay,
+            format: _calendarFormat,
+            loading: _isCurrentMonthLoading,
             eventLoader: _servicesForDay,
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
@@ -266,223 +198,24 @@ class _HistoryScreenState extends State<HistoryScreen> {
               setState(() => _focusedDay = focusedDay);
               _loadMonth(focusedDay);
             },
-            calendarStyle: CalendarStyle(
-              defaultTextStyle: TextStyle(color: colors.foreground),
-              weekendTextStyle: TextStyle(color: colors.mutedForeground),
-              outsideTextStyle: TextStyle(
-                color: colors.mutedForeground.withValues(alpha: 0.5),
-              ),
-              selectedDecoration: BoxDecoration(
-                color: colors.primary,
-                shape: BoxShape.circle,
-              ),
-              selectedTextStyle: const TextStyle(color: Colors.white),
-              todayDecoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              todayTextStyle: TextStyle(
-                color: colors.primary,
-                fontWeight: FontWeight.bold,
-              ),
-              markersMaxCount: 0,
-            ),
-            headerStyle: HeaderStyle(
-              titleCentered: true,
-              formatButtonVisible: true,
-              formatButtonShowsNext: false,
-              titleTextStyle:
-                  Theme.of(context).textTheme.titleMedium!.copyWith(
-                color: colors.foreground,
-              ),
-              formatButtonTextStyle:
-                  Theme.of(context).textTheme.labelSmall!.copyWith(
-                color: colors.primary,
-              ),
-              formatButtonDecoration: BoxDecoration(
-                border: Border.all(color: colors.primary),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              leftChevronIcon:
-                  Icon(Icons.chevron_left, color: colors.foreground),
-              rightChevronIcon:
-                  Icon(Icons.chevron_right, color: colors.foreground),
-            ),
-            daysOfWeekStyle: DaysOfWeekStyle(
-              weekdayStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
-                color: colors.mutedForeground,
-              ),
-              weekendStyle: Theme.of(context).textTheme.labelSmall!.copyWith(
-                color: colors.mutedForeground,
-              ),
-            ),
-            calendarBuilders: CalendarBuilders(
-              markerBuilder: (context, date, events) {
-                if (events.isEmpty) return null;
-                final hasService = events.any((e) => !e.isBreak);
-                final hasBreak = events.any((e) => e.isBreak);
-                return Positioned(
-                  bottom: 2,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (hasService)
-                        _MarkerDot(color: colors.success),
-                      if (hasBreak)
-                        _MarkerDot(color: colors.warning),
-                    ],
-                  ),
-                );
-              },
-            ),
           ),
-          _buildLegend(colors),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLegend(AppColors colors) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.base,
-        0,
-        AppSpacing.base,
-        AppSpacing.md,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _MarkerDot(color: colors.success),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            'Service',
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(
-              color: colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.lg),
-          _MarkerDot(color: colors.warning),
-          const SizedBox(width: AppSpacing.xs),
-          Text(
-            'Pause',
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(
-              color: colors.mutedForeground,
-            ),
+          const SizedBox(height: AppSpacing.lg),
+          HistoryDaySection(
+            day: selected,
+            services: selected == null
+                ? const []
+                : _servicesForDay(selected, month: selected),
+            clock: _clock,
+            loading: _loadingMonths.contains(dayKey) && monthMissing,
+            error: monthMissing ? _monthErrors[dayKey] : null,
+            filter: _typeFilter,
+            onRetry: () => _loadMonth(dayMonth, force: true),
+            onClearFilter: () =>
+                setState(() => _typeFilter = HistoryTypeFilter.all),
+            onTapService: _openDetail,
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildDayHeader(AppColors colors) {
-    if (_selectedDay == null) return const SizedBox.shrink();
-    final count = _servicesForDay(_selectedDay!).length;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        0,
-        AppSpacing.screen,
-        AppSpacing.sm,
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.event, size: 20, color: colors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              _formatDateLong(_selectedDay!),
-              style: Theme.of(context).textTheme.titleSmall!.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-          ),
-          Text(
-            count > 1 ? '$count entrées' : '$count entrée',
-            style: Theme.of(context).textTheme.labelSmall!.copyWith(
-              color: colors.mutedForeground,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDayServices(AppColors colors) {
-    if (_selectedDay == null) {
-      return const SliverToBoxAdapter(
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-          child: AppEmptyState(
-            icon: Icons.touch_app,
-            title: 'Sélectionnez un jour',
-            subtitle: 'pour voir les pointages',
-          ),
-        ),
-      );
-    }
-
-    final services = _servicesForDay(_selectedDay!);
-
-    if (services.isEmpty) {
-      if (_isCurrentMonthLoading &&
-          !_cache.containsKey(_monthKey(_focusedDay))) {
-        return const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-            child: LoadingIndicator(message: 'Chargement du mois...'),
-          ),
-        );
-      }
-      return SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-          child: AppEmptyState(
-            icon: _typeFilter == null ? Icons.event_busy : Icons.search_off,
-            title: _typeFilter == null
-                ? 'Aucun pointage ce jour'
-                : 'Aucun résultat',
-            subtitle: _typeFilter == null
-                ? null
-                : 'Essayez un autre filtre',
-          ),
-        ),
-      );
-    }
-
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screen),
-      sliver: SliverList.builder(
-        itemCount: services.length,
-        itemBuilder: (context, index) => ServiceDayTile(
-          service: services[index],
-        ),
-      ),
-    );
-  }
-
-  String _formatDateLong(DateTime date) {
-    const weekdays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-    const months = [
-      'Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin',
-      'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc',
-    ];
-    return '${weekdays[date.weekday - 1]} ${date.day} '
-        '${months[date.month - 1]} ${date.year}';
-  }
-}
-
-class _MarkerDot extends StatelessWidget {
-  final Color color;
-  const _MarkerDot({required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 6,
-      height: 6,
-      margin: const EdgeInsets.symmetric(horizontal: 1),
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }

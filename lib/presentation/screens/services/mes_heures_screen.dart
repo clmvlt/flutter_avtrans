@@ -1,12 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
+import 'heures/hours_hero_card.dart';
+import 'heures/hours_labels.dart';
+import 'heures/hours_overview_card.dart';
+import 'heures/hours_period.dart';
+import 'heures/hours_pickers.dart';
 
-/// Écran d'affichage des heures travaillées
+/// « Mes heures » : total travaillé (pauses déduites) d'une période.
+///
+/// Segments Jour · Semaine · Mois · Année ; la carte hero montre le total de
+/// la période choisie (en cours par défaut, lu dans la vue d'ensemble), le
+/// dock ouvre le choix d'une autre période. « Mes totaux » rappelle les
+/// cinq totaux en cours.
+///
+/// Appels : `GET /services/hours` sans filtre (vue d'ensemble), puis avec
+/// `period` = day / week / month / year pour une période choisie.
 class MesHeuresScreen extends StatefulWidget {
   const MesHeuresScreen({super.key});
 
@@ -15,44 +27,54 @@ class MesHeuresScreen extends StatefulWidget {
 }
 
 class _MesHeuresScreenState extends State<MesHeuresScreen> {
-  WorkedHours? _workedHours;
+  // Vue d'ensemble (jour, semaine, mois, mois dernier, année en cours).
+  WorkedHours? _overview;
   bool _isLoading = true;
   String? _error;
 
-  // Période sélectionnée pour la recherche
-  DateTime? _selectedDate;
-  int? _selectedWeek;
-  int? _selectedMonth;
-  int? _selectedYear;
-  bool _isSearchMode = false;
+  HoursPeriod _period = HoursPeriod.week;
 
-  // Navigation par semaine dans la vue d'ensemble
-  late int _displayedWeekNumber;
-  late int _displayedWeekYear;
-  double? _displayedWeekHours;
-  bool _isLoadingWeek = false;
+  // Période choisie par segment (`null` = période en cours).
+  DateTime? _selectedDate;
+  late int _weekNumber;
+  late int _weekYear;
+  int? _selectedMonth;
+  int? _selectedMonthYear;
+  int? _selectedYear;
+
+  // Résultat, requête, chargement et erreur de la dernière requête filtrée,
+  // par segment. Sans résultat, le segment lit la vue d'ensemble.
+  final Map<HoursPeriod, double?> _values = {};
+  final Map<HoursPeriod, WorkedHoursParams> _queries = {};
+  final Set<HoursPeriod> _loadingPeriods = {};
+  final Map<HoursPeriod, String> _periodErrors = {};
+
+  /// Jeton par segment : une réponse arrivée après une nouvelle requête ou
+  /// un retour à la période en cours est ignorée.
+  final Map<HoursPeriod, int> _tokens = {};
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _displayedWeekNumber = _getWeekNumber(now);
-    _displayedWeekYear = now.year;
-    _loadWorkedHours();
+    _weekNumber = HoursWeeks.weekNumber(now);
+    _weekYear = now.year;
+    _loadOverview();
   }
 
-  Future<void> _loadWorkedHours() async {
+  // ---- données ------------------------------------------------------------
+
+  /// Vue d'ensemble : sans filtre, toutes les périodes en cours. Ramène
+  /// aussi chaque segment sur sa période en cours.
+  Future<void> _loadOverview() async {
     setState(() {
       _isLoading = true;
       _error = null;
-      _isSearchMode = false;
-      _selectedDate = null;
-      _selectedWeek = null;
-      _selectedMonth = null;
-      _selectedYear = null;
+      for (final p in HoursPeriod.values) {
+        _resetPeriod(p);
+      }
     });
 
-    // Requête sans filtres pour obtenir toutes les périodes
     final result = await sl.serviceRepository.getWorkedHours(
       const WorkedHoursParams(),
     );
@@ -60,23 +82,91 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     if (!mounted) return;
 
     result.fold(
-      (failure) {
-        setState(() {
-          _error = failure.message;
-          _isLoading = false;
-        });
-      },
-      (hours) {
-        setState(() {
-          _workedHours = hours;
-          _displayedWeekHours = hours.week;
-          _isLoading = false;
-        });
-      },
+      (failure) => setState(() {
+        _error = failure.message;
+        _isLoading = false;
+      }),
+      (hours) => setState(() {
+        _overview = hours;
+        _isLoading = false;
+      }),
     );
   }
 
-  Future<void> _searchByDay() async {
+  /// Requête filtrée d'une période ; garde la valeur du champ de la période.
+  Future<void> _query(HoursPeriod period, WorkedHoursParams params) async {
+    final token = (_tokens[period] ?? 0) + 1;
+    _tokens[period] = token;
+    _queries[period] = params;
+    setState(() {
+      _loadingPeriods.add(period);
+      _periodErrors.remove(period);
+    });
+
+    final result = await sl.serviceRepository.getWorkedHours(params);
+
+    if (!mounted || _tokens[period] != token) return;
+
+    result.fold(
+      (failure) => setState(() {
+        _loadingPeriods.remove(period);
+        _periodErrors[period] = failure.message;
+      }),
+      (hours) => setState(() {
+        _loadingPeriods.remove(period);
+        _values[period] = switch (period) {
+          HoursPeriod.day => hours.day,
+          HoursPeriod.week => hours.week,
+          HoursPeriod.month => hours.month,
+          HoursPeriod.year => hours.year,
+        };
+      }),
+    );
+  }
+
+  /// Ramène [period] sur la période en cours (à appeler dans un setState).
+  void _resetPeriod(HoursPeriod period) {
+    _tokens[period] = (_tokens[period] ?? 0) + 1;
+    _values.remove(period);
+    _queries.remove(period);
+    _loadingPeriods.remove(period);
+    _periodErrors.remove(period);
+    switch (period) {
+      case HoursPeriod.day:
+        _selectedDate = null;
+      case HoursPeriod.week:
+        final now = DateTime.now();
+        _weekNumber = HoursWeeks.weekNumber(now);
+        _weekYear = now.year;
+      case HoursPeriod.month:
+        _selectedMonth = null;
+        _selectedMonthYear = null;
+      case HoursPeriod.year:
+        _selectedYear = null;
+    }
+  }
+
+  double? _valueFor(HoursPeriod period) {
+    if (_values.containsKey(period)) return _values[period];
+    final o = _overview;
+    return switch (period) {
+      HoursPeriod.day => o?.day,
+      HoursPeriod.week => o?.week,
+      HoursPeriod.month => o?.month,
+      HoursPeriod.year => o?.year,
+    };
+  }
+
+  // ---- choix d'une période -------------------------------------------------
+
+  void _pickCurrentPeriod() => switch (_period) {
+        HoursPeriod.day => _pickDay(),
+        HoursPeriod.week => _pickWeek(),
+        HoursPeriod.month => _pickMonth(),
+        HoursPeriod.year => _pickYear(),
+      };
+
+  Future<void> _pickDay() async {
     final date = await showDatePicker(
       context: context,
       initialDate: _selectedDate ?? DateTime.now(),
@@ -84,19 +174,11 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
       lastDate: DateTime.now(),
       locale: const Locale('fr', 'FR'),
     );
+    if (date == null || !mounted) return;
 
-    if (date == null) return;
-
-    setState(() {
-      _isLoading = true;
-      _isSearchMode = true;
-      _selectedDate = date;
-      _selectedWeek = null;
-      _selectedMonth = null;
-      _selectedYear = null;
-    });
-
-    final result = await sl.serviceRepository.getWorkedHours(
+    setState(() => _selectedDate = date);
+    await _query(
+      HoursPeriod.day,
       WorkedHoursParams(
         period: WorkedHoursPeriod.day,
         year: date.year,
@@ -104,1351 +186,228 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
         day: date.day,
       ),
     );
-
-    if (!mounted) return;
-
-    result.fold(
-      (failure) {
-        setState(() {
-          _error = failure.message;
-          _isLoading = false;
-        });
-      },
-      (hours) {
-        setState(() {
-          _workedHours = hours;
-          _isLoading = false;
-        });
-      },
-    );
   }
 
-  Future<void> _searchByWeek() async {
-    final colors = context.colors;
+  Future<void> _pickWeek() async {
     final now = DateTime.now();
-    final currentWeek = _getWeekNumber(now);
-
-    final week = await showDialog<int>(
-      context: context,
-      builder: (context) => _WeekPickerDialog(
-        initialWeek: _selectedWeek ?? currentWeek,
-        colors: colors,
-      ),
+    final currentWeek = HoursWeeks.weekNumber(now);
+    final week = await HoursPickers.week(
+      context,
+      year: now.year,
+      initialWeek: _weekYear == now.year ? _weekNumber : currentWeek,
+      currentWeek: currentWeek,
     );
-
-    if (week == null) return;
+    if (week == null || !mounted) return;
 
     setState(() {
-      _isLoading = true;
-      _isSearchMode = true;
-      _selectedWeek = week;
-      _selectedDate = null;
-      _selectedMonth = null;
-      _selectedYear = null;
+      _weekNumber = week;
+      _weekYear = now.year;
     });
-
-    final result = await sl.serviceRepository.getWorkedHours(
+    await _query(
+      HoursPeriod.week,
       WorkedHoursParams(
         period: WorkedHoursPeriod.week,
         year: now.year,
         week: week,
       ),
     );
+  }
 
-    if (!mounted) return;
-
-    result.fold(
-      (failure) {
-        setState(() {
-          _error = failure.message;
-          _isLoading = false;
-        });
-      },
-      (hours) {
-        setState(() {
-          _workedHours = hours;
-          _isLoading = false;
-        });
-      },
+  /// Semaine précédente (-1) ou suivante (+1).
+  void _navigateWeek(int direction) {
+    if (direction > 0 &&
+        !HoursWeeks.canGoForward(_weekNumber, _weekYear, DateTime.now())) {
+      return;
+    }
+    final (week, year) = HoursWeeks.shift(_weekNumber, _weekYear, direction);
+    setState(() {
+      _weekNumber = week;
+      _weekYear = year;
+    });
+    _query(
+      HoursPeriod.week,
+      WorkedHoursParams(period: WorkedHoursPeriod.week, year: year, week: week),
     );
   }
 
-  Future<void> _searchByMonth() async {
-    final colors = context.colors;
-    final result = await showDialog<Map<String, int>>(
-      context: context,
-      builder: (context) => _MonthYearPickerDialog(
-        initialMonth: _selectedMonth ?? DateTime.now().month,
-        initialYear: _selectedYear ?? DateTime.now().year,
-        colors: colors,
-      ),
+  Future<void> _pickMonth() async {
+    final now = DateTime.now();
+    final picked = await HoursPickers.month(
+      context,
+      initialMonth: _selectedMonth ?? now.month,
+      initialYear: _selectedMonthYear ?? now.year,
     );
-
-    if (result == null) return;
-
-    final month = result['month']!;
-    final year = result['year']!;
+    if (picked == null || !mounted) return;
+    final (month, year) = picked;
 
     setState(() {
-      _isLoading = true;
-      _isSearchMode = true;
       _selectedMonth = month;
-      _selectedYear = year;
-      _selectedDate = null;
-      _selectedWeek = null;
+      _selectedMonthYear = year;
     });
-
-    final apiResult = await sl.serviceRepository.getWorkedHours(
+    await _query(
+      HoursPeriod.month,
       WorkedHoursParams(
         period: WorkedHoursPeriod.month,
         year: year,
         month: month,
       ),
     );
+  }
 
-    if (!mounted) return;
+  Future<void> _pickYear() async {
+    final year = await HoursPickers.year(
+      context,
+      initialYear: _selectedYear ?? DateTime.now().year,
+    );
+    if (year == null || !mounted) return;
 
-    apiResult.fold(
-      (failure) {
-        setState(() {
-          _error = failure.message;
-          _isLoading = false;
-        });
-      },
-      (hours) {
-        setState(() {
-          _workedHours = hours;
-          _isLoading = false;
-        });
-      },
+    setState(() => _selectedYear = year);
+    await _query(
+      HoursPeriod.year,
+      WorkedHoursParams(period: WorkedHoursPeriod.year, year: year),
     );
   }
 
-  Future<void> _searchByYear() async {
-    final colors = context.colors;
-    final year = await showDialog<int>(
-      context: context,
-      builder: (context) => _YearPickerDialog(
-        initialYear: _selectedYear ?? DateTime.now().year,
-        colors: colors,
-      ),
-    );
-
-    if (year == null) return;
-
+  /// Tap sur une ligne de « Mes totaux » : valeur déjà connue, sans appel.
+  void _openShortcut(HoursShortcut shortcut) {
     setState(() {
-      _isLoading = true;
-      _isSearchMode = true;
-      _selectedYear = year;
-      _selectedDate = null;
-      _selectedWeek = null;
-      _selectedMonth = null;
-    });
-
-    final result = await sl.serviceRepository.getWorkedHours(
-      WorkedHoursParams(
-        period: WorkedHoursPeriod.year,
-        year: year,
-      ),
-    );
-
-    if (!mounted) return;
-
-    result.fold(
-      (failure) {
-        setState(() {
-          _error = failure.message;
-          _isLoading = false;
-        });
-      },
-      (hours) {
-        setState(() {
-          _workedHours = hours;
-          _isLoading = false;
-        });
-      },
-    );
-  }
-
-  int _getWeekNumber(DateTime date) {
-    // ISO 8601: la semaine 1 contient le premier jeudi de l'année
-    final jan4 = DateTime(date.year, 1, 4);
-    final daysSinceMonday = (jan4.weekday - 1) % 7;
-    final firstMondayOfYear = jan4.subtract(Duration(days: daysSinceMonday));
-
-    final daysSinceFirstMonday = date.difference(firstMondayOfYear).inDays;
-    if (daysSinceFirstMonday < 0) {
-      // La date est dans la dernière semaine de l'année précédente
-      return _getWeekNumber(DateTime(date.year - 1, 12, 31));
-    }
-    return (daysSinceFirstMonday / 7).floor() + 1;
-  }
-
-  /// Retourne le lundi et le dimanche de la semaine donnée (ISO 8601)
-  (DateTime start, DateTime end) _getWeekDateRange(int weekNumber, int year) {
-    // Trouver le premier jeudi de l'année (norme ISO 8601)
-    final jan4 = DateTime(year, 1, 4);
-    final daysSinceMonday = (jan4.weekday - 1) % 7;
-    final firstMondayOfYear = jan4.subtract(Duration(days: daysSinceMonday));
-
-    // Calculer le lundi de la semaine demandée
-    final monday = firstMondayOfYear.add(Duration(days: (weekNumber - 1) * 7));
-    final sunday = monday.add(const Duration(days: 6));
-
-    return (monday, sunday);
-  }
-
-  /// Formate la plage de dates de la semaine affichée
-  String _formatWeekRange() {
-    final (start, end) = _getWeekDateRange(_displayedWeekNumber, _displayedWeekYear);
-    final startFormat = DateFormat('d MMMM', 'fr_FR').format(start);
-    final endFormat = DateFormat('d MMMM', 'fr_FR').format(end);
-
-    // Ajouter l'année si différente de l'année courante
-    if (_displayedWeekYear != DateTime.now().year) {
-      return 'du $startFormat au $endFormat $_displayedWeekYear';
-    }
-    return 'du $startFormat au $endFormat';
-  }
-
-  /// Vérifie si on peut naviguer vers la semaine suivante
-  bool get _canNavigateForward {
-    final now = DateTime.now();
-    final currentWeek = _getWeekNumber(now);
-    final currentYear = now.year;
-
-    if (_displayedWeekYear < currentYear) return true;
-    if (_displayedWeekYear == currentYear && _displayedWeekNumber < currentWeek) return true;
-    return false;
-  }
-
-  /// Navigue vers la semaine précédente ou suivante
-  void _navigateWeek(int direction) {
-    if (direction > 0 && !_canNavigateForward) return;
-
-    setState(() {
-      _displayedWeekNumber += direction;
-
-      // Gérer le passage d'année
-      if (_displayedWeekNumber < 1) {
-        _displayedWeekYear--;
-        _displayedWeekNumber = _getWeekNumber(DateTime(_displayedWeekYear, 12, 31));
-      } else if (_displayedWeekNumber > 52) {
-        // Vérifier si la semaine 53 existe pour cette année
-        final lastDayOfYear = DateTime(_displayedWeekYear, 12, 31);
-        final maxWeek = _getWeekNumber(lastDayOfYear);
-        if (_displayedWeekNumber > maxWeek) {
-          _displayedWeekYear++;
-          _displayedWeekNumber = 1;
-        }
+      switch (shortcut) {
+        case HoursShortcut.today:
+          _period = HoursPeriod.day;
+          _resetPeriod(HoursPeriod.day);
+        case HoursShortcut.week:
+          _period = HoursPeriod.week;
+          _resetPeriod(HoursPeriod.week);
+        case HoursShortcut.month:
+          _period = HoursPeriod.month;
+          _resetPeriod(HoursPeriod.month);
+        case HoursShortcut.lastMonth:
+          final now = DateTime.now();
+          final lastMonth = DateTime(now.year, now.month - 1, 1);
+          _period = HoursPeriod.month;
+          _resetPeriod(HoursPeriod.month);
+          _selectedMonth = lastMonth.month;
+          _selectedMonthYear = lastMonth.year;
+          _values[HoursPeriod.month] = _overview?.lastMonth;
+        case HoursShortcut.year:
+          _period = HoursPeriod.year;
+          _resetPeriod(HoursPeriod.year);
       }
     });
-
-    _loadWeekHours();
   }
 
-  /// Charge uniquement les heures de la semaine affichée
-  Future<void> _loadWeekHours() async {
-    setState(() => _isLoadingWeek = true);
-
-    final result = await sl.serviceRepository.getWorkedHours(
-      WorkedHoursParams(
-        period: WorkedHoursPeriod.week,
-        year: _displayedWeekYear,
-        week: _displayedWeekNumber,
-      ),
-    );
-
-    if (!mounted) return;
-
-    result.fold(
-      (failure) {
-        setState(() {
-          _isLoadingWeek = false;
-        });
-      },
-      (hours) {
-        setState(() {
-          _displayedWeekHours = hours.week;
-          _isLoadingWeek = false;
-        });
-      },
-    );
-  }
-
-  String _getSearchTitle() {
-    if (_selectedDate != null) {
-      return DateFormat('d MMMM yyyy', 'fr_FR').format(_selectedDate!);
-    } else if (_selectedWeek != null) {
-      return 'Semaine $_selectedWeek - ${DateTime.now().year}';
-    } else if (_selectedMonth != null && _selectedYear != null) {
-      final monthNames = [
-        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-      ];
-      return '${monthNames[_selectedMonth! - 1]} $_selectedYear';
-    } else if (_selectedYear != null) {
-      return 'Année $_selectedYear';
-    }
-    return 'Vue d\'ensemble';
-  }
-
-  String _formatHours(double? hours) {
-    if (hours == null) return '0h 00';
-    final h = hours.floor();
-    final m = ((hours - h) * 60).round();
-    return '${h}h ${m.toString().padLeft(2, '0')}';
-  }
-
+  // ---- build ---------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final ready = _overview != null && _error == null;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Mes heures'),
+    return AppPage(
+      title: 'Mes heures',
+      bottom: AppPageBar(
+        child: AppSegmented<HoursPeriod>(
+          segments: [
+            for (final p in HoursPeriod.values)
+              AppSegment(value: p, label: p.label),
+          ],
+          selected: _period,
+          onChanged: (p) => setState(() => _period = p),
+        ),
+      ),
+      body: _buildBody(),
+      dock: AppDock(
+        skeleton: _isLoading && _overview == null,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, size: 22),
-            onPressed: _loadWorkedHours,
-            tooltip: 'Actualiser',
-          ),
+          if (ready)
+            DockAction(
+              label: _period.pickLabel,
+              icon: Icons.event_rounded,
+              tone: DockTone.secondary,
+              onPressed: _pickCurrentPeriod,
+            ),
         ],
       ),
-      body: _buildBody(colors),
     );
   }
 
-  Widget _buildBody(AppColors colors) {
-    if (_isLoading) {
-      return const LoadingIndicator(message: 'Chargement...');
-    }
-
+  Widget _buildBody() {
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: colors.destructive),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              _error!,
-              style: TextStyle(color: colors.mutedForeground),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.base),
-            AppButton(
-              text: 'Réessayer',
-              onPressed: _loadWorkedHours,
-              backgroundColor: colors.primary,
-              foregroundColor: colors.primaryForeground,
-            ),
-          ],
-        ),
+      return AppScrollView(
+        onRefresh: _loadOverview,
+        children: [AppErrorState(message: _error!, onRetry: _loadOverview)],
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadWorkedHours,
-      color: colors.primary,
-      backgroundColor: colors.card,
-      child: ListView(
-        padding: const EdgeInsets.all(AppSpacing.base),
+    final overview = _overview;
+    if (overview == null) {
+      return const AppScrollView(
         children: [
-          // Info explicative avec titre de recherche
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            decoration: BoxDecoration(
-              color: colors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: colors.primary.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.info_outline, size: 20, color: colors.primary),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        'Total des heures travaillées (pauses déduites)',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colors.foreground,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (_isSearchMode) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          'Période : ${_getSearchTitle()}',
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            color: colors.primary,
-                          ),
-                        ),
-                      ),
-                      TextButton.icon(
-                        onPressed: _loadWorkedHours,
-                        icon: Icon(Icons.close, size: 20, color: colors.destructive),
-                        label: Text(
-                          'Réinitialiser',
-                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: colors.destructive,
-                          ),
-                        ),
-                        style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.xs,
-                          ),
-                          minimumSize: const Size(48, 48),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ],
-            ),
+          AppHeroSkeleton(),
+          SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: AppSkeleton(width: 110, height: 16),
           ),
-          const SizedBox(height: AppSpacing.base),
-
-          // Boutons de recherche
-          _buildSearchButtons(colors),
-          const SizedBox(height: AppSpacing.lg),
-
-          // Carte principale
-          if (_isSearchMode)
-            _buildSearchResultCard(colors)
-          else
-            _buildTodayCard(colors),
-
-          const SizedBox(height: AppSpacing.base),
-
-          // Grille des périodes (seulement en mode vue d'ensemble)
-          if (!_isSearchMode) _buildPeriodsGrid(colors),
+          SizedBox(height: AppSpacing.md),
+          AppListSkeleton(rows: 5),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTodayCard(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: colors.primary,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: [
-          BoxShadow(
-            color: colors.primary.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                ),
-                child: const Icon(
-                  Icons.today,
-                  size: 22,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Aujourd\'hui',
-                      style: textTheme.labelMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      DateFormat('EEEE d MMMM', 'fr_FR').format(DateTime.now()),
-                      style: textTheme.labelSmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            _formatHours(_workedHours?.day),
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'de travail effectuées',
-            style: textTheme.bodySmall?.copyWith(
-              color: Colors.white.withValues(alpha: 0.8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPeriodsGrid(AppColors colors) {
-    // Calculer le mois dernier pour le subtitle
-    final now = DateTime.now();
-    final lastMonth = DateTime(now.year, now.month - 1, 1);
-
-    return Column(
-      children: [
-        // Carte semaine avec navigation
-        _buildWeekCard(colors),
-        const SizedBox(height: AppSpacing.md),
-
-        // Carte mois
-        _buildPeriodCard(
-          colors: colors,
-          title: 'Ce mois',
-          subtitle: DateFormat('MMMM yyyy', 'fr_FR').format(now),
-          value: _formatHours(_workedHours?.month),
-          icon: Icons.calendar_month,
-          color: colors.warning,
-        ),
-        const SizedBox(height: AppSpacing.md),
-
-        // Carte mois dernier
-        _buildPeriodCard(
-          colors: colors,
-          title: 'Mois dernier',
-          subtitle: DateFormat('MMMM yyyy', 'fr_FR').format(lastMonth),
-          value: _formatHours(_workedHours?.lastMonth),
-          icon: Icons.history,
-          color: colors.info,
-        ),
-        const SizedBox(height: AppSpacing.md),
-
-        // Carte année
-        _buildPeriodCard(
-          colors: colors,
-          title: 'Cette année',
-          subtitle: now.year.toString(),
-          value: _formatHours(_workedHours?.year),
-          icon: Icons.calendar_today,
-          color: colors.secondary,
-        ),
-      ],
-    );
-  }
-
-  /// Carte de la semaine avec navigation par flèches
-  Widget _buildWeekCard(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        children: [
-          // En-tete avec navigation
-          Row(
-            children: [
-              // Fleche gauche
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _navigateWeek(-1),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: colors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                    ),
-                    child: Icon(
-                      Icons.chevron_left,
-                      size: 28,
-                      color: colors.success,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Titre et plage de dates
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      'Semaine $_displayedWeekNumber',
-                      style: textTheme.titleMedium?.copyWith(
-                        color: colors.foreground,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _formatWeekRange(),
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colors.mutedForeground,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
-
-              // Fleche droite
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: _canNavigateForward ? () => _navigateWeek(1) : null,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: _canNavigateForward
-                          ? colors.success.withValues(alpha: 0.1)
-                          : colors.muted,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                    ),
-                    child: Icon(
-                      Icons.chevron_right,
-                      size: 28,
-                      color: _canNavigateForward
-                          ? colors.success
-                          : colors.mutedForeground,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: AppSpacing.base),
-
-          // Heures travaillees
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: colors.success.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                ),
-                child: Icon(
-                  Icons.calendar_view_week,
-                  size: 22,
-                  color: colors.success,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.base),
-              if (_isLoadingWeek)
-                SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: colors.success,
-                  ),
-                )
-              else
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _formatHours(_displayedWeekHours),
-                      style: textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: colors.foreground,
-                      ),
-                    ),
-                    Text(
-                      'heures travaillées',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colors.mutedForeground,
-                      ),
-                    ),
-                  ],
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Widget generique pour les cartes de periode (mois, annee)
-  Widget _buildPeriodCard({
-    required AppColors colors,
-    required String title,
-    required String subtitle,
-    required String value,
-    required IconData icon,
-    required Color color,
-  }) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-            ),
-            child: Icon(
-              icon,
-              size: 22,
-              color: color,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.base),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: textTheme.titleSmall?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: textTheme.labelSmall?.copyWith(
-                    color: colors.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                value,
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: colors.foreground,
-                ),
-              ),
-              Text(
-                'heures',
-                style: textTheme.labelSmall?.copyWith(
-                  color: colors.mutedForeground,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchButtons(AppColors colors) {
-    return Row(
-      children: [
-        Expanded(
-          child: _SearchButton(
-            icon: Icons.today,
-            label: 'Jour',
-            onPressed: _searchByDay,
-            color: colors.primary,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _SearchButton(
-            icon: Icons.calendar_view_week,
-            label: 'Semaine',
-            onPressed: _searchByWeek,
-            color: colors.success,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _SearchButton(
-            icon: Icons.calendar_month,
-            label: 'Mois',
-            onPressed: _searchByMonth,
-            color: colors.warning,
-          ),
-        ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: _SearchButton(
-            icon: Icons.calendar_today,
-            label: 'Année',
-            onPressed: _searchByYear,
-            color: colors.secondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSearchResultCard(AppColors colors) {
-    String title = '';
-    IconData icon = Icons.search;
-    Color color = colors.primary;
-    double? hours;
-
-    if (_selectedDate != null) {
-      title = DateFormat('d MMMM yyyy', 'fr_FR').format(_selectedDate!);
-      icon = Icons.today;
-      color = colors.primary;
-      hours = _workedHours?.day;
-    } else if (_selectedWeek != null) {
-      title = 'Semaine $_selectedWeek';
-      icon = Icons.calendar_view_week;
-      color = colors.success;
-      hours = _workedHours?.week;
-    } else if (_selectedMonth != null && _selectedYear != null) {
-      final monthNames = [
-        'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-        'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-      ];
-      title = '${monthNames[_selectedMonth! - 1]} $_selectedYear';
-      icon = Icons.calendar_month;
-      color = colors.warning;
-      hours = _workedHours?.month;
-    } else if (_selectedYear != null) {
-      title = 'Année $_selectedYear';
-      icon = Icons.calendar_today;
-      color = colors.secondary;
-      hours = _workedHours?.year;
+      );
     }
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                ),
-                child: Icon(
-                  icon,
-                  size: 22,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Heures travaillées',
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.9),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          Text(
-            _formatHours(hours),
-            style: const TextStyle(
-              fontSize: 40,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'de travail effectuées',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.white.withValues(alpha: 0.8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Widget pour les boutons de recherche
-class _SearchButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onPressed;
-  final Color color;
-
-  const _SearchButton({
-    required this.icon,
-    required this.label,
-    required this.onPressed,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Material(
-      color: colors.card,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
-          padding: const EdgeInsets.symmetric(
-            vertical: AppSpacing.md,
-            horizontal: AppSpacing.sm,
-          ),
-          decoration: BoxDecoration(
-            border: Border.all(color: color.withValues(alpha: 0.3)),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 22, color: color),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colors.foreground,
-                ),
-              ),
-            ],
+    final now = DateTime.now();
+    return AppScrollView(
+      onRefresh: _loadOverview,
+      children: [
+        AnimatedSwitcher(
+          duration: AppDuration.base,
+          child: KeyedSubtree(
+            key: ValueKey(_period),
+            child: _buildHero(now),
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Dialog pour sélectionner une semaine
-class _WeekPickerDialog extends StatefulWidget {
-  final int initialWeek;
-  final AppColors colors;
-
-  const _WeekPickerDialog({
-    required this.initialWeek,
-    required this.colors,
-  });
-
-  @override
-  State<_WeekPickerDialog> createState() => _WeekPickerDialogState();
-}
-
-class _WeekPickerDialogState extends State<_WeekPickerDialog> {
-  late int _selectedWeek;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedWeek = widget.initialWeek;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      backgroundColor: widget.colors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      title: Text(
-        'Sélectionner une semaine',
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: widget.colors.foreground,
-        ),
-      ),
-      content: SizedBox(
-        width: 300,
-        height: 400,
-        child: GridView.builder(
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 4,
-            childAspectRatio: 1.5,
-            crossAxisSpacing: AppSpacing.sm,
-            mainAxisSpacing: AppSpacing.sm,
-          ),
-          itemCount: 53,
-          itemBuilder: (context, index) {
-            final week = index + 1;
-            final isSelected = week == _selectedWeek;
-
-            return Material(
-              color: isSelected
-                  ? widget.colors.primary
-                  : widget.colors.background,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-              child: InkWell(
-                onTap: () => setState(() => _selectedWeek = week),
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: Center(
-                  child: Text(
-                    'S$week',
-                    style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : widget.colors.foreground,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Annuler', style: TextStyle(color: widget.colors.destructive)),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, _selectedWeek),
-          child: Text('Valider', style: TextStyle(color: widget.colors.primary)),
+        const SizedBox(height: AppSpacing.lg),
+        const AppSectionHeader(title: 'Mes totaux', summary: 'pauses déduites'),
+        HoursOverviewCard(
+          hours: overview,
+          now: now,
+          onSelect: _openShortcut,
         ),
       ],
     );
   }
-}
 
-/// Dialog pour sélectionner un mois et une année
-class _MonthYearPickerDialog extends StatefulWidget {
-  final int initialMonth;
-  final int initialYear;
-  final AppColors colors;
+  Widget _buildHero(DateTime now) {
+    final period = _period;
+    final query = _queries[period];
+    final hours = _valueFor(period);
+    final loading = _loadingPeriods.contains(period);
+    final error = _periodErrors[period];
+    final isWeek = period == HoursPeriod.week;
+    final labels = switch (period) {
+      HoursPeriod.day => HoursHeroLabels.day(_selectedDate, now),
+      HoursPeriod.week => HoursHeroLabels.week(_weekNumber, _weekYear, now),
+      HoursPeriod.month =>
+        HoursHeroLabels.month(_selectedMonth, _selectedMonthYear, now),
+      HoursPeriod.year => HoursHeroLabels.year(_selectedYear, now),
+    };
 
-  const _MonthYearPickerDialog({
-    required this.initialMonth,
-    required this.initialYear,
-    required this.colors,
-  });
-
-  @override
-  State<_MonthYearPickerDialog> createState() => _MonthYearPickerDialogState();
-}
-
-class _MonthYearPickerDialogState extends State<_MonthYearPickerDialog> {
-  late int _selectedMonth;
-  late int _selectedYear;
-
-  final List<String> _monthNames = [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedMonth = widget.initialMonth;
-    _selectedYear = widget.initialYear;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currentYear = DateTime.now().year;
-    final years = List.generate(
-      currentYear - 2020 + 1,
-      (index) => 2020 + index,
-    ).reversed.toList();
-
-    return AlertDialog(
-      backgroundColor: widget.colors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      title: Text(
-        'Sélectionner un mois et une année',
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: widget.colors.foreground,
-        ),
-      ),
-      content: SizedBox(
-        width: 300,
-        height: 450,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Selecteur d'annee
-            Text(
-              'Année',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: widget.colors.foreground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              height: 50,
-              decoration: BoxDecoration(
-                color: widget.colors.background,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: years.length,
-                itemBuilder: (context, index) {
-                  final year = years[index];
-                  final isSelected = year == _selectedYear;
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Material(
-                      color: isSelected
-                          ? widget.colors.primary
-                          : widget.colors.card,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: InkWell(
-                        onTap: () => setState(() => _selectedYear = year),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 12,
-                          ),
-                          child: Center(
-                            child: Text(
-                              year.toString(),
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: isSelected
-                                    ? Colors.white
-                                    : widget.colors.foreground,
-                                fontWeight: isSelected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            // Selecteur de mois
-            Text(
-              'Mois',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: widget.colors.foreground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Expanded(
-              child: ListView.builder(
-                itemCount: 12,
-                itemBuilder: (context, index) {
-                  final month = index + 1;
-                  final isSelected = month == _selectedMonth;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Material(
-                      color: isSelected
-                          ? widget.colors.primary
-                          : widget.colors.background,
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: InkWell(
-                        onTap: () => setState(() => _selectedMonth = month),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                            horizontal: 16,
-                          ),
-                          child: Text(
-                            _monthNames[index],
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isSelected
-                                  ? Colors.white
-                                  : widget.colors.foreground,
-                              fontWeight: isSelected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Annuler', style: TextStyle(color: widget.colors.destructive)),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, {
-            'month': _selectedMonth,
-            'year': _selectedYear,
-          }),
-          child: Text('Valider', style: TextStyle(color: widget.colors.primary)),
-        ),
-      ],
-    );
-  }
-}
-
-/// Dialog pour sélectionner une année
-class _YearPickerDialog extends StatefulWidget {
-  final int initialYear;
-  final AppColors colors;
-
-  const _YearPickerDialog({
-    required this.initialYear,
-    required this.colors,
-  });
-
-  @override
-  State<_YearPickerDialog> createState() => _YearPickerDialogState();
-}
-
-class _YearPickerDialogState extends State<_YearPickerDialog> {
-  late int _selectedYear;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedYear = widget.initialYear;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currentYear = DateTime.now().year;
-    final years = List.generate(
-      currentYear - 2020 + 1,
-      (index) => 2020 + index,
-    ).reversed.toList();
-
-    return AlertDialog(
-      backgroundColor: widget.colors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      title: Text(
-        'Sélectionner une année',
-        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-          color: widget.colors.foreground,
-        ),
-      ),
-      content: SizedBox(
-        width: 300,
-        height: 400,
-        child: ListView.builder(
-          itemCount: years.length,
-          itemBuilder: (context, index) {
-            final year = years[index];
-            final isSelected = year == _selectedYear;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Material(
-                color: isSelected
-                    ? widget.colors.primary
-                    : widget.colors.background,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-                child: InkWell(
-                  onTap: () => setState(() => _selectedYear = year),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 16,
-                    ),
-                    child: Text(
-                      year.toString(),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isSelected
-                            ? Colors.white
-                            : widget.colors.foreground,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Annuler', style: TextStyle(color: widget.colors.destructive)),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, _selectedYear),
-          child: Text('Valider', style: TextStyle(color: widget.colors.primary)),
-        ),
-      ],
+    return HoursHeroCard(
+      icon: period.icon,
+      title: labels.title,
+      subtitle: labels.subtitle,
+      hours: hours,
+      loading: loading,
+      error: error,
+      onRetry: query == null ? null : () => _query(period, query),
+      showNavigation: isWeek,
+      onPrevious: isWeek ? () => _navigateWeek(-1) : null,
+      onNext: isWeek && HoursWeeks.canGoForward(_weekNumber, _weekYear, now)
+          ? () => _navigateWeek(1)
+          : null,
+      resetLabel: labels.resetLabel,
+      onReset: labels.isCurrent
+          ? null
+          : () => setState(() => _resetPeriod(period)),
     );
   }
 }
