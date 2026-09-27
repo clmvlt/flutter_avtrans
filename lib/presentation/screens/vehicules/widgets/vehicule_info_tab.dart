@@ -17,7 +17,6 @@ class VehiculeInfoTab extends StatelessWidget {
     required this.showEntretiens,
     required this.onOpenEntretiens,
     required this.onAddInfo,
-    required this.onOpenPhoto,
     required this.now,
   });
 
@@ -27,7 +26,6 @@ class VehiculeInfoTab extends StatelessWidget {
   final bool showEntretiens;
   final VoidCallback onOpenEntretiens;
   final VoidCallback onAddInfo;
-  final VoidCallback onOpenPhoto;
   final DateTime now;
 
   static bool _has(String? s) => s != null && s.trim().isNotEmpty;
@@ -38,13 +36,6 @@ class VehiculeInfoTab extends StatelessWidget {
     final v = vehicule;
 
     final identification = <Widget>[
-      if (_has(v.pictureUrl))
-        AppListRow(
-          leading: _PhotoThumb(url: v.pictureUrl!),
-          title: 'Photo du véhicule',
-          subtitle: 'Touche pour agrandir',
-          onTap: onOpenPhoto,
-        ),
       VehiculeFieldRow(
         icon: Icons.confirmation_number_rounded,
         label: 'Immatriculation',
@@ -224,37 +215,6 @@ class _RowsCard extends StatelessWidget {
     return AppCard(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
       child: Column(children: children),
-    );
-  }
-}
-
-/// Vignette 40 dp de la photo du véhicule (icône en secours).
-class _PhotoThumb extends StatelessWidget {
-  const _PhotoThumb({required this.url});
-
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final fallback = AppIconBox(
-      icon: Icons.photo_rounded,
-      color: colors.domainVehicule,
-    );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: SizedBox(
-        width: AppLayout.iconBox,
-        height: AppLayout.iconBox,
-        child: Image.network(
-          url,
-          fit: BoxFit.cover,
-          cacheWidth: 120,
-          errorBuilder: (_, _, _) => fallback,
-          loadingBuilder: (context, child, progress) =>
-              progress == null ? child : fallback,
-        ),
-      ),
     );
   }
 }

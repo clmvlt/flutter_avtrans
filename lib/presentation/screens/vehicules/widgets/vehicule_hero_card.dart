@@ -9,12 +9,16 @@ import '../../../widgets/widgets.dart';
 String vehiculeName(Vehicule v) =>
     [v.brand, v.model].where((s) => s.trim().isNotEmpty).join(' ');
 
-/// Carte hero de la fiche véhicule : immatriculation, marque et modèle,
-/// puis le dernier kilométrage en grand chiffre et la date du relevé.
+/// Carte hero de la fiche véhicule : photo (si fournie), immatriculation,
+/// marque et modèle, puis le dernier kilométrage en grand chiffre et la date
+/// du relevé.
 class VehiculeHeroCard extends StatelessWidget {
-  const VehiculeHeroCard({super.key, required this.vehicule});
+  const VehiculeHeroCard({super.key, required this.vehicule, this.photo});
 
   final Vehicule vehicule;
+
+  /// Photo du véhicule, en tête de carte ([VehiculePhotoHeader]).
+  final Widget? photo;
 
   String _readingDate(DateTime date) {
     final day = DisplayFormat.relativeDay(date);
@@ -36,6 +40,7 @@ class VehiculeHeroCard extends StatelessWidget {
     final date = v.latestKmDate;
 
     return AppHeroCard(
+      header: photo,
       icon: Icons.directions_car_rounded,
       accent: colors.domainVehicule,
       title: v.immat,

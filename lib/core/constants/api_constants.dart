@@ -278,6 +278,10 @@ abstract class VehiculeEndpoints {
   /// GET - Récupérer un véhicule par ID
   static String byId(String id) => '$_base/$id';
 
+  /// PUT - Modifier un véhicule (rôle Mécanicien). ⚠ Remplacement complet :
+  /// tout champ absent est remis à null côté serveur.
+  static String update(String id) => '$_base/$id';
+
   /// POST - Ajouter un kilométrage
   static const String addKilometrage = '$_base/kilometrages';
 

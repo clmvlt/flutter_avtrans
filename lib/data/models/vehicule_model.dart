@@ -401,6 +401,101 @@ class UploadVehiculeFileRequest {
   }
 }
 
+/// Body de `PUT /vehicules/{id}` (rôle Mécanicien).
+///
+/// ⚠ Le serveur REMPLACE toute la fiche : un champ absent ou null efface la
+/// valeur existante (immatriculation comprise). On part donc toujours de la
+/// fiche actuelle ([VehiculeUpdateRequest.fromVehicule]). Seule exception :
+/// `pictureBase64` absent ou vide laisse la photo telle quelle — l'API ne
+/// permet pas de la retirer.
+class VehiculeUpdateRequest {
+  final String immat;
+  final String? relaiImmat;
+  final String? model;
+  final String? brand;
+  final String? comment;
+
+  /// Nouvelle photo en data URL (`data:image/jpeg;base64,…`).
+  final String? pictureBase64;
+  final String? vin;
+  final String? numeroCarteGrise;
+  final DateTime? dateMiseEnCirculation;
+  final String? typeCarburant;
+  final int? ptac;
+  final String? numeroContratAssurance;
+  final String? assureur;
+  final DateTime? dateExpirationAssurance;
+  final DateTime? dateProchainControleTechnique;
+
+  const VehiculeUpdateRequest({
+    required this.immat,
+    this.relaiImmat,
+    this.model,
+    this.brand,
+    this.comment,
+    this.pictureBase64,
+    this.vin,
+    this.numeroCarteGrise,
+    this.dateMiseEnCirculation,
+    this.typeCarburant,
+    this.ptac,
+    this.numeroContratAssurance,
+    this.assureur,
+    this.dateExpirationAssurance,
+    this.dateProchainControleTechnique,
+  });
+
+  /// Reprend toute la fiche [v] ; seule la photo peut changer.
+  factory VehiculeUpdateRequest.fromVehicule(
+    Vehicule v, {
+    String? pictureBase64,
+  }) {
+    String? orNull(String s) => s.isEmpty ? null : s;
+    return VehiculeUpdateRequest(
+      immat: v.immat,
+      relaiImmat: v.relaiImmat,
+      model: orNull(v.model),
+      brand: orNull(v.brand),
+      comment: v.comment,
+      pictureBase64: pictureBase64,
+      vin: v.vin,
+      numeroCarteGrise: v.numeroCarteGrise,
+      dateMiseEnCirculation: v.dateMiseEnCirculation,
+      typeCarburant: v.typeCarburant,
+      ptac: v.ptac,
+      numeroContratAssurance: v.numeroContratAssurance,
+      assureur: v.assureur,
+      dateExpirationAssurance: v.dateExpirationAssurance,
+      dateProchainControleTechnique: v.dateProchainControleTechnique,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'immat': immat,
+        'relaiImmat': relaiImmat,
+        'model': model,
+        'brand': brand,
+        'comment': comment,
+        if (pictureBase64 != null && pictureBase64!.isNotEmpty)
+          'pictureBase64': pictureBase64,
+        'vin': vin,
+        'numeroCarteGrise': numeroCarteGrise,
+        'dateMiseEnCirculation': dateMiseEnCirculation == null
+            ? null
+            : formatApiDate(dateMiseEnCirculation!),
+        'typeCarburant': typeCarburant,
+        'ptac': ptac,
+        'numeroContratAssurance': numeroContratAssurance,
+        'assureur': assureur,
+        'dateExpirationAssurance': dateExpirationAssurance == null
+            ? null
+            : formatApiDate(dateExpirationAssurance!),
+        'dateProchainControleTechnique': dateProchainControleTechnique == null
+            ? null
+            : formatApiDate(dateProchainControleTechnique!),
+      };
+}
+
 /// Réponse pour le dernier kilométrage de l'utilisateur
 class LastKilometrageResponse extends Equatable {
   final Kilometrage? lastKilometrage;

@@ -17,6 +17,13 @@ abstract class IVehiculeRepository {
   /// Récupère le dernier kilométrage de l'utilisateur connecté
   Future<Either<Failure, LastKilometrageResponse>> getMyLastKilometrage();
 
+  /// [MÉCANICIEN] Change la photo d'un véhicule. Relit la fiche juste avant
+  /// l'envoi : la modification remplace toute la fiche côté serveur.
+  Future<Either<Failure, Vehicule>> updateVehiculePhoto(
+    String vehiculeId,
+    String pictureBase64,
+  );
+
   /// Ajoute un kilométrage
   Future<Either<Failure, Kilometrage>> addKilometrage(
     AddKilometrageRequest request,
@@ -114,6 +121,42 @@ class VehiculeRepository implements IVehiculeRepository {
     } on AppException catch (e) {
       return Left(ServerFailure(message: e.message));
     }
+  }
+
+  @override
+  Future<Either<Failure, Vehicule>> updateVehiculePhoto(
+    String vehiculeId,
+    String pictureBase64,
+  ) async {
+    // Fiche la plus récente : elle est renvoyée telle quelle avec la photo.
+    final current = await getVehiculeById(vehiculeId);
+    return current.fold(Left.new, (vehicule) async {
+      try {
+        final response = await _httpService.put(
+          VehiculeEndpoints.update(vehiculeId),
+          body: VehiculeUpdateRequest.fromVehicule(
+            vehicule,
+            pictureBase64: pictureBase64,
+          ).toJson(),
+        );
+
+        if (response is Map && response['vehicule'] != null) {
+          return Right(
+            Vehicule.fromJson(response['vehicule'] as Map<String, dynamic>),
+          );
+        }
+
+        throw const ServerException(message: 'Format de réponse invalide');
+      } on NetworkException catch (e) {
+        return Left(NetworkFailure(message: e.message));
+      } on AuthException catch (e) {
+        return Left(AuthFailure(message: e.message));
+      } on ServerException catch (e) {
+        return Left(ServerFailure(message: e.message, statusCode: e.statusCode));
+      } on AppException catch (e) {
+        return Left(ServerFailure(message: e.message));
+      }
+    });
   }
 
   @override

@@ -1,4 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/di/service_locator.dart';
@@ -14,6 +18,7 @@ import 'widgets/vehicule_files_tab.dart';
 import 'widgets/vehicule_hero_card.dart';
 import 'widgets/vehicule_image_viewer.dart';
 import 'widgets/vehicule_info_tab.dart';
+import 'widgets/vehicule_photo.dart';
 
 enum _DetailsTab { infos, files }
 
@@ -42,9 +47,13 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
   String? _filesError;
   _DetailsTab _tab = _DetailsTab.infos;
 
-  /// L'atelier (entretiens) est réservé à l'Administrateur et au Mécanicien.
+  /// L'atelier (entretiens, photo du véhicule) est réservé à
+  /// l'Administrateur et au Mécanicien, comme dans l'API.
   late final bool _canManageFleet =
       sl.authRepository.getCachedUser()?.canManageFleet == true;
+
+  /// Envoi de la photo en cours.
+  bool _uploadingPhoto = false;
 
   @override
   void initState() {
@@ -164,6 +173,74 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
     VehiculeImageViewer.open(context, imageUrl: url, title: vehicule.immat);
   }
 
+  /// Tap sur la photo : l'agrandir (chauffeur) ou choisir quoi faire
+  /// (atelier : agrandir, reprendre une photo, choisir dans la galerie).
+  Future<void> _onPhotoTap() async {
+    final hasPhoto = _vehicule?.pictureUrl != null;
+    if (!_canManageFleet) {
+      if (hasPhoto) _openPhoto();
+      return;
+    }
+    clearDockNotice();
+    final action = await VehiculePhotoSheet.show(context, hasPhoto: hasPhoto);
+    if (action == null || !mounted) return;
+    switch (action) {
+      case VehiculePhotoAction.view:
+        _openPhoto();
+      case VehiculePhotoAction.camera:
+        await _changePhoto(ImageSource.camera);
+      case VehiculePhotoAction.gallery:
+        await _changePhoto(ImageSource.gallery);
+    }
+  }
+
+  Future<void> _changePhoto(ImageSource source) async {
+    final XFile? image;
+    try {
+      image = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+    } catch (_) {
+      if (mounted) {
+        showDockError(
+          'Impossible d\'ouvrir l\'appareil photo ou la galerie.',
+        );
+      }
+      return;
+    }
+    if (image == null || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    final bytes = await image.readAsBytes();
+    final name = image.name.toLowerCase();
+    final mime = name.endsWith('.png')
+        ? 'image/png'
+        : name.endsWith('.webp')
+            ? 'image/webp'
+            : 'image/jpeg';
+    final result = await sl.vehiculeRepository.updateVehiculePhoto(
+      widget.vehiculeId,
+      'data:$mime;base64,${base64Encode(bytes)}',
+    );
+    if (!mounted) return;
+
+    setState(() => _uploadingPhoto = false);
+    result.fold(
+      (failure) {
+        HapticFeedback.heavyImpact();
+        showDockError(failure.message);
+      },
+      (vehicule) {
+        // La nouvelle photo s'affiche : pas de message.
+        HapticFeedback.mediumImpact();
+        setState(() => _vehicule = vehicule);
+      },
+    );
+  }
+
   void _openFile(VehiculeFile file) {
     if (file.isImage) {
       VehiculeImageViewer.open(
@@ -216,6 +293,7 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
               ],
         notice: dockNotice,
         onDismissNotice: clearDockNotice,
+        absorbing: _uploadingPhoto,
       ),
     );
   }
@@ -238,7 +316,19 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
     return AppScrollView(
       onRefresh: _loadData,
       children: [
-        VehiculeHeroCard(vehicule: vehicule),
+        VehiculeHeroCard(
+          vehicule: vehicule,
+          // Sans photo, l'emplacement « Ajouter une photo » n'est proposé
+          // qu'à l'atelier.
+          photo: vehicule.pictureUrl != null || _canManageFleet
+              ? VehiculePhotoHeader(
+                  url: vehicule.pictureUrl,
+                  canEdit: _canManageFleet,
+                  uploading: _uploadingPhoto,
+                  onTap: _onPhotoTap,
+                )
+              : null,
+        ),
         const SizedBox(height: AppSpacing.lg),
         AppSegmented<_DetailsTab>(
           segments: [
@@ -272,7 +362,6 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
                     showEntretiens: _canManageFleet,
                     onOpenEntretiens: _openEntretiens,
                     onAddInfo: _openAddAdjustInfo,
-                    onOpenPhoto: _openPhoto,
                     now: DateTime.now(),
                   )
                 : VehiculeFilesTab(
