@@ -111,41 +111,45 @@ class AppButton extends StatelessWidget {
 
     final style = _getStyle(v, colors);
 
+    // Hauteur minimale (et non fixe) : avec un texte agrandi dans les
+    // réglages du téléphone, le bouton grandit au lieu de rogner le libellé.
     return SizedBox(
       width: fullWidth ? double.infinity : null,
-      height: _height,
-      child: switch (v) {
-        ButtonVariant.primary => ElevatedButton(
-            onPressed: isLoading ? null : onPressed,
-            style: style,
-            child: child,
-          ),
-        ButtonVariant.destructive => ElevatedButton(
-            onPressed: isLoading ? null : onPressed,
-            style: style,
-            child: child,
-          ),
-        ButtonVariant.outline => OutlinedButton(
-            onPressed: isLoading ? null : onPressed,
-            style: style,
-            child: child,
-          ),
-        ButtonVariant.secondary => ElevatedButton(
-            onPressed: isLoading ? null : onPressed,
-            style: style,
-            child: child,
-          ),
-        ButtonVariant.ghost => TextButton(
-            onPressed: isLoading ? null : onPressed,
-            style: style,
-            child: child,
-          ),
-        ButtonVariant.link => TextButton(
-            onPressed: isLoading ? null : onPressed,
-            style: style,
-            child: child,
-          ),
-      },
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: _height),
+        child: switch (v) {
+          ButtonVariant.primary => ElevatedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: style,
+              child: child,
+            ),
+          ButtonVariant.destructive => ElevatedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: style,
+              child: child,
+            ),
+          ButtonVariant.outline => OutlinedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: style,
+              child: child,
+            ),
+          ButtonVariant.secondary => ElevatedButton(
+              onPressed: isLoading ? null : onPressed,
+              style: style,
+              child: child,
+            ),
+          ButtonVariant.ghost => TextButton(
+              onPressed: isLoading ? null : onPressed,
+              style: style,
+              child: child,
+            ),
+          ButtonVariant.link => TextButton(
+              onPressed: isLoading ? null : onPressed,
+              style: style,
+              child: child,
+            ),
+        },
+      ),
     );
   }
 
@@ -171,6 +175,7 @@ class AppButton extends StatelessWidget {
           foregroundColor: fg,
           elevation: 0,
           padding: _padding,
+          minimumSize: Size(0, _height),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
@@ -185,6 +190,7 @@ class AppButton extends StatelessWidget {
           foregroundColor: fg,
           elevation: 0,
           padding: _padding,
+          minimumSize: Size(0, _height),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
@@ -197,6 +203,7 @@ class AppButton extends StatelessWidget {
       ButtonVariant.outline => OutlinedButton.styleFrom(
           foregroundColor: fg,
           padding: _padding,
+          minimumSize: Size(0, _height),
           side: BorderSide(color: colors.input),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -212,6 +219,7 @@ class AppButton extends StatelessWidget {
           foregroundColor: fg,
           elevation: 0,
           padding: _padding,
+          minimumSize: Size(0, _height),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
@@ -224,6 +232,7 @@ class AppButton extends StatelessWidget {
       ButtonVariant.ghost => TextButton.styleFrom(
           foregroundColor: fg,
           padding: _padding,
+          minimumSize: Size(0, _height),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
@@ -270,6 +279,7 @@ class AppTextButton extends StatelessWidget {
         foregroundColor: color ?? colors.primary,
         minimumSize: const Size(48, 48),
         textStyle: const TextStyle(
+          fontFamily: AppTheme.fontFamily,
           fontSize: 16,
           fontWeight: FontWeight.w500,
         ),
