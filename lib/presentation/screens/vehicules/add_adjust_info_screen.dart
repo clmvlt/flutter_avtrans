@@ -8,8 +8,11 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/vehicule_model.dart';
 import '../../widgets/widgets.dart';
+import 'widgets/adjust_photo_grid.dart';
 
 /// Écran pour ajouter des informations d'ajustement sur un véhicule
+/// (description + jusqu'à 5 photos envoyées en base64). Ouvert en
+/// `fullscreenDialog` depuis la fiche ; retourne `true` une fois envoyé.
 class AddAdjustInfoScreen extends StatefulWidget {
   final String vehiculeId;
   final String? vehiculeImmat;
@@ -24,7 +27,10 @@ class AddAdjustInfoScreen extends StatefulWidget {
   State<AddAdjustInfoScreen> createState() => _AddAdjustInfoScreenState();
 }
 
-class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
+class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen>
+    with DockNoticeMixin {
+  static const int _maxImages = 5;
+
   final _formKey = GlobalKey<FormState>();
   final _commentController = TextEditingController();
   final List<File> _images = [];
@@ -45,24 +51,59 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
         maxHeight: 1080,
         imageQuality: 85,
       );
-
-      if (image != null) {
-        setState(() {
-          _images.add(File(image.path));
-        });
-      }
+      if (image == null || !mounted) return;
+      setState(() => _images.add(File(image.path)));
     } catch (e) {
-      _showError('Erreur lors de la sélection de l\'image');
+      if (!mounted) return;
+      showDockError('Impossible de récupérer l\'image');
     }
   }
 
   void _removeImage(int index) {
-    setState(() {
-      _images.removeAt(index);
-    });
+    setState(() => _images.removeAt(index));
+  }
+
+  Future<void> _chooseImageSource() async {
+    clearDockNotice();
+    FocusScope.of(context).unfocus();
+    final source = await AppSheet.show<ImageSource>(
+      context,
+      title: 'Ajouter une photo',
+      builder: (ctx) {
+        final colors = ctx.colors;
+        const padding = EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.sm,
+        );
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppListRow(
+              icon: Icons.photo_camera_rounded,
+              iconColor: colors.primary,
+              title: 'Prendre une photo',
+              subtitle: 'Utiliser l\'appareil photo',
+              padding: padding,
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            AppListRow(
+              icon: Icons.photo_library_rounded,
+              iconColor: colors.info,
+              title: 'Choisir dans la galerie',
+              subtitle: 'Une image déjà sur le téléphone',
+              padding: padding,
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+          ],
+        );
+      },
+    );
+    if (source == null || !mounted) return;
+    await _pickImage(source);
   }
 
   Future<void> _submit() async {
+    clearDockNotice();
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
@@ -85,8 +126,9 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
           }
           picturesB64.add('data:$mimeType;base64,$base64String');
         } catch (e) {
+          if (!mounted) return;
           setState(() => _isSubmitting = false);
-          _showError('Erreur lors de la lecture des images');
+          showDockError('Impossible de lire les photos');
           return;
         }
       }
@@ -105,398 +147,117 @@ class _AddAdjustInfoScreenState extends State<AddAdjustInfoScreen> {
     result.fold(
       (failure) {
         setState(() => _isSubmitting = false);
-        _showError(failure.message);
+        showDockError(failure.message);
       },
-      (adjustInfo) {
-        Navigator.of(context).pop(true);
-      },
-    );
-  }
-
-  void _showError(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.card,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.destructive),
-        ),
-      ),
-    );
-  }
-
-  void _showImageSourceBottomSheet() {
-    final colors = context.colors;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: colors.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: AppSpacing.base),
-                alignment: Alignment.center,
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              Text(
-                'Ajouter une photo',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: colors.foreground,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.base),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.base),
-                  ),
-                  child: Icon(Icons.camera_alt, color: colors.primary),
-                ),
-                title: Text(
-                  'Prendre une photo',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: colors.foreground,
-                  ),
-                ),
-                subtitle: Text(
-                  'Utiliser l\'appareil photo',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: colors.info.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.base),
-                  ),
-                  child: Icon(Icons.photo_library, color: colors.info),
-                ),
-                title: Text(
-                  'Choisir depuis la galerie',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: colors.foreground,
-                  ),
-                ),
-                subtitle: Text(
-                  'Sélectionner une image existante',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
-                ),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickImage(ImageSource.gallery);
-                },
-              ),
-              const SizedBox(height: AppSpacing.sm),
-            ],
-          ),
-        ),
-      ),
+      (_) => Navigator.of(context).pop(true),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text(widget.vehiculeImmat ?? 'Ajouter des informations'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildInfoCard(colors),
-              const SizedBox(height: AppSpacing.lg),
-              _buildCommentField(colors),
-              const SizedBox(height: AppSpacing.lg),
-              _buildImageSection(colors),
-              const SizedBox(height: AppSpacing.lg),
-              _buildSubmitButton(colors),
-            ],
-          ),
+    return AppPage(
+      title: 'Ajouter des informations',
+      body: Form(
+        key: _formKey,
+        child: AppScrollView(
+          children: [
+            _IntroCard(immat: widget.vehiculeImmat),
+            const SizedBox(height: AppSpacing.lg),
+            const AppFieldLabel('Description'),
+            TextFormField(
+              controller: _commentController,
+              enabled: !_isSubmitting,
+              minLines: 4,
+              maxLines: 5,
+              textCapitalization: TextCapitalization.sentences,
+              style: textTheme.bodyLarge,
+              decoration: const InputDecoration(
+                hintText: 'Décris le problème ou l\'ajustement nécessaire…',
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Saisis une description';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Expanded(child: AppFieldLabel('Photos', optional: true)),
+                Text(
+                  '${_images.length}/$_maxImages',
+                  style: textTheme.bodySmall?.copyWith(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+            AdjustPhotoGrid(
+              images: _images,
+              maxPhotos: _maxImages,
+              onAdd: _chooseImageSource,
+              onRemove: _removeImage,
+              enabled: !_isSubmitting,
+            ),
+          ],
         ),
+      ),
+      dock: AppDock(
+        actions: [
+          DockAction(
+            label: 'Envoyer l\'information',
+            icon: Icons.send_rounded,
+            isLoading: _isSubmitting,
+            onPressed: _isSubmitting ? null : _submit,
+          ),
+        ],
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
+        absorbing: _isSubmitting,
       ),
     );
   }
+}
 
-  Widget _buildInfoCard(AppColors colors) {
+/// Rappel du véhicule concerné et de ce qu'on attend.
+class _IntroCard extends StatelessWidget {
+  const _IntroCard({required this.immat});
+
+  final String? immat;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.warningMuted,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.warning),
-      ),
+    return AppCard(
       child: Row(
         children: [
-          Icon(Icons.info_outline, color: colors.warning, size: 22),
+          AppIconBox(
+            icon: Icons.directions_car_rounded,
+            color: colors.domainVehicule,
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                if (immat != null && immat!.isNotEmpty)
+                  Text(immat!, style: textTheme.titleSmall),
                 Text(
-                  'Signaler un ajustement',
-                  style: textTheme.titleMedium?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Décrivez le problème ou l\'ajustement nécessaire pour ce véhicule. Vous pouvez ajouter des photos pour illustrer.',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colors.mutedForeground,
-                  ),
+                  'Signale un problème ou un ajustement nécessaire. '
+                  'Tu peux ajouter jusqu\'à 5 photos.',
+                  style: textTheme.bodySmall,
                 ),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildCommentField(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Description',
-          style: textTheme.titleSmall?.copyWith(
-            color: colors.foreground,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        TextFormField(
-          controller: _commentController,
-          maxLines: 5,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colors.foreground,
-          ),
-          decoration: InputDecoration(
-            hintText: 'Décrivez le problème ou l\'ajustement nécessaire...',
-            hintStyle: TextStyle(
-              color: colors.mutedForeground,
-            ),
-            filled: true,
-            fillColor: colors.card,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.border),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.border),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.primary, width: 2),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.destructive),
-            ),
-            focusedErrorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.base),
-              borderSide: BorderSide(color: colors.destructive, width: 2),
-            ),
-          ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Veuillez saisir une description';
-            }
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildImageSection(AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Text(
-              'Photos',
-              style: textTheme.titleSmall?.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: colors.muted,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Text(
-                'Optionnel',
-                style: textTheme.labelSmall?.copyWith(
-                  color: colors.mutedForeground,
-                ),
-              ),
-            ),
-            const Spacer(),
-            Text(
-              '${_images.length}/5',
-              style: textTheme.bodySmall?.copyWith(
-                color: colors.mutedForeground,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: [
-            ..._images.asMap().entries.map((entry) {
-              final index = entry.key;
-              final image = entry.value;
-              return _buildImageTile(image, index, colors);
-            }),
-            if (_images.length < 5) _buildAddImageTile(colors),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildImageTile(File image, int index, AppColors colors) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          child: Image.file(
-            image,
-            width: 100,
-            height: 100,
-            fit: BoxFit.cover,
-          ),
-        ),
-        Positioned(
-          top: 4,
-          right: 4,
-          child: GestureDetector(
-            onTap: () => _removeImage(index),
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: colors.destructive,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.close,
-                color: colors.primaryForeground,
-                size: 16,
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAddImageTile(AppColors colors) {
-    return GestureDetector(
-      onTap: _showImageSourceBottomSheet,
-      child: Container(
-        width: 100,
-        height: 100,
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(
-            color: colors.border,
-            width: 2,
-            style: BorderStyle.solid,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.add_photo_alternate_outlined,
-              color: colors.primary,
-              size: 32,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Ajouter',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colors.mutedForeground,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSubmitButton(AppColors colors) {
-    return AppButton(
-      text: 'Envoyer l\'information',
-      icon: Icons.send,
-      onPressed: _submit,
-      isLoading: _isSubmitting,
-      backgroundColor: colors.warning,
-      foregroundColor: colors.primaryForeground,
     );
   }
 }

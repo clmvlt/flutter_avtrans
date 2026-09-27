@@ -5,11 +5,21 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/vehicule_model.dart';
 import '../../widgets/widgets.dart';
-import 'add_kilometrage_dialog.dart';
+import '../entretiens/vehicule_entretiens_screen.dart';
 import 'add_adjust_info_screen.dart';
+import 'add_kilometrage_dialog.dart';
 import 'upload_vehicule_file_dialog.dart';
+import 'widgets/vehicule_details_skeleton.dart';
+import 'widgets/vehicule_files_tab.dart';
+import 'widgets/vehicule_hero_card.dart';
+import 'widgets/vehicule_image_viewer.dart';
+import 'widgets/vehicule_info_tab.dart';
 
-/// Écran de détails d'un véhicule
+enum _DetailsTab { infos, files }
+
+/// Fiche d'un véhicule : hero (immatriculation, dernier kilométrage), puis
+/// « Infos / Fichiers ». Le dock porte l'action de l'onglet : mettre à jour
+/// le kilométrage, ou ajouter un fichier.
 class VehiculeDetailsScreen extends StatefulWidget {
   final String vehiculeId;
 
@@ -23,98 +33,94 @@ class VehiculeDetailsScreen extends StatefulWidget {
 }
 
 class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
-    with SingleTickerProviderStateMixin {
+    with DockNoticeMixin {
   Vehicule? _vehicule;
-  List<VehiculeFile> _files = [];
+  List<VehiculeFile> _files = const [];
+  bool _filesLoaded = false;
   bool _isLoading = true;
-  late TabController _tabController;
+  String? _error;
+  String? _filesError;
+  _DetailsTab _tab = _DetailsTab.infos;
+
+  /// L'atelier (entretiens) est réservé à l'Administrateur et au Mécanicien.
+  late final bool _canManageFleet =
+      sl.authRepository.getCachedUser()?.canManageFleet == true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
     _loadData();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
+  /// Charge la fiche et ses fichiers en parallèle. Au rechargement, le
+  /// contenu reste affiché ; un échec passe alors par le dock.
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-
-    final results = await Future.wait([
-      sl.vehiculeRepository.getVehiculeById(widget.vehiculeId),
-      sl.vehiculeRepository.getVehiculeFiles(widget.vehiculeId),
-    ]);
+    final vehiculeFuture =
+        sl.vehiculeRepository.getVehiculeById(widget.vehiculeId);
+    final filesFuture =
+        sl.vehiculeRepository.getVehiculeFiles(widget.vehiculeId);
+    final vehiculeResult = await vehiculeFuture;
+    final filesResult = await filesFuture;
 
     if (!mounted) return;
 
-    // Vehicule
-    results[0].fold(
-      (failure) => _showError(failure.message),
-      (vehicule) => _vehicule = vehicule as Vehicule,
-    );
-
-    // Files
-    results[1].fold(
-      (failure) {},
-      (files) => _files = files as List<VehiculeFile>,
-    );
-
-    setState(() => _isLoading = false);
+    String? refreshError;
+    setState(() {
+      vehiculeResult.fold(
+        (failure) {
+          if (_vehicule == null) {
+            _error = failure.message;
+          } else {
+            refreshError = failure.message;
+          }
+        },
+        (vehicule) {
+          _vehicule = vehicule;
+          _error = null;
+        },
+      );
+      filesResult.fold(
+        (failure) {
+          if (!_filesLoaded) _filesError = failure.message;
+        },
+        (files) {
+          _files = files;
+          _filesLoaded = true;
+          _filesError = null;
+        },
+      );
+      _isLoading = false;
+    });
+    if (refreshError != null) showDockError(refreshError!);
   }
 
-  void _showError(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.card,
-      ),
-    );
+  Future<void> _retry() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    await _loadData();
   }
 
-  void _showSuccess(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.check_circle, color: colors.success, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.card,
-      ),
+  // ---- actions ----------------------------------------------------------
+
+  Future<void> _addKilometrage() async {
+    final vehicule = _vehicule;
+    if (vehicule == null) return;
+    clearDockNotice();
+    final saved = await AddKilometrageSheet.show(
+      context,
+      vehiculeId: widget.vehiculeId,
+      latestKm: vehicule.latestKm,
+      latestKmDate: vehicule.latestKmDate,
     );
+    if (!saved || !mounted) return;
+    // Le hero affiche le nouveau relevé : pas de message.
+    await _loadData();
   }
 
-  Future<void> _showAddKilometrageDialog() async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (_) => AddKilometrageDialog(
-        vehiculeId: widget.vehiculeId,
-        latestKm: _vehicule?.latestKm,
-      ),
-    );
-
-    if (result == true) {
-      _showSuccess('Kilométrage ajouté avec succès');
-      _loadData();
-    }
-  }
-
-  Future<void> _openAddAdjustInfoScreen() async {
+  Future<void> _openAddAdjustInfo() async {
+    clearDockNotice();
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => AddAdjustInfoScreen(
@@ -124,401 +130,47 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
         fullscreenDialog: true,
       ),
     );
-
-    if (result == true) {
-      _showSuccess('Information d\'ajustement créée avec succès');
-      _loadData();
-    }
+    if (result != true || !mounted) return;
+    showDockSuccess('Information envoyée');
+    await _loadData();
   }
 
-  Future<void> _showUploadFileDialog() async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (_) => UploadVehiculeFileDialog(vehiculeId: widget.vehiculeId),
+  Future<void> _uploadFile() async {
+    clearDockNotice();
+    final uploaded = await UploadVehiculeFileSheet.show(
+      context,
+      vehiculeId: widget.vehiculeId,
     );
-
-    if (result == true) {
-      _showSuccess('Fichier ajouté avec succès');
-      _loadData();
-    }
+    if (!uploaded || !mounted) return;
+    // Le fichier apparaît dans la liste : pas de message.
+    await _loadData();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    if (_isLoading) {
-      return Scaffold(
-        backgroundColor: colors.background,
-        appBar: AppBar(
-          title: const Text('Détails du véhicule'),
-        ),
-        body: const LoadingIndicator(message: 'Chargement...'),
-      );
-    }
-
-    if (_vehicule == null) {
-      return Scaffold(
-        backgroundColor: colors.background,
-        appBar: AppBar(
-          title: const Text('Détails du véhicule'),
-        ),
-        body: Center(
-          child: Text(
-            'Véhicule non trouvé',
-            style: TextStyle(color: colors.mutedForeground),
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text(_vehicule!.immat),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Infos'),
-            Tab(text: 'Fichiers'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildInfoTab(colors),
-          _buildFilesTab(colors),
-        ],
+  Future<void> _openEntretiens() async {
+    clearDockNotice();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => VehiculeEntretiensScreen(vehiculeId: widget.vehiculeId),
       ),
     );
+    if (!mounted) return;
+    await _loadData();
   }
 
-  Widget _buildInfoTab(AppColors colors) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.base),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.base),
-            decoration: BoxDecoration(
-              color: colors.card,
-              borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: colors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInfoRow(
-                  'Immatriculation',
-                  _vehicule!.immat,
-                  Icons.confirmation_number,
-                  colors,
-                ),
-                const Divider(height: 24),
-                _buildInfoRow(
-                  'Marque',
-                  _vehicule!.brand,
-                  Icons.business,
-                  colors,
-                ),
-                const Divider(height: 24),
-                _buildInfoRow(
-                  'Modèle',
-                  _vehicule!.model,
-                  Icons.directions_car,
-                  colors,
-                ),
-                if (_vehicule!.latestKm != null) ...[
-                  const Divider(height: 24),
-                  _buildInfoRow(
-                    'Dernier kilométrage',
-                    '${_vehicule!.latestKm} km',
-                    Icons.speed,
-                    colors,
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.base),
-          AppButton(
-            text: 'Mettre à jour le kilométrage',
-            icon: Icons.speed,
-            onPressed: _showAddKilometrageDialog,
-            backgroundColor: colors.primary,
-            foregroundColor: colors.primaryForeground,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            text: 'Ajouter des informations',
-            icon: Icons.info_outline,
-            onPressed: _openAddAdjustInfoScreen,
-            backgroundColor: colors.primary,
-            foregroundColor: colors.primaryForeground,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(
-    String label,
-    String value,
-    IconData icon,
-    AppColors colors,
-  ) {
-    final textTheme = Theme.of(context).textTheme;
-    return Row(
-      children: [
-        Icon(icon, size: 20, color: colors.primary),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: textTheme.labelSmall?.copyWith(
-                  color: colors.mutedForeground,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                value,
-                style: textTheme.titleSmall?.copyWith(
-                  color: colors.foreground,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFilesTab(AppColors colors) {
-    return Column(
-      children: [
-        // Bouton d'upload
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: AppButton(
-            text: 'Ajouter un fichier',
-            icon: Icons.upload_file,
-            onPressed: _showUploadFileDialog,
-            backgroundColor: colors.primary,
-            foregroundColor: colors.primaryForeground,
-          ),
-        ),
-        // Liste des fichiers
-        Expanded(
-          child: _files.isEmpty
-              ? const AppEmptyState(
-                  icon: Icons.folder_open,
-                  title: 'Aucun fichier',
-                  subtitle: 'Ajoutez un fichier pour ce véhicule',
-                )
-              : GridView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.base),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: AppSpacing.md,
-                    mainAxisSpacing: AppSpacing.md,
-                    childAspectRatio: 0.85,
-                  ),
-                  itemCount: _files.length,
-                  itemBuilder: (context, index) {
-                    final file = _files[index];
-                    return _buildFileCard(file, colors);
-                  },
-                ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFileCard(VehiculeFile file, AppColors colors) {
-    final date = '${file.createdAt.day.toString().padLeft(2, '0')}/'
-        '${file.createdAt.month.toString().padLeft(2, '0')}/'
-        '${file.createdAt.year}';
-
-    return GestureDetector(
-      onTap: () => _openFile(file),
-      child: Container(
-        decoration: BoxDecoration(
-          color: colors.card,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: colors.border),
-        ),
-        child: Column(
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(AppRadius.lg),
-                ),
-                child: file.isImage
-                    ? Image.network(
-                        file.fileUrl,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: CircularProgressIndicator(
-                              value: loadingProgress.expectedTotalBytes != null
-                                  ? loadingProgress.cumulativeBytesLoaded /
-                                      loadingProgress.expectedTotalBytes!
-                                  : null,
-                              color: colors.primary,
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) {
-                          return _buildFileIcon(file, colors);
-                        },
-                      )
-                    : _buildFileIcon(file, colors),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: colors.card,
-                borderRadius: const BorderRadius.vertical(
-                  bottom: Radius.circular(AppRadius.lg),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    file.originalName,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colors.foreground,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today,
-                        size: 10,
-                        color: colors.mutedForeground,
-                      ),
-                      const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        date,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.mutedForeground,
-                          fontSize: 10,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        file.formattedSize,
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: colors.mutedForeground,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFileIcon(VehiculeFile file, AppColors colors) {
-    IconData icon;
-    Color iconColor;
-    Color bgColor;
-    String extensionLabel = file.extension.toUpperCase();
-
-    if (file.isPdf) {
-      icon = Icons.picture_as_pdf;
-      iconColor = Colors.red.shade700;
-      bgColor = Colors.red.shade50;
-    } else if (file.isImage) {
-      icon = Icons.image;
-      iconColor = colors.primary;
-      bgColor = colors.primary.withValues(alpha: 0.1);
-    } else if (file.mimeType.contains('word') || file.extension == 'doc' || file.extension == 'docx') {
-      icon = Icons.description;
-      iconColor = Colors.blue.shade700;
-      bgColor = Colors.blue.shade50;
-    } else if (file.mimeType.contains('excel') || file.extension == 'xls' || file.extension == 'xlsx') {
-      icon = Icons.table_chart;
-      iconColor = Colors.green.shade700;
-      bgColor = Colors.green.shade50;
-    } else {
-      icon = Icons.insert_drive_file;
-      iconColor = colors.mutedForeground;
-      bgColor = colors.muted;
-    }
-
-    return Container(
-      color: bgColor,
-      child: Stack(
-        children: [
-          // Icône centrale
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Icon(icon, size: 40, color: iconColor),
-                ),
-                const SizedBox(height: 8),
-                // Badge d'extension
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: iconColor,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    extensionLabel.isEmpty ? 'FILE' : extensionLabel,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // Coin plié (effet document)
-          if (file.isPdf || file.mimeType.contains('word'))
-            Positioned(
-              top: 0,
-              right: 0,
-              child: CustomPaint(
-                size: const Size(24, 24),
-                painter: _FoldedCornerPainter(iconColor.withValues(alpha: 0.3)),
-              ),
-            ),
-        ],
-      ),
-    );
+  void _openPhoto() {
+    final vehicule = _vehicule;
+    final url = vehicule?.pictureUrl;
+    if (vehicule == null || url == null) return;
+    VehiculeImageViewer.open(context, imageUrl: url, title: vehicule.immat);
   }
 
   void _openFile(VehiculeFile file) {
     if (file.isImage) {
-      _showImageFullScreen(file.fileUrl);
+      VehiculeImageViewer.open(
+        context,
+        imageUrl: file.fileUrl,
+        title: file.originalName,
+      );
     } else {
       // Pour les PDFs et autres fichiers, ouvrir l'URL externe
       _openExternalUrl(file.fileUrl);
@@ -530,97 +182,108 @@ class _VehiculeDetailsScreenState extends State<VehiculeDetailsScreen>
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (e) {
-      _showError('Impossible d\'ouvrir le fichier');
+      if (!mounted) return;
+      showDockError('Impossible d\'ouvrir le fichier');
     }
   }
 
-  void _showImageFullScreen(String imageUrl) {
-    final colors = context.colors;
-    showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        backgroundColor: Colors.black,
-        insetPadding: EdgeInsets.zero,
-        child: Stack(
-          children: [
-            Center(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: Image.network(
-                  imageUrl,
-                  fit: BoxFit.contain,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                loadingProgress.expectedTotalBytes!
-                            : null,
-                        color: colors.primary,
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.broken_image,
-                            size: 64,
-                            color: colors.mutedForeground,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Impossible de charger l\'image',
-                            style: TextStyle(color: colors.mutedForeground),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-            Positioned(
-              top: AppSpacing.base,
-              right: AppSpacing.base,
-              child: IconButton(
-                icon: const Icon(Icons.close, color: Colors.white, size: 28),
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                onPressed: () => Navigator.pop(context),
-              ),
-            ),
-          ],
-        ),
+  // ---- build ------------------------------------------------------------
+
+  @override
+  Widget build(BuildContext context) {
+    final vehicule = _vehicule;
+
+    return AppPage(
+      title: 'Véhicule',
+      body: vehicule == null ? _buildPlaceholder() : _buildContent(vehicule),
+      dock: AppDock(
+        skeleton: vehicule == null && _isLoading,
+        actions: vehicule == null
+            ? const []
+            : [
+                if (_tab == _DetailsTab.infos)
+                  DockAction(
+                    label: 'Mettre à jour le kilométrage',
+                    icon: Icons.speed_rounded,
+                    onPressed: _addKilometrage,
+                  )
+                else
+                  DockAction(
+                    label: 'Ajouter un fichier',
+                    icon: Icons.upload_file_rounded,
+                    onPressed: _uploadFile,
+                  ),
+              ],
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
       ),
     );
   }
-}
 
-/// Painter pour dessiner un coin plié (effet document)
-class _FoldedCornerPainter extends CustomPainter {
-  final Color color;
-
-  _FoldedCornerPainter(this.color);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    final path = Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width, size.height)
-      ..close();
-
-    canvas.drawPath(path, paint);
+  /// Premier chargement (squelette) ou échec (sous le titre).
+  Widget _buildPlaceholder() {
+    final error = _error;
+    return AppScrollView(
+      onRefresh: error != null ? _retry : null,
+      children: [
+        if (error != null && !_isLoading)
+          AppErrorState(message: error, onRetry: _retry)
+        else
+          const VehiculeDetailsSkeleton(),
+      ],
+    );
   }
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  Widget _buildContent(Vehicule vehicule) {
+    return AppScrollView(
+      onRefresh: _loadData,
+      children: [
+        VehiculeHeroCard(vehicule: vehicule),
+        const SizedBox(height: AppSpacing.lg),
+        AppSegmented<_DetailsTab>(
+          segments: [
+            const AppSegment(
+              value: _DetailsTab.infos,
+              label: 'Infos',
+              icon: Icons.info_outline_rounded,
+            ),
+            AppSegment(
+              value: _DetailsTab.files,
+              label: 'Fichiers',
+              icon: Icons.folder_rounded,
+              count: _files.length,
+            ),
+          ],
+          selected: _tab,
+          onChanged: (tab) => setState(() => _tab = tab),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        AnimatedSwitcher(
+          duration: AppDuration.fast,
+          layoutBuilder: (current, previous) => Stack(
+            alignment: Alignment.topCenter,
+            children: [...previous, if (current != null) current],
+          ),
+          child: KeyedSubtree(
+            key: ValueKey(_tab),
+            child: _tab == _DetailsTab.infos
+                ? VehiculeInfoTab(
+                    vehicule: vehicule,
+                    showEntretiens: _canManageFleet,
+                    onOpenEntretiens: _openEntretiens,
+                    onAddInfo: _openAddAdjustInfo,
+                    onOpenPhoto: _openPhoto,
+                    now: DateTime.now(),
+                  )
+                : VehiculeFilesTab(
+                    files: _files,
+                    error: _filesError,
+                    onRetry: _retry,
+                    onOpen: _openFile,
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
 }

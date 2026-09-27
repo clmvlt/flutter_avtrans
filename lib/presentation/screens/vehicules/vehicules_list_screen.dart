@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/display_format.dart';
 import '../../../data/models/vehicule_model.dart';
 import '../../widgets/widgets.dart';
 import 'vehicule_details_screen.dart';
+import 'widgets/vehicule_hero_card.dart';
 
-/// Écran de liste des véhicules
+/// Liste des véhicules de la flotte : recherche en tête, une ligne par
+/// véhicule (immatriculation, marque et modèle, dernier kilométrage).
 class VehiculesListScreen extends StatefulWidget {
   const VehiculesListScreen({super.key});
 
@@ -14,10 +17,11 @@ class VehiculesListScreen extends StatefulWidget {
   State<VehiculesListScreen> createState() => _VehiculesListScreenState();
 }
 
-class _VehiculesListScreenState extends State<VehiculesListScreen> {
-  List<Vehicule> _vehicules = [];
-  List<Vehicule> _filteredVehicules = [];
-  bool _isLoading = true;
+class _VehiculesListScreenState extends State<VehiculesListScreen>
+    with DockNoticeMixin {
+  /// `null` tant que le premier chargement n'a pas abouti.
+  List<Vehicule>? _vehicules;
+  String? _error;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -33,235 +37,212 @@ class _VehiculesListScreenState extends State<VehiculesListScreen> {
     super.dispose();
   }
 
-  void _filterVehicules(String query) {
-    setState(() {
-      _searchQuery = query.toLowerCase();
-      if (_searchQuery.isEmpty) {
-        _filteredVehicules = _vehicules;
-      } else {
-        _filteredVehicules = _vehicules.where((v) {
-          return v.immat.toLowerCase().contains(_searchQuery) ||
-              v.brand.toLowerCase().contains(_searchQuery) ||
-              v.model.toLowerCase().contains(_searchQuery);
-        }).toList();
-      }
-    });
-  }
-
+  /// Recharge la liste. Une fois la liste affichée, un échec passe par le
+  /// dock et la liste reste visible.
   Future<void> _loadVehicules() async {
-    setState(() => _isLoading = true);
-
     final result = await sl.vehiculeRepository.getAllVehicules();
 
     if (!mounted) return;
 
     result.fold(
       (failure) {
-        _showError(failure.message);
-        setState(() => _isLoading = false);
+        if (_vehicules == null) {
+          setState(() => _error = failure.message);
+        } else {
+          showDockError(failure.message);
+        }
       },
-      (vehicules) {
-        setState(() {
-          _vehicules = vehicules;
-          _filteredVehicules = vehicules;
-          _isLoading = false;
-        });
-      },
+      (vehicules) => setState(() {
+        _vehicules = vehicules;
+        _error = null;
+      }),
     );
   }
 
-  void _showError(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.card,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.base),
-          side: BorderSide(color: colors.destructive),
-        ),
+  Future<void> _retry() async {
+    setState(() => _error = null);
+    await _loadVehicules();
+  }
+
+  List<Vehicule> _filter(List<Vehicule> vehicules) {
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return vehicules;
+    return vehicules.where((v) {
+      return v.immat.toLowerCase().contains(query) ||
+          v.brand.toLowerCase().contains(query) ||
+          v.model.toLowerCase().contains(query);
+    }).toList();
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+  }
+
+  Future<void> _openVehicule(Vehicule vehicule) async {
+    clearDockNotice();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => VehiculeDetailsScreen(vehiculeId: vehicule.id),
       ),
     );
+    if (!mounted) return;
+    await _loadVehicules();
+  }
+
+  /// « Renault Master · 123 456 km »
+  String _subtitle(Vehicule v) {
+    final name = vehiculeName(v);
+    return [
+      if (name.isNotEmpty) name,
+      if (v.latestKm != null) DisplayFormat.km(v.latestKm!),
+    ].join(' · ');
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Véhicules'),
-      ),
-      body: _isLoading
-          ? const LoadingIndicator(message: 'Chargement...')
-          : Column(
-              children: [
-                // Barre de recherche
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.base),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: _filterVehicules,
-                    decoration: InputDecoration(
-                      hintText: 'Rechercher un véhicule...',
-                      hintStyle: TextStyle(color: colors.mutedForeground),
-                      prefixIcon: Icon(Icons.search, color: colors.mutedForeground),
-                      suffixIcon: _searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: Icon(Icons.clear, color: colors.mutedForeground),
-                              onPressed: () {
-                                _searchController.clear();
-                                _filterVehicules('');
-                              },
-                            )
-                          : null,
-                      filled: true,
-                      fillColor: colors.card,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.base),
-                        borderSide: BorderSide(color: colors.border),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.base),
-                        borderSide: BorderSide(color: colors.border),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.base),
-                        borderSide: BorderSide(color: colors.primary),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.base,
-                        vertical: AppSpacing.sm,
-                      ),
-                    ),
-                    style: TextStyle(color: colors.foreground),
-                  ),
-                ),
-                // Liste des véhicules
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _loadVehicules,
-                    color: colors.primary,
-                    backgroundColor: colors.card,
-                    child: _filteredVehicules.isEmpty
-                        ? AppEmptyState(
-                            icon: Icons.directions_car_outlined,
-                            title: _searchQuery.isNotEmpty
-                                ? 'Aucun véhicule trouvé'
-                                : 'Aucun véhicule',
-                            subtitle: _searchQuery.isNotEmpty
-                                ? 'Essayez avec un autre terme de recherche'
-                                : null,
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.base,
-                            ),
-                            itemCount: _filteredVehicules.length,
-                            itemBuilder: (context, index) {
-                              final vehicule = _filteredVehicules[index];
-                              return _buildVehiculeCard(vehicule, colors);
-                            },
-                          ),
-                  ),
-                ),
-              ],
-            ),
+    return AppPage(
+      title: 'Véhicules',
+      body: _buildBody(),
+      dock: AppDock(notice: dockNotice, onDismissNotice: clearDockNotice),
     );
   }
 
-  Widget _buildVehiculeCard(Vehicule vehicule, AppColors colors) {
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => VehiculeDetailsScreen(vehiculeId: vehicule.id),
-            ),
-          ).then((_) => _loadVehicules());
-        },
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: colors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Icon(
-                  Icons.directions_car,
-                  color: colors.primary,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      vehicule.immat,
-                      style: textTheme.titleMedium?.copyWith(
-                        color: colors.foreground,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      '${vehicule.brand} ${vehicule.model}',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colors.mutedForeground,
-                      ),
-                    ),
-                    if (vehicule.latestKm != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.speed,
-                            size: 14,
-                            color: colors.mutedForeground,
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            '${vehicule.latestKm} km',
-                            style: textTheme.labelSmall?.copyWith(
-                              color: colors.mutedForeground,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                color: colors.mutedForeground,
-                size: 22,
-              ),
-            ],
+  Widget _buildBody() {
+    final vehicules = _vehicules;
+    final error = _error;
+
+    if (vehicules == null) {
+      return AppScrollView(
+        onRefresh: error != null ? _retry : null,
+        children: [
+          if (error != null)
+            AppErrorState(message: error, onRetry: _retry)
+          else
+            const _ListSkeleton(),
+        ],
+      );
+    }
+
+    if (vehicules.isEmpty) {
+      return AppScrollView(
+        onRefresh: _loadVehicules,
+        children: const [
+          AppEmptyCard(
+            icon: Icons.directions_car_outlined,
+            message: 'Aucun véhicule',
+            detail: 'La flotte est vide pour l\'instant.',
           ),
+        ],
+      );
+    }
+
+    final filtered = _filter(vehicules);
+    final colors = context.colors;
+
+    return AppScrollView(
+      onRefresh: _loadVehicules,
+      children: [
+        _SearchField(
+          controller: _searchController,
+          hasQuery: _searchQuery.isNotEmpty,
+          onChanged: (value) => setState(() => _searchQuery = value),
+          onClear: _clearSearch,
         ),
+        const SizedBox(height: AppSpacing.lg),
+        if (filtered.isEmpty)
+          AppEmptyCard(
+            icon: Icons.search_off_rounded,
+            message: 'Aucun véhicule trouvé',
+            detail: 'Essaie avec une autre immatriculation ou marque.',
+            actionLabel: 'Effacer',
+            onAction: _clearSearch,
+          )
+        else ...[
+          AppSectionHeader(
+            title: _searchQuery.trim().isEmpty ? 'Flotte' : 'Résultats',
+            summary: DisplayFormat.plural(filtered.length, 'véhicule'),
+          ),
+          AppCard(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+            child: Column(
+              children: [
+                for (final v in filtered)
+                  AppListRow(
+                    key: ValueKey(v.id),
+                    icon: Icons.directions_car_rounded,
+                    iconColor: colors.domainVehicule,
+                    title: v.immat,
+                    subtitle: _subtitle(v),
+                    subtitleMaxLines: 1,
+                    onTap: () => _openVehicule(v),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Champ de recherche en tête de liste (immatriculation, marque, modèle).
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.hasQuery,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final bool hasQuery;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      textInputAction: TextInputAction.search,
+      textCapitalization: TextCapitalization.characters,
+      onTapOutside: (_) => FocusScope.of(context).unfocus(),
+      style: textTheme.bodyLarge,
+      decoration: InputDecoration(
+        hintText: 'Rechercher une immat, une marque…',
+        prefixIcon: const Icon(Icons.search_rounded, size: 20),
+        suffixIcon: hasQuery
+            ? IconButton(
+                onPressed: onClear,
+                tooltip: 'Effacer',
+                icon: const Icon(Icons.close_rounded, size: 18),
+              )
+            : null,
       ),
+    );
+  }
+}
+
+/// Squelette du premier chargement : champ de recherche, en-tête, lignes.
+class _ListSkeleton extends StatelessWidget {
+  const _ListSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppSkeleton(height: 56),
+        SizedBox(height: AppSpacing.lg),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+          child: AppSkeleton(width: 100, height: 16),
+        ),
+        SizedBox(height: AppSpacing.md),
+        AppListSkeleton(rows: 6),
+      ],
     );
   }
 }

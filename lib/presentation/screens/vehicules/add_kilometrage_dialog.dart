@@ -3,30 +3,56 @@ import 'package:flutter/services.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/display_format.dart';
 import '../../../data/models/vehicule_model.dart';
+import '../../widgets/widgets.dart';
 
-/// Dialog pour ajouter un kilométrage.
+/// Feuille « Mettre à jour le kilométrage » d'un véhicule.
 ///
-/// L'API (`POST /vehicules/kilometrages`) n'effectue aucun contrôle de cohérence :
-/// [latestKm] permet de refuser côté client un relevé inférieur au précédent.
-class AddKilometrageDialog extends StatefulWidget {
-  final String vehiculeId;
-  final int? latestKm;
-
-  const AddKilometrageDialog({
-    super.key,
-    required this.vehiculeId,
-    this.latestKm,
-  });
-
-  @override
-  State<AddKilometrageDialog> createState() => _AddKilometrageDialogState();
+/// L'API (`POST /vehicules/kilometrages`) n'effectue aucun contrôle de
+/// cohérence : [show] reçoit `latestKm` pour refuser côté client un relevé
+/// inférieur au précédent.
+abstract final class AddKilometrageSheet {
+  /// Retourne `true` si un relevé a été enregistré.
+  static Future<bool> show(
+    BuildContext context, {
+    required String vehiculeId,
+    int? latestKm,
+    DateTime? latestKmDate,
+  }) async {
+    final saved = await AppSheet.show<bool>(
+      context,
+      title: 'Mettre à jour le kilométrage',
+      builder: (_) => _AddKilometrageForm(
+        vehiculeId: vehiculeId,
+        latestKm: latestKm,
+        latestKmDate: latestKmDate,
+      ),
+    );
+    return saved ?? false;
+  }
 }
 
-class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
+class _AddKilometrageForm extends StatefulWidget {
+  const _AddKilometrageForm({
+    required this.vehiculeId,
+    this.latestKm,
+    this.latestKmDate,
+  });
+
+  final String vehiculeId;
+  final int? latestKm;
+  final DateTime? latestKmDate;
+
+  @override
+  State<_AddKilometrageForm> createState() => _AddKilometrageFormState();
+}
+
+class _AddKilometrageFormState extends State<_AddKilometrageForm> {
   final _formKey = GlobalKey<FormState>();
   final _kmController = TextEditingController();
   bool _isLoading = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -34,177 +60,109 @@ class _AddKilometrageDialogState extends State<AddKilometrageDialog> {
     super.dispose();
   }
 
+  String? _validate(String? value) {
+    if (value == null || value.isEmpty) return 'Saisis le kilométrage';
+    final km = int.tryParse(value);
+    if (km == null || km <= 0) return 'Kilométrage invalide';
+    final latest = widget.latestKm;
+    if (latest != null && km < latest) {
+      return 'Doit être au moins égal au dernier relevé '
+          '(${DisplayFormat.km(latest)})';
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (_isLoading || !_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-    final km = int.parse(_kmController.text);
     final request = AddKilometrageRequest(
       vehiculeId: widget.vehiculeId,
-      km: km,
+      km: int.parse(_kmController.text),
     );
-
     final result = await sl.vehiculeRepository.addKilometrage(request);
 
     if (!mounted) return;
 
     result.fold(
-      (failure) {
-        setState(() => _isLoading = false);
-        _showError(failure.message);
-      },
-      (kilometrage) {
-        Navigator.of(context).pop(true);
-      },
-    );
-  }
-
-  void _showError(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.error_outline, color: colors.destructive, size: 20),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: colors.card,
-      ),
+      (failure) => setState(() {
+        _isLoading = false;
+        _error = failure.message;
+      }),
+      (_) => Navigator.of(context).pop(true),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
     final textTheme = Theme.of(context).textTheme;
+    final latest = widget.latestKm;
+    final latestDate = widget.latestKmDate;
 
-    return AlertDialog(
-      backgroundColor: colors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      title: Text(
-        'Mettre à jour le kilométrage',
-        style: textTheme.titleLarge?.copyWith(
-          color: colors.foreground,
-        ),
-      ),
-      content: Form(
+    return AppConfirmBody(
+      message: 'Saisis la valeur affichée au compteur du véhicule.',
+      details: Form(
         key: _formKey,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Kilométrage actuel',
-              style: textTheme.titleSmall?.copyWith(
-                color: colors.foreground,
+            if (latest != null) ...[
+              AppRecapBox(
+                rows: [
+                  AppRecapRow(
+                    icon: Icons.history_rounded,
+                    label: 'Dernier relevé',
+                    value: DisplayFormat.km(latest),
+                  ),
+                  if (latestDate != null)
+                    AppRecapRow(
+                      icon: Icons.event_rounded,
+                      label: 'Relevé le',
+                      value: DisplayFormat.date(latestDate),
+                    ),
+                ],
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.base),
+            ],
+            const AppFieldLabel('Nouveau kilométrage'),
             TextFormField(
               controller: _kmController,
+              autofocus: true,
+              enabled: !_isLoading,
               keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               style: textTheme.titleLarge?.copyWith(
-                color: colors.foreground,
+                fontFeatures: const [FontFeature.tabularFigures()],
               ),
               decoration: InputDecoration(
-                hintText: 'Ex: 125000',
-                hintStyle: TextStyle(
-                  color: colors.mutedForeground,
-                  fontWeight: FontWeight.normal,
-                ),
-                prefixIcon: Icon(Icons.speed, color: colors.primary),
+                hintText: latest != null ? '$latest' : 'Ex. 125000',
+                prefixIcon: const Icon(Icons.speed_rounded, size: 20),
                 suffixText: 'km',
-                suffixStyle: textTheme.labelLarge?.copyWith(
-                  color: colors.mutedForeground,
-                ),
-                filled: true,
-                fillColor: colors.muted,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.primary, width: 2),
-                ),
-                errorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.destructive),
-                ),
-                focusedErrorBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.base),
-                  borderSide: BorderSide(color: colors.destructive, width: 2),
-                ),
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Veuillez saisir le kilométrage';
-                }
-                final km = int.tryParse(value);
-                if (km == null || km <= 0) {
-                  return 'Kilométrage invalide';
-                }
-                final latest = widget.latestKm;
-                if (latest != null && km < latest) {
-                  return 'Doit être ≥ au dernier relevé ($latest km)';
-                }
-                return null;
-              },
+              validator: _validate,
+              onFieldSubmitted: (_) => _submit(),
             ),
+            if (_error != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              AppAlert(
+                variant: AlertVariant.destructive,
+                description: _error!,
+              ),
+            ],
           ],
         ),
       ),
-      actionsPadding: const EdgeInsets.fromLTRB(
-        AppSpacing.base,
-        0,
-        AppSpacing.base,
-        AppSpacing.base,
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
-          style: TextButton.styleFrom(
-            minimumSize: const Size(48, 48),
-          ),
-          child: Text(
-            'Annuler',
-            style: textTheme.labelLarge?.copyWith(color: colors.mutedForeground),
-          ),
-        ),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _submit,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: colors.primary,
-            foregroundColor: colors.primaryForeground,
-            minimumSize: const Size(48, 48),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.base,
-              vertical: AppSpacing.sm,
-            ),
-          ),
-          child: _isLoading
-              ? SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(colors.primaryForeground),
-                  ),
-                )
-              : const Text('Valider'),
-        ),
-      ],
+      confirmLabel: 'Enregistrer le kilométrage',
+      confirmIcon: Icons.check_rounded,
+      tone: AppConfirmTone.primary,
+      isLoading: _isLoading,
+      onConfirm: _submit,
+      onCancel: () => Navigator.of(context).pop(false),
     );
   }
 }
