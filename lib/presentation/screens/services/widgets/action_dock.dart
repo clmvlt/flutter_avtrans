@@ -1,50 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
-import '../../../widgets/app_alert.dart';
-import '../../../widgets/app_button.dart';
-import '../../../widgets/app_skeleton.dart';
+import '../../../widgets/app_dock.dart';
 import 'pointage_layout.dart';
-import 'pointage_status.dart';
 
-/// Tonalité d'un bouton du dock.
-enum DockTone {
-  /// Prochaine étape (signer, saisir, faire le rapport) — bleu marque.
-  primary,
-
-  /// Démarrer / reprendre le service — vert.
-  success,
-
-  /// Action réversible (pause) — ambre doux, texte foncé.
-  soft,
-
-  /// Action de clôture (terminer) — rouge, protégée par une feuille.
-  danger,
-
-  /// Action calme (réessayer) — surface enfoncée.
-  secondary,
-}
-
-/// Un bouton du dock.
-class DockAction {
-  const DockAction({
-    required this.label,
-    required this.icon,
-    required this.onPressed,
-    this.tone = DockTone.primary,
-    this.isLoading = false,
-    this.semanticsHint,
-  });
-
-  final String label;
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final DockTone tone;
-
-  /// Cette action est en vol : spinner à la place de l'icône.
-  final bool isLoading;
-  final String? semanticsHint;
-}
+export '../../../widgets/app_dock.dart' show DockAction, DockNotice, DockTone;
 
 /// Ligne d'état GPS du dock : visible AVANT d'appuyer.
 class GpsStatus {
@@ -67,26 +27,9 @@ class GpsStatus {
   final VoidCallback? onAction;
 }
 
-/// Message inline du dock (erreur d'action, confirmation).
-class DockNotice {
-  const DockNotice({required this.text, required this.variant});
-
-  final String text;
-  final AlertVariant variant;
-}
-
-/// Dock d'action persistant, à placer dans le slot `bottomNavigationBar` d'un
-/// `Scaffold(extendBody: true)`. Il ne doit jamais se lire comme une seconde
-/// barre au-dessus de la tab bar en verre : pas de carte, pas d'ombre, pas de
-/// trait — le contenu qui défile s'estompe sous un fondu vers `background`,
-/// et les boutons gardent un écart net avec la capsule
-/// (`PointageLayout.dockToTabBarGap`).
-///
-/// Empile : fondu · notice inline (optionnelle) · ligne GPS · un ou deux
-/// boutons `AppButton lg` (56 dp). Réserve elle-même
-/// `paddingOf.bottom + dockToTabBarGap` sous les boutons (la tab bar est déjà
-/// comprise dans `paddingOf.bottom`). L'écran réserve `paddingOf.bottom` en
-/// bas de sa liste pour que le dernier élément reste visible.
+/// Dock de la page Pointage : le dock partagé ([AppDock]) avec la ligne GPS
+/// et 24 dp d'écart au-dessus de la tab bar en verre (à 8 dp, bouton et
+/// capsule se lisaient comme deux barres empilées).
 class ActionDock extends StatelessWidget {
   const ActionDock({
     super.key,
@@ -116,197 +59,16 @@ class ActionDock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final background = colors.background;
-    final bottom = MediaQuery.paddingOf(context).bottom;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Fondu : le contenu qui défile s'estompe sous le dock au lieu de
-        // buter sur un trait — aucun bord dur, donc pas de « seconde barre ».
-        // Transparent aux gestes : ce qui est visible dessous reste tapable.
-        IgnorePointer(
-          child: Container(
-            height: PointageLayout.dockFadeHeight,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [background.withValues(alpha: 0), background],
-              ),
-            ),
-          ),
-        ),
-        ColoredBox(
-          color: background,
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(
-              AppSpacing.screen,
-              AppSpacing.sm,
-              AppSpacing.screen,
-              bottom + PointageLayout.dockToTabBarGap,
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: PointageLayout.maxContentWidth,
-                ),
-                child: AbsorbPointer(
-                  absorbing: absorbing,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedSize(
-                        duration: AppDuration.base,
-                        curve: Curves.easeOut,
-                        alignment: Alignment.topCenter,
-                        child: notice == null
-                            ? const SizedBox(width: double.infinity)
-                            : Padding(
-                                padding: const EdgeInsets.only(
-                                  bottom: AppSpacing.sm,
-                                ),
-                                child: GestureDetector(
-                                  onTap: onDismissNotice,
-                                  child: AppAlert(
-                                    variant: notice!.variant,
-                                    description: notice!.text,
-                                  ),
-                                ),
-                              ),
-                      ),
-                      if (gps != null) ...[
-                        GpsStatusLine(status: gps!, shakeToken: shakeToken),
-                        const SizedBox(height: AppSpacing.sm),
-                      ],
-                      AnimatedSize(
-                        duration: AppDuration.base,
-                        curve: Curves.easeOut,
-                        alignment: Alignment.topCenter,
-                        child: skeleton
-                            ? const AppSkeleton(
-                                height: 56,
-                                borderRadius: AppRadius.lg,
-                              )
-                            : _DockButtons(actions: actions),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Un ou deux `AppButton lg` ; deux boutons se partagent la largeur à parts
-/// égales (gap 12 dp) et s'empilent quand le texte est agrandi ou l'écran
-/// étroit.
-class _DockButtons extends StatelessWidget {
-  const _DockButtons({required this.actions});
-
-  final List<DockAction> actions;
-
-  @override
-  Widget build(BuildContext context) {
-    if (actions.isEmpty) return const SizedBox.shrink();
-    if (actions.length == 1) return _button(context, actions.first);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final scale = MediaQuery.textScalerOf(context).scale(1);
-        final stacked = scale > PointageLayout.stackedButtonsTextScale ||
-            constraints.maxWidth < PointageLayout.stackedButtonsMinWidth;
-        if (stacked) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (var i = 0; i < actions.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppSpacing.md),
-                _button(context, actions[i]),
-              ],
-            ],
-          );
-        }
-        return Row(
-          children: [
-            for (var i = 0; i < actions.length; i++) ...[
-              if (i > 0) const SizedBox(width: AppSpacing.md),
-              Expanded(child: _button(context, actions[i], compact: true)),
-            ],
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _button(BuildContext context, DockAction a, {bool compact = false}) {
-    final colors = context.colors;
-    final padding = compact
-        ? const EdgeInsets.symmetric(horizontal: AppSpacing.base, vertical: 12)
-        : null;
-
-    final button = switch (a.tone) {
-      DockTone.primary => AppButton(
-          text: a.label,
-          icon: a.icon,
-          onPressed: a.onPressed,
-          isLoading: a.isLoading,
-          size: ButtonSize.lg,
-          padding: padding,
-        ),
-      DockTone.success => AppButton(
-          text: a.label,
-          icon: a.icon,
-          onPressed: a.onPressed,
-          isLoading: a.isLoading,
-          size: ButtonSize.lg,
-          padding: padding,
-          backgroundColor: colors.success,
-          foregroundColor: colors.successForeground,
-        ),
-      DockTone.soft => AppButton(
-          text: a.label,
-          icon: a.icon,
-          onPressed: a.onPressed,
-          isLoading: a.isLoading,
-          size: ButtonSize.lg,
-          padding: padding,
-          backgroundColor: colors.warningMuted,
-          foregroundColor: PointageColors.onWarningMuted(colors),
-        ),
-      DockTone.danger => AppButton(
-          text: a.label,
-          icon: a.icon,
-          onPressed: a.onPressed,
-          isLoading: a.isLoading,
-          size: ButtonSize.lg,
-          padding: padding,
-          isDanger: true,
-        ),
-      DockTone.secondary => AppButton(
-          text: a.label,
-          icon: a.icon,
-          onPressed: a.onPressed,
-          isLoading: a.isLoading,
-          size: ButtonSize.lg,
-          padding: padding,
-          variant: ButtonVariant.secondary,
-        ),
-    };
-
-    return Semantics(
-      button: true,
-      enabled: a.onPressed != null && !a.isLoading,
-      label: a.label,
-      hint: a.semanticsHint,
-      excludeSemantics: true,
-      child: button,
+    return AppDock(
+      actions: actions,
+      status: gps == null
+          ? null
+          : GpsStatusLine(status: gps!, shakeToken: shakeToken),
+      notice: notice,
+      onDismissNotice: onDismissNotice,
+      absorbing: absorbing,
+      skeleton: skeleton,
+      bottomGap: PointageLayout.dockToTabBarGap,
     );
   }
 }
