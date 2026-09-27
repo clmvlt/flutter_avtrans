@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/mapbox_constants.dart';
@@ -186,6 +188,43 @@ class ServiceLocator {
   }
 
   /// Récupère le service HTTP
+  /// Initialisation minimale pour les tests de widgets : client HTTP
+  /// injecté (réponses simulées), repositories de l'API AVTRANS, aucun
+  /// plugin natif (tournées, carte, Ypsium, mises à jour ne sont pas
+  /// disponibles). `SharedPreferences.setMockInitialValues` doit être
+  /// appelé avant.
+  @visibleForTesting
+  Future<void> initForTesting({
+    required http.Client client,
+    String baseUrl = 'https://api.test',
+  }) async {
+    _tokenStorage = await TokenStorageService.create();
+    _httpService = HttpService(client: client, baseUrl: baseUrl);
+    _googleSignInService = GoogleSignInService();
+    _authRepository = AuthRepository(
+      httpService: _httpService!,
+      tokenStorage: _tokenStorage!,
+      googleSignInService: _googleSignInService!,
+    );
+    _serviceRepository = ServiceRepository(httpService: _httpService!);
+    _absenceRepository = AbsenceRepository(_httpService!);
+    _acompteRepository = AcompteRepository(_httpService!);
+    _signatureRepository = SignatureRepository(_httpService!);
+    _vehiculeRepository = VehiculeRepository(httpService: _httpService!);
+    _entretienRepository = EntretienRepository(_httpService!);
+    _rapportRepository = RapportRepository(httpService: _httpService!);
+    _todoRepository = TodoRepository(_httpService!);
+    _notificationRepository = NotificationRepository(_httpService!);
+    _couchetteRepository = CouchetteRepository(_httpService!);
+    _locationService = LocationService();
+    _downloadService = DownloadService(client: client);
+    _appVersionRepository = AppVersionRepository(
+      httpService: _httpService!,
+      downloadService: _downloadService!,
+    );
+    _isInitialized = true;
+  }
+
   HttpService get httpService {
     _ensureInitialized();
     return _httpService!;
