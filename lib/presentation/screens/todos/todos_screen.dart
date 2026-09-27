@@ -1,12 +1,20 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
+import 'widgets/todo_card.dart';
+import 'widgets/todo_create_sheet.dart';
+import 'widgets/todos_header.dart';
 
-/// Page de gestion des todos
+/// Page « Tâches » (Administrateur et Mécanicien) : le nombre de tâches à
+/// faire en hero, les filtres (statut, catégorie), puis la liste paginée
+/// (20 par page, chargement au défilement). « Nouvelle tâche » vit dans le
+/// dock.
 class TodosScreen extends StatefulWidget {
   const TodosScreen({super.key});
 
@@ -14,17 +22,32 @@ class TodosScreen extends StatefulWidget {
   State<TodosScreen> createState() => _TodosScreenState();
 }
 
-class _TodosScreenState extends State<TodosScreen> {
+class _TodosScreenState extends State<TodosScreen> with DockNoticeMixin {
   final List<Todo> _todos = [];
   List<TodoCategory> _categories = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _hasMore = true;
+  bool _hasLoaded = false;
   int _currentPage = 0;
   String? _error;
 
+  /// Nombre de tâches à faire (catégorie filtrée comprise), pour le hero.
+  int? _openCount;
+
+  /// Tâches dont le basculement est en cours (pas de double appel).
+  final Set<String> _toggling = {};
+
+  /// Jeton de la dernière recherche : une réponse plus ancienne (filtre
+  /// changé entre-temps) est ignorée.
+  int _loadToken = 0;
+
+  /// Une recherche de première page est en vol (même silencieuse) : pas de
+  /// « page suivante » en parallèle.
+  bool _isFetching = false;
+
   // Filtres
-  bool? _filterIsDone;
+  TodoStatusFilter _status = TodoStatusFilter.all;
   String? _filterCategoryUuid;
 
   final ScrollController _scrollController = ScrollController();
@@ -47,10 +70,13 @@ class _TodosScreenState extends State<TodosScreen> {
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 200 &&
         !_isLoadingMore &&
+        !_isFetching &&
         _hasMore) {
       _loadMoreTodos();
     }
   }
+
+  // ---- chargement ---------------------------------------------------------
 
   Future<void> _loadCategories() async {
     final result = await sl.todoRepository.getCategories();
@@ -65,44 +91,78 @@ class _TodosScreenState extends State<TodosScreen> {
     return TodoSearchParams(
       page: page,
       size: 20,
-      isDone: _filterIsDone,
+      isDone: _status.isDone,
       categoryUuid: _filterCategoryUuid,
       sortBy: 'createdAt',
       sortDirection: 'desc',
     );
   }
 
-  Future<void> _loadTodos() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  /// Recharge la première page. [silent] (tirer pour rafraîchir) garde la
+  /// liste affichée ; un échec passe alors par le dock.
+  Future<void> _loadTodos({bool silent = false}) async {
+    final token = ++_loadToken;
+    _isFetching = true;
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
+    _loadOpenCount();
 
     final result = await sl.todoRepository.searchTodos(_buildParams());
 
-    if (!mounted) return;
+    if (!mounted || token != _loadToken) return;
+    _isFetching = false;
 
     result.fold(
       (failure) {
-        setState(() {
-          _error = failure.message;
-          _isLoading = false;
-        });
+        if (silent && _todos.isNotEmpty && _error == null) {
+          showDockError(failure.message);
+        } else {
+          setState(() {
+            _error = failure.message;
+            _isLoading = false;
+          });
+        }
       },
-      (response) {
-        setState(() {
-          _todos.clear();
-          _todos.addAll(response.content);
-          _currentPage = 0;
-          _hasMore = !response.last;
-          _isLoading = false;
-        });
-      },
+      (response) => setState(() {
+        _todos
+          ..clear()
+          ..addAll(response.content);
+        _currentPage = 0;
+        _hasMore = !response.last;
+        _isLoading = false;
+        _error = null;
+        _hasLoaded = true;
+      }),
     );
+  }
+
+  Future<void> _refresh() => _loadTodos(silent: true);
+
+  /// Décompte des tâches à faire pour le hero (une page d'un élément : seul
+  /// `totalElements` sert).
+  Future<void> _loadOpenCount() async {
+    final categoryUuid = _filterCategoryUuid;
+    final result = await sl.todoRepository.searchTodos(
+      TodoSearchParams(
+        page: 0,
+        size: 1,
+        isDone: false,
+        categoryUuid: categoryUuid,
+      ),
+    );
+    if (!mounted || categoryUuid != _filterCategoryUuid) return;
+    setState(() {
+      _openCount = result.fold((_) => null, (r) => r.totalElements);
+    });
   }
 
   Future<void> _loadMoreTodos() async {
     if (_isLoadingMore) return;
+    final token = _loadToken;
     setState(() => _isLoadingMore = true);
 
     final result = await sl.todoRepository.searchTodos(
@@ -110,6 +170,10 @@ class _TodosScreenState extends State<TodosScreen> {
     );
 
     if (!mounted) return;
+    if (token != _loadToken) {
+      setState(() => _isLoadingMore = false);
+      return;
+    }
 
     result.fold(
       (failure) => setState(() => _isLoadingMore = false),
@@ -124,672 +188,208 @@ class _TodosScreenState extends State<TodosScreen> {
     );
   }
 
+  // ---- actions ------------------------------------------------------------
+
   Future<void> _toggleTodo(Todo todo) async {
+    if (_toggling.contains(todo.uuid)) return;
+    clearDockNotice();
+    setState(() => _toggling.add(todo.uuid));
+
     final result = await sl.todoRepository.toggleTodo(todo.uuid);
     if (!mounted) return;
+
+    setState(() => _toggling.remove(todo.uuid));
     result.fold(
-      (failure) => _showError(failure.message),
+      (failure) => showDockError(failure.message),
       (updatedTodo) {
+        HapticFeedback.lightImpact();
         setState(() {
           final index = _todos.indexWhere((t) => t.uuid == todo.uuid);
           if (index != -1) _todos[index] = updatedTodo;
+          final count = _openCount;
+          if (count != null && updatedTodo.isDone != todo.isDone) {
+            _openCount = math.max(0, count + (updatedTodo.isDone ? -1 : 1));
+          }
         });
       },
     );
   }
 
   Future<void> _deleteTodo(Todo todo) async {
-    final colors = context.colors;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: colors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        title: Text('Supprimer', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.foreground)),
-        content: Text(
-          'Voulez-vous vraiment supprimer cette tâche ?',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text('Non', style: TextStyle(color: colors.mutedForeground)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colors.destructive),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    clearDockNotice();
+    final confirmed = await AppConfirmSheet.show(
+      context,
+      title: 'Supprimer la tâche ?',
+      message: '« ${todo.title} » sera supprimée définitivement.',
+      confirmLabel: 'Supprimer la tâche',
+      confirmIcon: Icons.delete_rounded,
     );
 
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
 
     final result = await sl.todoRepository.deleteTodo(todo.uuid);
     if (!mounted) return;
     result.fold(
-      (failure) => _showError(failure.message),
-      (_) {
-        setState(() => _todos.removeWhere((t) => t.uuid == todo.uuid));
-        _showSuccess('Tâche supprimée');
-      },
+      (failure) => showDockError(failure.message),
+      // La ligne disparaît : pas de message.
+      (_) => setState(() {
+        _todos.removeWhere((t) => t.uuid == todo.uuid);
+        final count = _openCount;
+        if (count != null && !todo.isDone) _openCount = math.max(0, count - 1);
+      }),
     );
   }
 
-  void _showCreateDialog() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _CreateTodoSheet(
-        categories: _categories,
-        onCreated: (todo) {
-          setState(() => _todos.insert(0, todo));
-        },
-      ),
-    );
+  Future<void> _createTodo() async {
+    clearDockNotice();
+    final todo = await TodoCreateSheet.show(context, categories: _categories);
+    if (todo == null || !mounted) return;
+
+    // La nouvelle tâche apparaît en tête de liste : pas de message.
+    setState(() {
+      _todos.insert(0, todo);
+      final count = _openCount;
+      final inScope = _filterCategoryUuid == null ||
+          todo.category?.uuid == _filterCategoryUuid;
+      if (count != null && !todo.isDone && inScope) _openCount = count + 1;
+    });
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: AppDuration.base,
+        curve: Curves.easeOut,
+      );
+    }
   }
 
-  void _showFilterSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _FilterTodoSheet(
-        categories: _categories,
-        currentIsDone: _filterIsDone,
-        currentCategoryUuid: _filterCategoryUuid,
-        onApply: (isDone, categoryUuid) {
-          setState(() {
-            _filterIsDone = isDone;
-            _filterCategoryUuid = categoryUuid;
-          });
-          _loadTodos();
-        },
-        onClear: () {
-          setState(() {
-            _filterIsDone = null;
-            _filterCategoryUuid = null;
-          });
-          _loadTodos();
-        },
-      ),
-    );
+  // ---- filtres ------------------------------------------------------------
+
+  void _setStatus(TodoStatusFilter status) {
+    setState(() => _status = status);
+    _loadTodos();
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+  void _setCategory(String? categoryUuid) {
+    setState(() => _filterCategoryUuid = categoryUuid);
+    _loadTodos();
   }
 
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+  void _clearFilters() {
+    setState(() {
+      _status = TodoStatusFilter.all;
+      _filterCategoryUuid = null;
+    });
+    _loadTodos();
   }
 
   bool get _hasActiveFilters =>
-      _filterIsDone != null || _filterCategoryUuid != null;
+      _status != TodoStatusFilter.all || _filterCategoryUuid != null;
+
+  TodoCategory? get _selectedCategory {
+    for (final c in _categories) {
+      if (c.uuid == _filterCategoryUuid) return c;
+    }
+    return null;
+  }
+
+  // ---- build --------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Mes tâches'),
+    return AppPage(
+      title: 'Tâches',
+      body: _buildBody(),
+      dock: AppDock(
+        skeleton: !_hasLoaded && _isLoading,
         actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.filter_list, size: 22),
-                onPressed: _showFilterSheet,
-                tooltip: 'Filtres',
-              ),
-              if (_hasActiveFilters)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: colors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-            ],
+          DockAction(
+            label: 'Nouvelle tâche',
+            icon: Icons.add_rounded,
+            onPressed: _createTodo,
           ),
         ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateDialog,
-        backgroundColor: colors.primary,
-        child: Icon(Icons.add, color: colors.primaryForeground),
-      ),
-      body: _buildBody(colors),
-    );
-  }
-
-  Widget _buildBody(AppColors colors) {
-    if (_isLoading) {
-      return const LoadingIndicator(message: 'Chargement...');
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: colors.destructive),
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              _error!,
-              style: TextStyle(color: colors.mutedForeground),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacing.base),
-            AppButton(
-              text: 'Réessayer',
-              onPressed: _loadTodos,
-              backgroundColor: colors.primary,
-              foregroundColor: colors.primaryForeground,
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_todos.isEmpty) {
-      return AppEmptyState(
-        icon: Icons.checklist_outlined,
-        title: _hasActiveFilters
-            ? 'Aucune tâche ne correspond aux filtres'
-            : 'Aucune tâche',
-        subtitle: !_hasActiveFilters
-            ? 'Appuyez sur + pour créer une tâche'
-            : null,
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadTodos,
-      color: colors.primary,
-      backgroundColor: colors.card,
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(AppSpacing.base),
-        itemCount: _todos.length + (_isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _todos.length) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.base),
-                child: CircularProgressIndicator(color: colors.primary),
-              ),
-            );
-          }
-          return _buildTodoCard(_todos[index], colors);
-        },
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
       ),
     );
   }
 
-  Widget _buildTodoCard(Todo todo, AppColors colors) {
-    final dateFormat = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR');
-    final textTheme = Theme.of(context).textTheme;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      color: colors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        onLongPress: () => _deleteTodo(todo),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Checkbox — wrapped in SizedBox for 48dp touch target
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _toggleTodo(todo),
-                child: SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: Center(
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: todo.isDone
-                            ? colors.primary
-                            : Colors.transparent,
-                        border: Border.all(
-                          color: todo.isDone
-                              ? colors.primary
-                              : colors.border,
-                          width: 2,
-                        ),
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: todo.isDone
-                          ? Icon(Icons.check, size: 16, color: colors.primaryForeground)
-                          : null,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              // Contenu
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      todo.title,
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                        color: todo.isDone
-                            ? colors.mutedForeground
-                            : colors.foreground,
-                        decoration:
-                            todo.isDone ? TextDecoration.lineThrough : null,
-                      ),
-                    ),
-                    if (todo.description != null &&
-                        todo.description!.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        todo.description!,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colors.mutedForeground,
-                        ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.xs),
-                    Row(
-                      children: [
-                        if (todo.category != null) ...[
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _parseColor(todo.category!.color)
-                                  .withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                            ),
-                            child: Text(
-                              todo.category!.name,
-                              style: textTheme.labelSmall?.copyWith(
-                                color: _parseColor(todo.category!.color),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                        ],
-                        if (todo.createdAt != null)
-                          Text(
-                            dateFormat.format(todo.createdAt!),
-                            style: textTheme.labelSmall?.copyWith(
-                              color: colors.mutedForeground,
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              // Delete button
-              IconButton(
-                icon: Icon(Icons.delete_outline, size: 20, color: colors.mutedForeground),
-                onPressed: () => _deleteTodo(todo),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _parseColor(String? hexColor) {
-    if (hexColor == null || hexColor.isEmpty) return Colors.grey;
-    try {
-      final hex = hexColor.replaceAll('#', '');
-      return Color(int.parse('FF$hex', radix: 16));
-    } catch (_) {
-      return Colors.grey;
-    }
-  }
-}
-
-/// Sheet pour créer un nouveau todo
-class _CreateTodoSheet extends StatefulWidget {
-  final List<TodoCategory> categories;
-  final Function(Todo) onCreated;
-
-  const _CreateTodoSheet({required this.categories, required this.onCreated});
-
-  @override
-  State<_CreateTodoSheet> createState() => _CreateTodoSheetState();
-}
-
-class _CreateTodoSheetState extends State<_CreateTodoSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  String? _selectedCategoryUuid;
-  bool _isSubmitting = false;
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSubmitting = true);
-
-    final request = TodoCreateRequest(
-      title: _titleController.text.trim(),
-      description: _descriptionController.text.trim().isEmpty
-          ? null
-          : _descriptionController.text.trim(),
-      categoryUuid: _selectedCategoryUuid,
-    );
-
-    final result = await sl.todoRepository.createTodo(request);
-
-    if (!mounted) return;
-
-    result.fold(
-      (failure) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(failure.message)),
-        );
-      },
-      (todo) {
-        widget.onCreated(todo);
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Tâche créée')),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      padding: EdgeInsets.only(
-        top: AppSpacing.base,
-        left: AppSpacing.base,
-        right: AppSpacing.base,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.base,
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Nouvelle tâche',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: Icon(Icons.close, color: colors.mutedForeground),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppSpacing.base),
-            TextFormField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: 'Titre',
-                labelStyle: TextStyle(color: colors.mutedForeground),
-                prefixIcon: Icon(Icons.title, color: colors.primary),
-              ),
-              style: TextStyle(color: colors.foreground),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Veuillez saisir un titre';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: AppSpacing.base),
-            TextFormField(
-              controller: _descriptionController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: 'Description (facultative)',
-                labelStyle: TextStyle(color: colors.mutedForeground),
-                prefixIcon:
-                    Icon(Icons.description_outlined, color: colors.primary),
-              ),
-              style: TextStyle(color: colors.foreground),
-            ),
-            if (widget.categories.isNotEmpty) ...[
-              const SizedBox(height: AppSpacing.base),
-              DropdownButtonFormField<String>(
-                initialValue: _selectedCategoryUuid,
-                decoration: InputDecoration(
-                  labelText: 'Catégorie (facultative)',
-                  labelStyle: TextStyle(color: colors.mutedForeground),
-                  prefixIcon: Icon(Icons.category, color: colors.primary),
-                ),
-                dropdownColor: colors.card,
-                style: TextStyle(color: colors.foreground),
-                items: [
-                  DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('Aucune',
-                        style: TextStyle(color: colors.mutedForeground)),
-                  ),
-                  ...widget.categories.map((cat) => DropdownMenuItem<String>(
-                        value: cat.uuid,
-                        child: Text(cat.name),
-                      )),
-                ],
-                onChanged: (value) =>
-                    setState(() => _selectedCategoryUuid = value),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.lg),
-            AppButton(
-              text: 'Créer la tâche',
-              onPressed: _isSubmitting ? null : _submit,
-              isLoading: _isSubmitting,
-              backgroundColor: colors.primary,
-              foregroundColor: colors.primaryForeground,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Sheet pour les filtres des todos
-class _FilterTodoSheet extends StatefulWidget {
-  final List<TodoCategory> categories;
-  final bool? currentIsDone;
-  final String? currentCategoryUuid;
-  final Function(bool?, String?) onApply;
-  final VoidCallback onClear;
-
-  const _FilterTodoSheet({
-    required this.categories,
-    required this.currentIsDone,
-    required this.currentCategoryUuid,
-    required this.onApply,
-    required this.onClear,
-  });
-
-  @override
-  State<_FilterTodoSheet> createState() => _FilterTodoSheetState();
-}
-
-class _FilterTodoSheetState extends State<_FilterTodoSheet> {
-  bool? _isDone;
-  String? _categoryUuid;
-
-  @override
-  void initState() {
-    super.initState();
-    _isDone = widget.currentIsDone;
-    _categoryUuid = widget.currentCategoryUuid;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius:
-            const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      padding: const EdgeInsets.all(AppSpacing.base),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _buildBody() {
+    // Premier chargement : squelette, ou erreur sous le titre.
+    if (!_hasLoaded && _todos.isEmpty) {
+      final error = _error;
+      return AppScrollView(
+        onRefresh: error != null ? _loadTodos : null,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Filtres',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: colors.foreground,
-                ),
-              ),
-              IconButton(
-                onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.close, color: colors.mutedForeground),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.base),
-          Text(
-            'Statut',
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              color: colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Wrap(
-            spacing: AppSpacing.xs,
-            children: [
-              FilterChip(
-                label: const Text('À faire'),
-                selected: _isDone == false,
-                onSelected: (s) =>
-                    setState(() => _isDone = s ? false : null),
-                selectedColor: colors.primary.withValues(alpha: 0.2),
-                checkmarkColor: colors.primary,
-              ),
-              FilterChip(
-                label: const Text('Terminé'),
-                selected: _isDone == true,
-                onSelected: (s) =>
-                    setState(() => _isDone = s ? true : null),
-                selectedColor: colors.primary.withValues(alpha: 0.2),
-                checkmarkColor: colors.primary,
-              ),
-            ],
-          ),
-          if (widget.categories.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.base),
-            Text(
-              'Catégorie',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                color: colors.mutedForeground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Wrap(
-              spacing: AppSpacing.xs,
-              children: widget.categories
-                  .map((cat) => FilterChip(
-                        label: Text(cat.name),
-                        selected: _categoryUuid == cat.uuid,
-                        onSelected: (s) => setState(
-                            () => _categoryUuid = s ? cat.uuid : null),
-                        selectedColor: colors.primary.withValues(alpha: 0.2),
-                        checkmarkColor: colors.primary,
-                      ))
-                  .toList(),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.lg),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: () {
-                    widget.onClear();
-                    Navigator.pop(context);
-                  },
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: colors.border),
-                  ),
-                  child: Text(
-                    'Effacer',
-                    style: TextStyle(color: colors.mutedForeground),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                flex: 2,
-                child: AppButton(
-                  text: 'Appliquer',
-                  onPressed: () {
-                    widget.onApply(_isDone, _categoryUuid);
-                    Navigator.pop(context);
-                  },
-                  backgroundColor: colors.primary,
-                  foregroundColor: colors.primaryForeground,
-                ),
-              ),
-            ],
-          ),
+          if (error != null && !_isLoading)
+            AppErrorState(message: error, onRetry: _loadTodos)
+          else
+            const TodosSkeleton(),
         ],
-      ),
+      );
+    }
+
+    final showItems = !_isLoading && _error == null && _todos.isNotEmpty;
+
+    return AppListView(
+      controller: _scrollController,
+      onRefresh: _refresh,
+      header: [
+        TodosHero(openCount: _openCount, category: _selectedCategory),
+        const SizedBox(height: AppSpacing.lg),
+        TodosFilters(
+          status: _status,
+          onStatusChanged: _setStatus,
+          categories: _categories,
+          categoryUuid: _filterCategoryUuid,
+          onCategoryChanged: _setCategory,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        if (!showItems) _buildListState(),
+      ],
+      itemCount: showItems ? _todos.length : 0,
+      itemBuilder: (context, index) {
+        final todo = _todos[index];
+        return TodoCard(
+          key: ValueKey(todo.uuid),
+          todo: todo,
+          busy: _toggling.contains(todo.uuid),
+          onToggle: () => _toggleTodo(todo),
+          onDelete: () => _deleteTodo(todo),
+        );
+      },
+      footer: showItems && _isLoadingMore
+          ? Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: context.colors.primary,
+                ),
+              ),
+            )
+          : null,
+    );
+  }
+
+  /// Zone de liste quand il n'y a pas de lignes à montrer.
+  Widget _buildListState() {
+    if (_isLoading) return const AppListSkeleton(rows: 4);
+    final error = _error;
+    if (error != null) {
+      return AppErrorState(message: error, onRetry: _loadTodos);
+    }
+    return AppEmptyCard(
+      icon: Icons.checklist_rounded,
+      message: _hasActiveFilters
+          ? 'Aucune tâche ne correspond aux filtres'
+          : 'Aucune tâche',
+      detail: _hasActiveFilters
+          ? null
+          : 'Appuie sur « Nouvelle tâche » pour en créer une.',
+      actionLabel: _hasActiveFilters ? 'Effacer' : null,
+      onAction: _hasActiveFilters ? _clearFilters : null,
     );
   }
 }
