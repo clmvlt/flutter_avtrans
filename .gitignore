@@ -25,6 +25,7 @@
 /android/app/profile
 /android/app/release
 /android/.gradle/
+/android/build/
 /android/local.properties
 /android/key.properties
 *.jks
@@ -97,4 +98,5 @@ upload.py
 
 # Local dev helpers
 emu.vbs
+emu.ps1
 deploy/
