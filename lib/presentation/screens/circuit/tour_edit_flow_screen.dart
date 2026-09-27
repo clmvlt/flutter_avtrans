@@ -7,10 +7,12 @@ import 'widgets/tour_addresses_step.dart';
 import 'widgets/tour_order_step.dart';
 
 /// Assistant d'édition d'une tournée en deux étapes :
-/// 1. **Adresses** — ajouter les points (scan / saisie / GPS) ;
-/// 2. **Ordre** — trier (auto/manuel), définir le départ, liste ↔ carte.
+/// 1. **Adresses** — ajouter les points (scan / saisie / GPS) ; le dock dit
+///    « Continuer » ;
+/// 2. **Ordre** — trier (auto/manuel), définir le départ, liste ↔ carte ; le
+///    dock porte « Optimiser » et « Enregistrer ».
 ///
-/// « Valider » bascule la tournée en mode livraison ([TourDeliveryScreen]).
+/// « Enregistrer » bascule la tournée en mode livraison ([TourDeliveryScreen]).
 /// Le passage entre étapes est interne (pas d'empilement de routes) ; le retour
 /// système recule d'une étape avant de quitter.
 class TourEditFlowScreen extends StatefulWidget {

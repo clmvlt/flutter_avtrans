@@ -4,17 +4,25 @@ import 'package:latlong2/latlong.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/address_ocr_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/display_format.dart';
 import '../../../../data/models/address_suggestion.dart';
 import '../../../../data/models/tour_stop.dart';
 import '../../../widgets/app_button.dart';
-import '../../../widgets/app_card.dart';
-import '../../../widgets/app_empty_state.dart';
+import '../../../widgets/app_dock.dart';
+import '../../../widgets/app_list_row.dart';
+import '../../../widgets/app_page.dart';
+import '../../../widgets/app_state_views.dart';
 import 'address_picker_sheet.dart';
 import 'live_address_scanner.dart';
 import 'map_point_picker_screen.dart';
+import 'tour_widgets.dart';
 
 /// Étape 1 de l'assistant : ajouter les adresses de la tournée (scan caméra,
-/// saisie, ou point GPS posé sur la carte). « Suivant » passe au tri.
+/// saisie, ou point GPS posé sur la carte).
+///
+/// Le scanner est le point focal ; les autres façons d'ajouter sont des
+/// lignes. Le dock dit la prochaine étape : « Continuer » dès qu'il y a une
+/// adresse, sinon « Saisir une adresse ».
 class TourAddressesStep extends StatefulWidget {
   const TourAddressesStep({
     super.key,
@@ -101,130 +109,97 @@ class _TourAddressesStepState extends State<TourAddressesStep> {
       listenable: sl.tourService,
       builder: (context, _) {
         final tour = sl.tourService.tourById(widget.tourId);
-        if (tour == null) return const SizedBox.shrink();
+        if (tour == null) {
+          return Scaffold(backgroundColor: colors.background, appBar: AppBar());
+        }
         final stops = tour.stops;
+        final hasScanner = AddressOcrService.isSupported;
 
-        return Scaffold(
-          backgroundColor: colors.background,
-          appBar: AppBar(title: Text(tour.name)),
-          body: Column(
+        return AppPage(
+          title: tour.name,
+          body: AppScrollView(
             children: [
-              if (AddressOcrService.isSupported)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen,
-                    AppSpacing.base,
-                    AppSpacing.screen,
-                    0,
-                  ),
-                  child: LiveAddressScanner(onConfirm: _confirmScanned),
-                ),
-              Expanded(
-                child: stops.isEmpty
-                    ? _buildEmpty()
-                    : _buildList(tour.stops),
+              if (hasScanner) ...[
+                LiveAddressScanner(onConfirm: _confirmScanned),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+              AppSectionHeader(
+                title: hasScanner ? 'Ajouter autrement' : 'Ajouter une adresse',
               ),
-              _buildActionBar(stops.isNotEmpty, colors),
+              RowsCard(
+                children: [
+                  AppListRow(
+                    icon: Icons.keyboard_alt_outlined,
+                    iconColor: colors.primary,
+                    title: 'Saisir une adresse',
+                    subtitle: 'Rue, ville ou code postal',
+                    onTap: _addManual,
+                  ),
+                  AppListRow(
+                    icon: Icons.add_location_alt_outlined,
+                    iconColor: colors.primary,
+                    title: 'Poser un point GPS',
+                    subtitle: 'Place le point sur la carte',
+                    onTap: _addGpsPoint,
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              AppSectionHeader(
+                title: 'Adresses',
+                summary: stops.isEmpty
+                    ? null
+                    : DisplayFormat.plural(stops.length, 'adresse'),
+              ),
+              if (stops.isEmpty)
+                AppEmptyCard(
+                  icon: Icons.add_location_alt_outlined,
+                  message: 'Aucune adresse pour l\'instant',
+                  detail: hasScanner
+                      ? 'Vise une adresse avec la caméra, saisis-la ou pose '
+                          'un point GPS.'
+                      : 'Saisis une adresse ou pose un point GPS.',
+                )
+              else
+                RowsCard(
+                  children: [
+                    for (var i = 0; i < stops.length; i++)
+                      _AddressRow(
+                        key: ValueKey(stops[i].id),
+                        stop: stops[i],
+                        onRemove: () =>
+                            sl.tourService.removeStopAt(widget.tourId, i),
+                      ),
+                  ],
+                ),
+            ],
+          ),
+          dock: AppDock(
+            actions: [
+              if (stops.isEmpty)
+                DockAction(
+                  label: 'Saisir une adresse',
+                  icon: Icons.keyboard_alt_outlined,
+                  onPressed: _addManual,
+                )
+              else
+                DockAction(
+                  label: 'Continuer',
+                  icon: Icons.arrow_forward_rounded,
+                  onPressed: widget.onNext,
+                  semanticsHint: 'Passe au choix de l\'ordre de la tournée',
+                ),
             ],
           ),
         );
       },
     );
   }
-
-  Widget _buildEmpty() {
-    return const AppEmptyState(
-      icon: Icons.add_location_alt_outlined,
-      title: 'Aucune adresse',
-      subtitle:
-          'Vise une adresse avec la caméra, saisis-la ou pose un point GPS pour l\'ajouter.',
-    );
-  }
-
-  Widget _buildList(List<TourStop> stops) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        AppSpacing.base,
-        AppSpacing.screen,
-        AppSpacing.lg,
-      ),
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: Text(
-            'Adresses · ${stops.length}',
-            style: textTheme.titleSmall?.copyWith(color: colors.mutedForeground),
-          ),
-        ),
-        for (var i = 0; i < stops.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
-            child: _AddressTile(
-              stop: stops[i],
-              onRemove: () => sl.tourService.removeStopAt(widget.tourId, i),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildActionBar(bool hasStops, AppColors colors) {
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        boxShadow: colors.navShadow,
-        border: colors.isDarkMode
-            ? Border(top: BorderSide(color: colors.border))
-            : null,
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: AppButton(
-                      text: 'Saisir',
-                      icon: Icons.keyboard_alt_outlined,
-                      variant: ButtonVariant.secondary,
-                      onPressed: _addManual,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.md),
-                  Expanded(
-                    child: AppButton(
-                      text: 'Point GPS',
-                      icon: Icons.add_location_alt_outlined,
-                      variant: ButtonVariant.outline,
-                      onPressed: _addGpsPoint,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.md),
-              AppButton(
-                text: 'Suivant',
-                icon: Icons.arrow_forward_rounded,
-                onPressed: hasStops ? widget.onNext : null,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
-class _AddressTile extends StatelessWidget {
-  const _AddressTile({required this.stop, required this.onRemove});
+/// Une adresse ajoutée : icône, libellé, ligne secondaire, bouton « Retirer ».
+class _AddressRow extends StatelessWidget {
+  const _AddressRow({super.key, required this.stop, required this.onRemove});
 
   final TourStop stop;
   final VoidCallback onRemove;
@@ -232,42 +207,29 @@ class _AddressTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
     final secondary = stop.address.secondaryLine;
     final showSecondary =
         secondary.isNotEmpty && !stop.label.contains(secondary);
 
-    return AppCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        children: [
-          Icon(Icons.location_on_outlined, size: 20, color: colors.primary),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  stop.label,
-                  style: textTheme.bodyLarge,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (showSecondary) ...[
-                  const SizedBox(height: 2),
-                  Text(secondary, style: textTheme.bodySmall),
-                ],
-              ],
-            ),
-          ),
-          IconButton(
-            icon: Icon(Icons.close_rounded,
-                size: 20, color: colors.mutedForeground),
-            tooltip: 'Retirer',
-            onPressed: onRemove,
-            constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
-          ),
-        ],
+    return AppListRow(
+      icon: stop.address.isManualPoint
+          ? Icons.pin_drop_outlined
+          : Icons.location_on_outlined,
+      iconColor: colors.primary,
+      title: stop.label,
+      subtitle: showSecondary ? secondary : null,
+      showChevron: false,
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.base,
+        AppSpacing.sm,
+        AppSpacing.xs,
+        AppSpacing.sm,
+      ),
+      trailing: AppIconButton(
+        icon: Icons.close_rounded,
+        tooltip: 'Retirer',
+        color: colors.mutedForeground,
+        onPressed: onRemove,
       ),
     );
   }

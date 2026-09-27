@@ -1,45 +1,40 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_theme.dart';
-import '../../../widgets/app_button.dart';
+import '../../../widgets/app_confirm_sheet.dart';
+import '../../../widgets/app_sheet.dart';
 import '../../../widgets/app_text_field.dart';
 
-/// Demande un nom de tournée (création ou renommage).
+/// Demande un nom de tournée (création ou renommage), dans une feuille.
 ///
 /// Renvoie le texte saisi (éventuellement vide → nom par défaut côté service),
-/// ou `null` si l'utilisateur annule.
+/// ou `null` si l'utilisateur annule ou ferme la feuille.
 Future<String?> showTourNameDialog(
   BuildContext context, {
   required String title,
   required String actionLabel,
   String? initialName,
 }) {
-  return showDialog<String>(
-    context: context,
-    builder: (_) => _TourNameDialog(
-      title: title,
+  return AppSheet.show<String>(
+    context,
+    title: title,
+    builder: (_) => _TourNameForm(
       actionLabel: actionLabel,
       initialName: initialName,
     ),
   );
 }
 
-class _TourNameDialog extends StatefulWidget {
-  const _TourNameDialog({
-    required this.title,
-    required this.actionLabel,
-    this.initialName,
-  });
+class _TourNameForm extends StatefulWidget {
+  const _TourNameForm({required this.actionLabel, this.initialName});
 
-  final String title;
   final String actionLabel;
   final String? initialName;
 
   @override
-  State<_TourNameDialog> createState() => _TourNameDialogState();
+  State<_TourNameForm> createState() => _TourNameFormState();
 }
 
-class _TourNameDialogState extends State<_TourNameDialog> {
+class _TourNameFormState extends State<_TourNameForm> {
   late final TextEditingController _controller =
       TextEditingController(text: widget.initialName ?? '');
 
@@ -53,11 +48,8 @@ class _TourNameDialogState extends State<_TourNameDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return AlertDialog(
-      title: Text(widget.title, style: textTheme.titleLarge),
-      content: AppTextField(
+    return AppConfirmBody(
+      details: AppTextField(
         controller: _controller,
         hint: 'Ex. Tournée matin — Rennes Nord',
         autofocus: true,
@@ -65,29 +57,11 @@ class _TourNameDialogState extends State<_TourNameDialog> {
         onSubmitted: (_) => _submit(),
         prefixIcon: const Icon(Icons.local_shipping_outlined, size: 20),
       ),
-      actionsPadding: const EdgeInsets.fromLTRB(
-        AppSpacing.base,
-        0,
-        AppSpacing.base,
-        AppSpacing.base,
-      ),
-      actions: [
-        Row(
-          children: [
-            Expanded(
-              child: AppButton(
-                text: 'Annuler',
-                variant: ButtonVariant.ghost,
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: AppButton(text: widget.actionLabel, onPressed: _submit),
-            ),
-          ],
-        ),
-      ],
+      confirmLabel: widget.actionLabel,
+      confirmIcon: Icons.check_rounded,
+      tone: AppConfirmTone.primary,
+      onConfirm: _submit,
+      onCancel: () => Navigator.of(context).pop(),
     );
   }
 }

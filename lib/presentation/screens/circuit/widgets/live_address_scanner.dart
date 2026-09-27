@@ -8,8 +8,8 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../core/services/address_ocr_service.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../../widgets/app_button.dart';
 import '../../../widgets/app_card.dart';
+import 'live_scanner_views.dart';
 
 /// Bloc caméra **live** intégré à la page de tournée.
 ///
@@ -19,6 +19,8 @@ import '../../../widgets/app_card.dart';
 /// (le parent ouvre la confirmation geocoding puis ajoute l'arrêt).
 ///
 /// L'analyse est suspendue pendant l'exécution de [onConfirm], puis reprend.
+/// Ce fichier porte la caméra et l'OCR ; l'habillage est dans
+/// `live_scanner_views.dart`.
 class LiveAddressScanner extends StatefulWidget {
   const LiveAddressScanner({super.key, required this.onConfirm});
 
@@ -385,26 +387,24 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
 
   @override
   Widget build(BuildContext context) {
+    // Le scanner est le point focal de l'étape « Adresses » : carte hero.
     return AppCard(
+      elevation: AppCardElevation.hero,
+      radius: AppRadius.xl,
       padding: EdgeInsets.zero,
       clip: true,
       child: switch (_status) {
         _ScannerStatus.ready => _buildReady(context),
-        _ScannerStatus.initializing => _buildPlaceholder(
-            context,
-            child: const CircularProgressIndicator(),
-            label: 'Démarrage de la caméra…',
-          ),
-        _ScannerStatus.denied => _buildFallback(
-            context,
+        _ScannerStatus.initializing =>
+          const ScannerStarting(height: _previewHeight),
+        _ScannerStatus.denied => const ScannerFallback(
             icon: Icons.no_photography_outlined,
             title: 'Caméra non autorisée',
             subtitle: 'Autorise l\'accès pour scanner les adresses.',
             actionLabel: 'Ouvrir les réglages',
             onAction: openAppSettings,
           ),
-        _ScannerStatus.error => _buildFallback(
-            context,
+        _ScannerStatus.error => ScannerFallback(
             icon: Icons.videocam_off_outlined,
             title: _errorMessage ?? 'Caméra indisponible',
             subtitle: 'Tu peux saisir les adresses manuellement.',
@@ -416,7 +416,6 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
   }
 
   Widget _buildReady(BuildContext context) {
-    final colors = context.colors;
     final controller = _controller!;
     final preview = controller.value.previewSize;
 
@@ -433,196 +432,30 @@ class _LiveAddressScannerState extends State<LiveAddressScanner>
               return Stack(
                 fit: StackFit.expand,
                 children: [
-              if (preview != null)
-                FittedBox(
-                  fit: BoxFit.cover,
-                  child: SizedBox(
-                    width: preview.height,
-                    height: preview.width,
-                    child: CameraPreview(controller),
-                  ),
-                ),
-              // Viseur de scan — délimite la zone réellement analysée (ROI).
-              Center(
-                child: FractionallySizedBox(
-                  widthFactor: _roiRight - _roiLeft,
-                  heightFactor: _roiBottom - _roiTop,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.white, width: 2),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
+                  if (preview != null)
+                    FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: preview.height,
+                        height: preview.width,
+                        child: CameraPreview(controller),
+                      ),
                     ),
+                  // Viseur de scan — délimite la zone réellement analysée (ROI).
+                  const ScannerViewfinder(
+                    widthFactor: _roiRight - _roiLeft,
+                    heightFactor: _roiBottom - _roiTop,
                   ),
-                ),
-              ),
-              Positioned(
-                left: AppSpacing.md,
-                top: AppSpacing.md,
-                child: _Pill(
-                  icon: Icons.center_focus_strong_rounded,
-                  label: 'Vise une adresse',
-                ),
-              ),
                 ],
               );
             },
           ),
         ),
-        Container(
-          color: colors.card,
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: _buildStatus(context),
+        ScannerCandidate(
+          candidate: _candidate,
+          onConfirm: _paused ? null : _confirm,
         ),
       ],
-    );
-  }
-
-  Widget _buildStatus(BuildContext context) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-    final candidate = _candidate;
-
-    if (candidate == null || candidate.isEmpty) {
-      return Row(
-        children: [
-          SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-              strokeWidth: 2,
-              color: colors.mutedForeground,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              'Recherche d\'une adresse…',
-              style: textTheme.bodyMedium
-                  ?.copyWith(color: colors.mutedForeground),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.location_on_rounded, size: 20, color: colors.primary),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: Text(
-                candidate,
-                style: textTheme.titleSmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.md),
-        AppButton(
-          text: 'Ajouter cette adresse',
-          icon: Icons.add_location_alt_outlined,
-          size: ButtonSize.sm,
-          onPressed: _paused ? null : _confirm,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPlaceholder(
-    BuildContext context, {
-    required Widget child,
-    required String label,
-  }) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      height: _previewHeight,
-      color: colors.surfaceSunken,
-      alignment: Alignment.center,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          child,
-          const SizedBox(height: AppSpacing.md),
-          Text(label, style: textTheme.bodySmall),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFallback(
-    BuildContext context, {
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required String actionLabel,
-    required VoidCallback onAction,
-  }) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-    return Container(
-      color: colors.surfaceSunken,
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 32, color: colors.mutedForeground),
-          const SizedBox(height: AppSpacing.sm),
-          Text(title, style: textTheme.titleSmall, textAlign: TextAlign.center),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            subtitle,
-            style: textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            text: actionLabel,
-            variant: ButtonVariant.secondary,
-            size: ButtonSize.sm,
-            fullWidth: false,
-            onPressed: onAction,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

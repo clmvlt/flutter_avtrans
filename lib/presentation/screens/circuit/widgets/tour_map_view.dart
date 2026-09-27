@@ -3,12 +3,12 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../../core/constants/mapbox_constants.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../../../data/models/tour_model.dart';
 import '../../../../data/models/tour_stop.dart';
+import 'tour_map_parts.dart';
 
 /// Canevas carte d'une tournée : tuiles Mapbox + tracé + arrêts numérotés +
-/// dépôt. Réutilisé en aperçu (switch Liste/Carte) et en plein écran.
+/// dépôt. Réutilisé en aperçu (bascule Liste/Carte) et en plein écran.
 class TourMapView extends StatefulWidget {
   const TourMapView({
     super.key,
@@ -16,12 +16,17 @@ class TourMapView extends StatefulWidget {
     this.selected,
     this.onStopTap,
     this.onMapTap,
+    this.fitPadding = EdgeInsets.zero,
   });
 
   final Tour tour;
   final TourStop? selected;
   final void Function(TourStop stop)? onStopTap;
   final VoidCallback? onMapTap;
+
+  /// Marge ajoutée au cadrage initial, pour ne pas cacher de repère sous un
+  /// élément posé sur la carte (dock).
+  final EdgeInsets fitPadding;
 
   @override
   State<TourMapView> createState() => _TourMapViewState();
@@ -37,7 +42,6 @@ class _TourMapViewState extends State<TourMapView> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final tour = widget.tour;
     final stops = tour.activeStops;
 
@@ -56,7 +60,7 @@ class _TourMapViewState extends State<TourMapView> {
         initialCameraFit: allPoints.length >= 2
             ? CameraFit.bounds(
                 bounds: LatLngBounds.fromPoints(allPoints),
-                padding: const EdgeInsets.all(56),
+                padding: const EdgeInsets.all(56) + widget.fitPadding,
               )
             : null,
         interactionOptions: const InteractionOptions(
@@ -74,13 +78,14 @@ class _TourMapViewState extends State<TourMapView> {
                     .map((p) => _ll(p.lat, p.lon))
                     .toList(),
                 strokeWidth: 5,
-                color: colors.primary,
+                color: MapPalette.accent,
                 borderStrokeWidth: 2,
-                borderColor: Colors.white,
+                borderColor: MapPalette.halo,
               ),
             ],
           ),
-        MarkerLayer(markers: _markers(tour, colors)),
+        MarkerLayer(markers: _markers(tour)),
+        // Enveloppé d'une SafeArea : reste visible au-dessus du dock.
         const SimpleAttributionWidget(
           source: Text(MapboxConstants.attribution),
         ),
@@ -88,7 +93,7 @@ class _TourMapViewState extends State<TourMapView> {
     );
   }
 
-  List<Marker> _markers(Tour tour, AppColors colors) {
+  List<Marker> _markers(Tour tour) {
     final markers = <Marker>[];
 
     if (tour.depot != null) {
@@ -97,14 +102,17 @@ class _TourMapViewState extends State<TourMapView> {
           point: _ll(tour.depot!.lat, tour.depot!.lon),
           width: 38,
           height: 38,
-          child: Container(
-            decoration: BoxDecoration(
-              color: colors.foreground,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
-              boxShadow: colors.cardShadow,
+          child: Semantics(
+            label: 'Départ',
+            child: Container(
+              decoration: BoxDecoration(
+                color: MapPalette.ink,
+                shape: BoxShape.circle,
+                border: Border.all(color: MapPalette.halo, width: 2),
+                boxShadow: MapPalette.shadow,
+              ),
+              child: Icon(Icons.home_rounded, size: 20, color: MapPalette.halo),
             ),
-            child: const Icon(Icons.home_rounded, size: 20, color: Colors.white),
           ),
         ),
       );
@@ -114,29 +122,36 @@ class _TourMapViewState extends State<TourMapView> {
     for (var i = 0; i < stops.length; i++) {
       final stop = stops[i];
       final selected = identical(stop, widget.selected);
+      final onTap =
+          widget.onStopTap == null ? null : () => widget.onStopTap!(stop);
       markers.add(
         Marker(
           point: _ll(stop.lat, stop.lon),
           width: 34,
           height: 34,
-          child: GestureDetector(
-            onTap: widget.onStopTap == null
-                ? null
-                : () => widget.onStopTap!(stop),
-            child: Container(
-              decoration: BoxDecoration(
-                color: selected ? colors.foreground : colors.primary,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                boxShadow: colors.cardShadow,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '${i + 1}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+          child: Semantics(
+            button: onTap != null,
+            selected: selected,
+            label: 'Arrêt ${i + 1}, ${stop.label}',
+            onTap: onTap,
+            excludeSemantics: true,
+            child: GestureDetector(
+              onTap: onTap,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: selected ? MapPalette.ink : MapPalette.accent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: MapPalette.halo, width: 2),
+                  boxShadow: MapPalette.shadow,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '${i + 1}',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        color: MapPalette.onAccent,
+                        fontWeight: FontWeight.w700,
+                        height: 1,
+                      ),
                 ),
               ),
             ),

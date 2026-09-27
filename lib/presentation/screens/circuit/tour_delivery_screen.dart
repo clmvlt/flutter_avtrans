@@ -3,19 +3,27 @@ import 'package:flutter/material.dart';
 import '../../../core/di/service_locator.dart';
 import '../../../core/services/navigation_launcher.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/display_format.dart';
 import '../../../data/models/tour_model.dart';
 import '../../../data/models/tour_stop.dart';
 import '../../widgets/app_button.dart';
-import '../../widgets/app_card.dart';
-import 'circuit_format.dart';
+import '../../widgets/app_dock.dart';
+import '../../widgets/app_list_row.dart';
+import '../../widgets/app_page.dart';
+import '../../widgets/app_state_views.dart';
 import 'tour_edit_flow_screen.dart';
 import 'tour_map_screen.dart';
+import 'widgets/circuit_action_sheet.dart';
+import 'widgets/delivery_widgets.dart';
 import 'widgets/navigation_app_sheet.dart';
 import 'widgets/tour_widgets.dart';
 
+enum _DeliveryAction { edit, gpsApp }
+
 /// Mode **livraison** d'une tournée validée : liste ordonnée des points en
 /// lecture seule, avec accès à la carte et à la navigation GPS (par arrêt ou
-/// pour toute la tournée). « Modifier » (menu ⋮) repasse en mode édition.
+/// pour toute la tournée). « Modifier la tournée » (menu ⋮) repasse en mode
+/// édition.
 class TourDeliveryScreen extends StatefulWidget {
   const TourDeliveryScreen({super.key, required this.tourId});
 
@@ -25,8 +33,12 @@ class TourDeliveryScreen extends StatefulWidget {
   State<TourDeliveryScreen> createState() => _TourDeliveryScreenState();
 }
 
-class _TourDeliveryScreenState extends State<TourDeliveryScreen> {
+class _TourDeliveryScreenState extends State<TourDeliveryScreen>
+    with DockNoticeMixin {
+  static const String _gpsError = 'Impossible d\'ouvrir l\'application GPS.';
+
   Future<void> _navigate(TourStop stop) async {
+    clearDockNotice();
     final app = sl.navigationPreferenceService.current;
     final ok = await NavigationLauncher.openPoint(
       app,
@@ -34,17 +46,18 @@ class _TourDeliveryScreenState extends State<TourDeliveryScreen> {
       stop.lon,
       label: stop.label,
     );
-    if (!ok && mounted) _snack('Impossible d\'ouvrir l\'application GPS.');
+    if (!ok && mounted) showDockError(_gpsError);
   }
 
   Future<void> _navigateRoute(Tour tour) async {
+    clearDockNotice();
     final app = sl.navigationPreferenceService.current;
     final stops = tour.activeStops.map((s) => (lat: s.lat, lon: s.lon)).toList();
     if (stops.isEmpty) return;
     final origin =
         tour.depot == null ? null : (lat: tour.depot!.lat, lon: tour.depot!.lon);
     final ok = await NavigationLauncher.openRoute(app, stops, origin: origin);
-    if (!ok && mounted) _snack('Impossible d\'ouvrir l\'application GPS.');
+    if (!ok && mounted) showDockError(_gpsError);
   }
 
   Future<void> _modify(Tour tour) async {
@@ -61,10 +74,32 @@ class _TourDeliveryScreenState extends State<TourDeliveryScreen> {
     );
   }
 
-  void _snack(String message) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+  Future<void> _showMenu(Tour tour) async {
+    final action = await showCircuitActionSheet<_DeliveryAction>(
+      context,
+      title: tour.name,
+      actions: [
+        const CircuitSheetAction(
+          value: _DeliveryAction.edit,
+          icon: Icons.edit_road_rounded,
+          label: 'Modifier la tournée',
+          subtitle: 'Repasse en préparation : adresses et ordre',
+        ),
+        CircuitSheetAction(
+          value: _DeliveryAction.gpsApp,
+          icon: Icons.navigation_outlined,
+          label: 'Application GPS',
+          subtitle: sl.navigationPreferenceService.current.label,
+        ),
+      ],
+    );
+    if (action == null || !mounted) return;
+    switch (action) {
+      case _DeliveryAction.edit:
+        await _modify(tour);
+      case _DeliveryAction.gpsApp:
+        await showNavigationAppSheet(context);
+    }
   }
 
   @override
@@ -72,7 +107,7 @@ class _TourDeliveryScreenState extends State<TourDeliveryScreen> {
     final colors = context.colors;
 
     return ListenableBuilder(
-      // Écoute aussi la préférence GPS pour rafraîchir la pastille d'app.
+      // Écoute aussi la préférence GPS pour rafraîchir la ligne d'app.
       listenable: Listenable.merge(
         [sl.tourService, sl.navigationPreferenceService],
       ),
@@ -85,261 +120,82 @@ class _TourDeliveryScreenState extends State<TourDeliveryScreen> {
           return Scaffold(backgroundColor: colors.background, appBar: AppBar());
         }
 
-        return Scaffold(
-          backgroundColor: colors.background,
-          appBar: AppBar(
-            title: Text(tour.name),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.map_outlined),
-                tooltip: 'Voir sur la carte',
-                onPressed: () => _openMap(tour),
+        final hasActiveStops = tour.activeStops.isNotEmpty;
+
+        return AppPage(
+          title: tour.name,
+          actions: [
+            AppIconButton(
+              icon: Icons.map_outlined,
+              tooltip: 'Voir sur la carte',
+              color: colors.foreground,
+              onPressed: () => _openMap(tour),
+            ),
+            AppIconButton(
+              icon: Icons.more_vert_rounded,
+              tooltip: 'Plus d\'actions',
+              color: colors.foreground,
+              onPressed: () => _showMenu(tour),
+            ),
+          ],
+          body: AppScrollView(
+            children: [
+              DeliveryHeroCard(tour: tour, onTap: () => _openMap(tour)),
+              if (tour.skippedStops.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.md),
+                SkippedStopsCallout(count: tour.skippedStops.length),
+              ],
+              const SizedBox(height: AppSpacing.lg),
+              AppSectionHeader(
+                title: 'Arrêts',
+                summary: DisplayFormat.plural(tour.stopCount, 'arrêt'),
               ),
-              PopupMenuButton<String>(
-                onSelected: (v) {
-                  if (v == 'edit') _modify(tour);
-                  if (v == 'nav') showNavigationAppSheet(context);
-                },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: Text('Modifier')),
-                  PopupMenuItem(
-                      value: 'nav', child: Text('Application GPS')),
-                ],
-              ),
+              if (tour.stops.isEmpty)
+                AppEmptyCard(
+                  icon: Icons.wrong_location_outlined,
+                  message: 'Aucun arrêt dans cette tournée',
+                  actionLabel: 'Modifier',
+                  onAction: () => _modify(tour),
+                )
+              else
+                RowsCard(children: _stopRows(tour)),
             ],
           ),
-          body: Column(
-            children: [
-              Expanded(child: _buildList(tour)),
-              if (tour.activeStops.isNotEmpty)
-                _BottomBar(
-                  tour: tour,
-                  onNavigateRoute: () => _navigateRoute(tour),
-                  onChangeApp: () => showNavigationAppSheet(context),
+          dock: AppDock(
+            status: hasActiveStops
+                ? NavigationAppLine(
+                    app: sl.navigationPreferenceService.current,
+                    onChangeApp: () => showNavigationAppSheet(context),
+                  )
+                : null,
+            actions: [
+              if (hasActiveStops)
+                DockAction(
+                  label: 'Lancer la navigation',
+                  icon: Icons.navigation_rounded,
+                  onPressed: () => _navigateRoute(tour),
+                  semanticsHint: 'Ouvre toute la tournée dans le GPS',
                 ),
             ],
+            notice: dockNotice,
+            onDismissNotice: clearDockNotice,
           ),
         );
       },
     );
   }
 
-  Widget _buildList(Tour tour) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-
+  List<Widget> _stopRows(Tour tour) {
     var number = 0;
-    final stopWidgets = <Widget>[];
-    for (final stop in tour.stops) {
-      final display = stop.skipped ? null : ++number;
-      stopWidgets.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: _DeliveryStopTile(
-            number: display,
-            stop: stop,
-            optimized: tour.optimized,
-            onNavigate: stop.skipped ? null : () => _navigate(stop),
-          ),
+    return [
+      for (final stop in tour.stops)
+        DeliveryStopRow(
+          key: ValueKey(stop.id),
+          number: stop.skipped ? null : ++number,
+          stop: stop,
+          optimized: tour.optimized,
+          onNavigate: stop.skipped ? null : () => _navigate(stop),
         ),
-      );
-    }
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        AppSpacing.base,
-        AppSpacing.screen,
-        AppSpacing.lg,
-      ),
-      children: [
-        if (tour.hasRoute) ...[
-          RouteSummaryCard(tour: tour, onTap: () => _openMap(tour)),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        if (tour.skippedStops.isNotEmpty) ...[
-          SkippedBanner(count: tour.skippedStops.length),
-          const SizedBox(height: AppSpacing.md),
-        ],
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-          child: Text(
-            'Points · ${tour.stopCount}',
-            style: textTheme.titleSmall?.copyWith(color: colors.mutedForeground),
-          ),
-        ),
-        ...stopWidgets,
-      ],
-    );
-  }
-}
-
-class _DeliveryStopTile extends StatelessWidget {
-  const _DeliveryStopTile({
-    required this.number,
-    required this.stop,
-    required this.optimized,
-    required this.onNavigate,
-  });
-
-  final int? number;
-  final TourStop stop;
-  final bool optimized;
-  final VoidCallback? onNavigate;
-
-  String? _subtitle() {
-    if (stop.skipped) {
-      return stop.skipReason == 'TOO_FAR'
-          ? 'Écarté · trop éloigné d\'une route'
-          : 'Écarté · hors réseau routier';
-    }
-    if (optimized && stop.arrivalTime != null) {
-      final dist = stop.cumulativeDistanceMeters;
-      final arrival = 'Arrivée ${formatTime(stop.arrivalTime)}';
-      return dist != null ? '$arrival · ${formatDistance(dist)}' : arrival;
-    }
-    final secondary = stop.address.secondaryLine;
-    return secondary.isEmpty || stop.label.contains(secondary) ? null : secondary;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-    final subtitle = _subtitle();
-
-    return AppCard(
-      onTap: onNavigate,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: stop.skipped ? colors.warningMuted : colors.primary,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: stop.skipped
-                ? Icon(Icons.warning_amber_rounded,
-                    size: 18, color: colors.warning)
-                : Text(
-                    '${number ?? ''}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
-                    ),
-                  ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  stop.label,
-                  style: textTheme.bodyLarge,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (subtitle != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: textTheme.bodySmall?.copyWith(
-                      color:
-                          stop.skipped ? colors.warning : colors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (onNavigate != null)
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: colors.primarySoft,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
-              child: Icon(Icons.navigation_rounded,
-                  size: 20, color: colors.primary),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BottomBar extends StatelessWidget {
-  const _BottomBar({
-    required this.tour,
-    required this.onNavigateRoute,
-    required this.onChangeApp,
-  });
-
-  final Tour tour;
-  final VoidCallback onNavigateRoute;
-  final VoidCallback onChangeApp;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-    final app = sl.navigationPreferenceService.current;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.card,
-        boxShadow: colors.navShadow,
-        border: colors.isDarkMode
-            ? Border(top: BorderSide(color: colors.border))
-            : null,
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: Row(
-            children: [
-              Expanded(
-                child: AppButton(
-                  text: 'Lancer la navigation',
-                  icon: Icons.navigation_rounded,
-                  onPressed: onNavigateRoute,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              InkWell(
-                onTap: onChangeApp,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceSunken,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.tune_rounded,
-                          size: 16, color: colors.mutedForeground),
-                      const SizedBox(width: 6),
-                      Text(app.label, style: textTheme.labelMedium),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    ];
   }
 }

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/services/navigation_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../widgets/app_list_row.dart';
 import '../../../widgets/app_sheet.dart';
+import 'tour_widgets.dart';
 
 /// Feuille de choix de l'application de navigation GPS par défaut.
 ///
@@ -12,7 +14,7 @@ import '../../../widgets/app_sheet.dart';
 Future<void> showNavigationAppSheet(BuildContext context) {
   return AppSheet.show<void>(
     context,
-    title: 'Application de navigation',
+    title: 'Application GPS',
     builder: (ctx) => const _NavigationAppOptions(),
   );
 }
@@ -29,6 +31,7 @@ class _NavigationAppOptions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
     final service = sl.navigationPreferenceService;
 
@@ -36,80 +39,46 @@ class _NavigationAppOptions extends StatelessWidget {
       listenable: service,
       builder: (context, _) {
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Utilisée pour ouvrir les arrêts dans un GPS. Tu peux en changer quand tu veux.',
-              style: textTheme.bodySmall,
+              'Utilisée pour ouvrir les arrêts dans un GPS. Tu peux en changer '
+              'quand tu veux.',
+              style:
+                  textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
             ),
-            const SizedBox(height: AppSpacing.md),
-            for (final app in NavigationApp.values)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: _AppTile(
-                  icon: _icon(app),
-                  label: app.label,
-                  selected: service.current == app,
-                  onTap: () async {
-                    await service.setApp(app);
-                    if (context.mounted) Navigator.of(context).pop();
-                  },
-                ),
-              ),
+            const SizedBox(height: AppSpacing.base),
+            RowsCard(
+              children: [
+                for (final app in NavigationApp.values)
+                  AppListRow(
+                    icon: _icon(app),
+                    iconColor: service.current == app
+                        ? colors.primary
+                        : colors.mutedForeground,
+                    title: app.label,
+                    trailing: service.current == app
+                        ? Icon(
+                            Icons.check_rounded,
+                            size: 22,
+                            color: colors.primary,
+                          )
+                        : null,
+                    showChevron: false,
+                    semanticsLabel: service.current == app
+                        ? '${app.label}, sélectionnée'
+                        : app.label,
+                    onTap: () async {
+                      await service.setApp(app);
+                      if (context.mounted) Navigator.of(context).pop();
+                    },
+                  ),
+              ],
+            ),
           ],
         );
       },
-    );
-  }
-}
-
-class _AppTile extends StatelessWidget {
-  const _AppTile({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: selected ? colors.primarySoft : colors.surfaceSunken,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.base),
-          child: Row(
-            children: [
-              Icon(icon,
-                  size: 22,
-                  color: selected ? colors.primary : colors.mutedForeground),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(
-                  label,
-                  style: textTheme.titleSmall?.copyWith(
-                    color: selected ? colors.primary : colors.foreground,
-                  ),
-                ),
-              ),
-              if (selected)
-                Icon(Icons.check_circle_rounded,
-                    size: 20, color: colors.primary),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

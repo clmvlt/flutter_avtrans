@@ -2,19 +2,30 @@ import 'package:flutter/material.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/display_format.dart';
 import '../../../data/models/tour_model.dart';
-import '../../widgets/app_card.dart';
+import '../../widgets/app_confirm_sheet.dart';
+import '../../widgets/app_dock.dart';
 import '../../widgets/app_empty_state.dart';
+import '../../widgets/app_list_row.dart';
+import '../../widgets/app_page.dart';
 import 'tour_delivery_screen.dart';
 import 'tour_edit_flow_screen.dart';
+import 'widgets/circuit_action_sheet.dart';
+import 'widgets/tour_list_items.dart';
 import 'widgets/tour_name_dialog.dart';
 import 'widgets/tour_widgets.dart';
 
-/// Écran « Circuit » — liste des tournées.
+enum _TourAction { rename, delete }
+
+/// Écran « Circuit » : liste des tournées.
 ///
 /// Point d'entrée de la fonctionnalité : on y crée, ouvre et supprime des
-/// tournées. Une tournée s'ouvre en mode édition (brouillon) ou livraison
-/// (validée) selon son statut. Les données sont persistées.
+/// tournées. La carte hero montre la tournée en cours (la plus récente en
+/// livraison, sinon la plus récente) ; les autres sont des lignes. Une
+/// tournée s'ouvre en mode édition (brouillon) ou livraison (validée) selon
+/// son statut. Les tournées sont locales (persistées sur l'appareil et
+/// chargées au démarrage) : pas d'état de chargement ni d'erreur réseau.
 class CircuitScreen extends StatelessWidget {
   const CircuitScreen({super.key});
 
@@ -22,7 +33,7 @@ class CircuitScreen extends StatelessWidget {
     final name = await showTourNameDialog(
       context,
       title: 'Nouvelle tournée',
-      actionLabel: 'Créer',
+      actionLabel: 'Créer la tournée',
     );
     if (name == null || !context.mounted) return;
     final tour = await sl.tourService.createTour(name);
@@ -42,189 +53,141 @@ class CircuitScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _confirmDelete(BuildContext context, Tour tour) async {
-    final colors = context.colors;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Supprimer la tournée ?'),
-        content: Text(
-          '« ${tour.name} » et ses ${tour.stopCount} arrêt(s) seront définitivement supprimés.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: colors.destructive),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+  Future<void> _rename(BuildContext context, Tour tour) async {
+    final name = await showTourNameDialog(
+      context,
+      title: 'Renommer la tournée',
+      actionLabel: 'Enregistrer le nom',
+      initialName: tour.name,
     );
-    if (confirmed == true) {
-      await sl.tourService.deleteTour(tour.id);
+    if (name == null || !context.mounted) return;
+    await sl.tourService.renameTour(tour.id, name);
+  }
+
+  Future<void> _confirmDelete(BuildContext context, Tour tour) async {
+    final stops = tour.stopCount;
+    final confirmed = await AppConfirmSheet.show(
+      context,
+      title: 'Supprimer la tournée ?',
+      message: stops == 0
+          ? '« ${tour.name} » sera définitivement supprimée.'
+          : '« ${tour.name} » sera définitivement supprimée, avec '
+              '${DisplayFormat.plural(stops, 'arrêt')}.',
+      confirmLabel: 'Supprimer la tournée',
+      confirmIcon: Icons.delete_outline_rounded,
+    );
+    if (!confirmed || !context.mounted) return;
+    await sl.tourService.deleteTour(tour.id);
+  }
+
+  Future<void> _showActions(BuildContext context, Tour tour) async {
+    final action = await showCircuitActionSheet<_TourAction>(
+      context,
+      title: tour.name,
+      actions: const [
+        CircuitSheetAction(
+          value: _TourAction.rename,
+          icon: Icons.edit_rounded,
+          label: 'Renommer',
+        ),
+        CircuitSheetAction(
+          value: _TourAction.delete,
+          icon: Icons.delete_outline_rounded,
+          label: 'Supprimer la tournée',
+          destructive: true,
+        ),
+      ],
+    );
+    if (action == null || !context.mounted) return;
+    switch (action) {
+      case _TourAction.rename:
+        await _rename(context, tour);
+      case _TourAction.delete:
+        await _confirmDelete(context, tour);
     }
+  }
+
+  /// La tournée mise en avant : la plus récente en livraison, sinon la plus
+  /// récente tout court (la liste est triée de la plus récente à la plus
+  /// ancienne).
+  Tour? _focusTour(List<Tour> tours) {
+    for (final tour in tours) {
+      if (tour.isDelivery) return tour;
+    }
+    return tours.isEmpty ? null : tours.first;
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
     return ListenableBuilder(
       listenable: sl.tourService,
       builder: (context, _) {
         final tours = sl.tourService.tours;
+        final focus = _focusTour(tours);
+        final others = [
+          for (final tour in tours)
+            if (tour.id != focus?.id) tour,
+        ];
 
-        return Scaffold(
-          backgroundColor: colors.background,
-          appBar: AppBar(title: const Text('Tournées')),
-          floatingActionButton: tours.isEmpty
-              ? null
-              : FloatingActionButton.extended(
-                  onPressed: () => _create(context),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Nouvelle tournée'),
-                  backgroundColor: colors.primary,
-                  foregroundColor: colors.primaryForeground,
-                ),
-          body: tours.isEmpty
-              ? AppEmptyState(
-                  icon: Icons.route_rounded,
-                  title: 'Aucune tournée',
-                  subtitle:
-                      'Crée ta première tournée pour commencer à ajouter des adresses.',
-                  actionText: 'Nouvelle tournée',
-                  onAction: () => _create(context),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screen,
-                    AppSpacing.base,
-                    AppSpacing.screen,
-                    // Laisse la place au FAB.
-                    AppSpacing.xxl + AppSpacing.lg,
-                  ),
-                  itemCount: tours.length,
-                  itemBuilder: (context, index) {
-                    final tour = tours[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                      child: _TourCard(
-                        tour: tour,
-                        onTap: () => _open(context, tour),
-                        onRename: () async {
-                          final name = await showTourNameDialog(
-                            context,
-                            title: 'Renommer la tournée',
-                            actionLabel: 'Enregistrer',
-                            initialName: tour.name,
-                          );
-                          if (name == null || !context.mounted) return;
-                          await sl.tourService.renameTour(tour.id, name);
-                        },
-                        onDelete: () => _confirmDelete(context, tour),
+        return AppPage(
+          title: 'Tournées',
+          body: focus == null
+              ? const _EmptyBody()
+              : AppScrollView(
+                  children: [
+                    TourHeroCard(
+                      tour: focus,
+                      onTap: () => _open(context, focus),
+                      onMore: () => _showActions(context, focus),
+                    ),
+                    if (others.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.lg),
+                      AppSectionHeader(
+                        title: 'Autres tournées',
+                        summary: DisplayFormat.plural(others.length, 'tournée'),
                       ),
-                    );
-                  },
+                      RowsCard(
+                        children: [
+                          for (final tour in others)
+                            TourRow(
+                              key: ValueKey(tour.id),
+                              tour: tour,
+                              onTap: () => _open(context, tour),
+                              onMore: () => _showActions(context, tour),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
+          dock: AppDock(
+            actions: [
+              DockAction(
+                label: 'Nouvelle tournée',
+                icon: Icons.add_rounded,
+                onPressed: () => _create(context),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 }
 
-/// Carte d'une tournée dans la liste.
-class _TourCard extends StatelessWidget {
-  const _TourCard({
-    required this.tour,
-    required this.onTap,
-    required this.onRename,
-    required this.onDelete,
-  });
-
-  final Tour tour;
-  final VoidCallback onTap;
-  final VoidCallback onRename;
-  final VoidCallback onDelete;
-
-  String get _subtitle {
-    final count = tour.stopCount;
-    final stops = count <= 1 ? '$count arrêt' : '$count arrêts';
-    final d = tour.createdAt.day.toString().padLeft(2, '0');
-    final m = tour.createdAt.month.toString().padLeft(2, '0');
-    return '$stops · créée le $d/$m';
-  }
+/// Aucune tournée : état vide centré dans la zone visible au-dessus du dock.
+class _EmptyBody extends StatelessWidget {
+  const _EmptyBody();
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final textTheme = Theme.of(context).textTheme;
-
-    return AppCard(
-      onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.base),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colors.primarySoft,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(Icons.route_rounded, color: colors.primary, size: 22),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        tour.name,
-                        style: textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    StatusChip(
-                      label: tour.isDelivery ? 'Livraison' : 'Brouillon',
-                      color: tour.isDelivery
-                          ? colors.success
-                          : colors.mutedForeground,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(_subtitle, style: textTheme.bodySmall),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert_rounded, color: colors.mutedForeground),
-            onSelected: (value) {
-              if (value == 'rename') onRename();
-              if (value == 'delete') onDelete();
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(value: 'rename', child: Text('Renommer')),
-              PopupMenuItem(
-                value: 'delete',
-                child: Text(
-                  'Supprimer',
-                  style: TextStyle(color: colors.destructive),
-                ),
-              ),
-            ],
-          ),
-        ],
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+      child: const AppEmptyState(
+        icon: Icons.route_rounded,
+        title: 'Aucune tournée',
+        subtitle:
+            'Crée ta première tournée pour commencer à ajouter des adresses.',
       ),
     );
   }

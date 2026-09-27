@@ -17,6 +17,10 @@ String formatDuration(int? seconds) {
   return '< 1 min';
 }
 
+/// Résumé d'un tracé → « 45 km · 1 h 20 ».
+String formatRouteSummary(double? meters, int? seconds) =>
+    '${formatDistance(meters)} · ${formatDuration(seconds)}';
+
 /// Formatte une heure (locale) → « 09:42 ». Chaîne vide si null.
 String formatTime(DateTime? date) {
   if (date == null) return '';

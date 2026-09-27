@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import '../../../../core/di/service_locator.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../data/models/address_suggestion.dart';
+import '../../../widgets/app_list_row.dart';
+import '../../../widgets/app_state_views.dart';
 import '../../../widgets/app_text_field.dart';
+import 'tour_widgets.dart';
 
 /// Feuille de recherche / sélection d'adresse via l'autocomplétion ORS.
 ///
@@ -25,7 +28,7 @@ class AddressPickerSheet extends StatefulWidget {
 
   final String initialQuery;
 
-  /// Indique que [initialQuery] provient d'un scan (affiche un bandeau d'aide).
+  /// Indique que [initialQuery] provient d'un scan (affiche une ligne d'aide).
   final bool fromScan;
 
   /// Affiche la feuille et renvoie l'adresse sélectionnée, ou `null`.
@@ -37,6 +40,13 @@ class AddressPickerSheet extends StatefulWidget {
     return showModalBottomSheet<AddressSuggestion>(
       context: context,
       isScrollControlled: true,
+      backgroundColor: context.colors.surfaceElevated,
+      // La poignée est dessinée par la feuille (sinon elle serait doublée par
+      // celle du thème).
+      showDragHandle: false,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
       builder: (_) => AddressPickerSheet(
         initialQuery: initialQuery,
         fromScan: fromScan,
@@ -150,6 +160,13 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
     );
   }
 
+  void _clear() {
+    _controller.clear();
+    _onChanged('');
+    setState(() {});
+    _focusNode.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -165,14 +182,14 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
         top: false,
         child: SizedBox(
           // Hauteur fixe : la feuille ne se redimensionne plus selon l'état
-          // (spinner / message / liste) — uniquement à l'ouverture du clavier.
+          // (squelette / message / liste) — uniquement à l'ouverture du clavier.
           height: available * 0.9,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: AppSpacing.md),
               Center(
                 child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 4),
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
@@ -184,12 +201,14 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.screen,
-                  AppSpacing.base,
+                  AppSpacing.sm,
                   AppSpacing.screen,
                   AppSpacing.sm,
                 ),
                 child: Text(
-                  widget.fromScan ? 'Confirmer l\'adresse' : 'Ajouter une adresse',
+                  widget.fromScan
+                      ? 'Confirmer l\'adresse'
+                      : 'Ajouter une adresse',
                   style: textTheme.titleLarge,
                 ),
               ),
@@ -201,7 +220,23 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
                     AppSpacing.screen,
                     AppSpacing.sm,
                   ),
-                  child: _ScanHint(colors: colors, textTheme: textTheme),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 18,
+                        color: colors.primary,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Adresse détectée : vérifie et choisis la bonne '
+                          'proposition.',
+                          style: textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(
@@ -221,12 +256,8 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
                       ? null
                       : IconButton(
                           icon: const Icon(Icons.close_rounded, size: 20),
-                          onPressed: () {
-                            _controller.clear();
-                            _onChanged('');
-                            setState(() {});
-                            _focusNode.requestFocus();
-                          },
+                          tooltip: 'Effacer',
+                          onPressed: _clear,
                         ),
                   onChanged: (v) {
                     _onChanged(v);
@@ -235,7 +266,7 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
                   onSubmitted: (v) => _search(v),
                 ),
               ),
-              Expanded(child: _buildResults(colors, textTheme)),
+              Expanded(child: _buildResults()),
             ],
           ),
         ),
@@ -243,50 +274,45 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
     );
   }
 
-  Widget _buildResults(AppColors colors, TextTheme textTheme) {
+  Widget _buildResults() {
     final query = _controller.text.trim();
 
-    // États sans résultat : occupent la même zone (centrés), donc la feuille
-    // ne « saute » pas entre chargement / message / liste.
+    // États sans résultat : en tête de zone, à hauteur de feuille constante.
     if (_results.isEmpty) {
+      final Widget state;
       if (_loading) {
-        return const Center(child: CircularProgressIndicator());
-      }
-      if (_error != null) {
-        return Center(
-          child: _Message(
-            icon: Icons.cloud_off_rounded,
-            title: _error!,
-            actionLabel: 'Réessayer',
-            onAction: () => _search(_controller.text),
-            colors: colors,
-            textTheme: textTheme,
-          ),
+        state = const AppListSkeleton(rows: 5);
+      } else if (_error != null) {
+        state = AppErrorState(
+          title: 'Recherche impossible',
+          message: _error!,
+          onRetry: () => _search(_controller.text),
         );
-      }
-      if (query.length < _minChars) {
-        return Center(
-          child: _Message(
-            icon: Icons.edit_location_alt_outlined,
-            title: 'Tape une rue, une ville ou un code postal',
-            colors: colors,
-            textTheme: textTheme,
-          ),
+      } else if (query.length < _minChars) {
+        state = const AppEmptyCard(
+          icon: Icons.edit_location_alt_outlined,
+          message: 'Tape une rue, une ville ou un code postal',
         );
-      }
-      return Center(
-        child: _Message(
+      } else {
+        state = const AppEmptyCard(
           icon: Icons.location_off_outlined,
-          title: 'Aucune adresse trouvée',
-          subtitle: 'Vérifie l\'orthographe ou précise la commune.',
-          colors: colors,
-          textTheme: textTheme,
+          message: 'Aucune adresse trouvée',
+          detail: 'Vérifie l\'orthographe ou précise la commune.',
+        );
+      }
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.screen,
+          0,
+          AppSpacing.screen,
+          AppSpacing.lg,
         ),
+        child: state,
       );
     }
 
     // Résultats présents : liste stable + fine barre pendant un rechargement
-    // (on garde les résultats affichés au lieu de tout remplacer par un spinner).
+    // (on garde les résultats affichés au lieu de tout remplacer).
     return Column(
       children: [
         SizedBox(
@@ -295,62 +321,24 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
               _loading ? const LinearProgressIndicator(minHeight: 2) : null,
         ),
         Expanded(
-          child: ListView.separated(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.screen,
-        0,
-        AppSpacing.screen,
-        AppSpacing.lg,
-      ),
-      itemCount: _results.length,
-      separatorBuilder: (_, __) => Divider(height: 1, color: colors.border),
-      itemBuilder: (context, index) {
-        final suggestion = _results[index];
-        // Méta-ligne : niveau (« Rue » pour une voie agrégée) + distance.
-        final meta = <String>[
-          if (suggestion.isStreet) 'Rue',
-          if (suggestion.distanceLabel != null) 'à ${suggestion.distanceLabel}',
-        ];
-        return InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-          onTap: () => Navigator.of(context).pop(suggestion),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Row(
-              children: [
-                Icon(
-                  suggestion.isStreet
-                      ? Icons.signpost_outlined
-                      : Icons.location_on_outlined,
-                  size: 20,
-                  color: colors.primary,
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        suggestion.label,
-                        style: textTheme.bodyLarge,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (meta.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(meta.join(' · '), style: textTheme.bodySmall),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Icon(Icons.add_circle_outline_rounded,
-                    size: 22, color: colors.mutedForeground),
-              ],
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screen,
+              AppSpacing.sm,
+              AppSpacing.screen,
+              AppSpacing.lg,
             ),
-          ),
-        );
-      },
+            children: [
+              RowsCard(
+                children: [
+                  for (final suggestion in _results)
+                    _SuggestionRow(
+                      suggestion: suggestion,
+                      onTap: () => Navigator.of(context).pop(suggestion),
+                    ),
+                ],
+              ),
+            ],
           ),
         ),
       ],
@@ -358,78 +346,36 @@ class _AddressPickerSheetState extends State<AddressPickerSheet> {
   }
 }
 
-class _ScanHint extends StatelessWidget {
-  const _ScanHint({required this.colors, required this.textTheme});
-  final AppColors colors;
-  final TextTheme textTheme;
+/// Une proposition d'adresse : niveau (« Rue » pour une voie agrégée) et
+/// distance en sous-ligne.
+class _SuggestionRow extends StatelessWidget {
+  const _SuggestionRow({required this.suggestion, required this.onTap});
+
+  final AddressSuggestion suggestion;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colors.primarySoft,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.auto_awesome_rounded, size: 18, color: colors.primary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              'Adresse détectée — vérifie et choisis la bonne proposition.',
-              style: textTheme.bodySmall?.copyWith(color: colors.foreground),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+    final colors = context.colors;
+    final meta = <String>[
+      if (suggestion.isStreet) 'Rue',
+      if (suggestion.distanceLabel != null) 'à ${suggestion.distanceLabel}',
+    ];
 
-class _Message extends StatelessWidget {
-  const _Message({
-    required this.icon,
-    required this.title,
-    this.subtitle,
-    this.actionLabel,
-    this.onAction,
-    required this.colors,
-    required this.textTheme,
-  });
-
-  final IconData icon;
-  final String title;
-  final String? subtitle;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-  final AppColors colors;
-  final TextTheme textTheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.screen,
-        vertical: AppSpacing.xl,
+    return AppListRow(
+      icon: suggestion.isStreet
+          ? Icons.signpost_outlined
+          : Icons.location_on_outlined,
+      iconColor: colors.primary,
+      title: suggestion.label,
+      subtitle: meta.isEmpty ? null : meta.join(' · '),
+      trailing: Icon(
+        Icons.add_circle_outline_rounded,
+        size: 22,
+        color: colors.mutedForeground,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 36, color: colors.mutedForeground),
-          const SizedBox(height: AppSpacing.md),
-          Text(title, style: textTheme.titleSmall, textAlign: TextAlign.center),
-          if (subtitle != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(subtitle!,
-                style: textTheme.bodySmall, textAlign: TextAlign.center),
-          ],
-          if (actionLabel != null && onAction != null) ...[
-            const SizedBox(height: AppSpacing.md),
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
-          ],
-        ],
-      ),
+      showChevron: false,
+      onTap: onTap,
     );
   }
 }
