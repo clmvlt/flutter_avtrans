@@ -9,8 +9,12 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/rapport_vehicule_model.dart';
 import '../../../data/models/vehicule_model.dart';
 import '../../widgets/widgets.dart';
+import 'widgets/rapport_photos_card.dart';
+import 'widgets/rapport_skeleton.dart';
 
-/// Écran pour créer un rapport de véhicule
+/// Rapport véhicule : véhicule, photos (2 minimum : avant et arrière),
+/// commentaire facultatif. « Envoyer le rapport » vit dans le dock, les
+/// erreurs s'y affichent aussi.
 class CreateRapportScreen extends StatefulWidget {
   const CreateRapportScreen({super.key});
 
@@ -18,7 +22,8 @@ class CreateRapportScreen extends StatefulWidget {
   State<CreateRapportScreen> createState() => _CreateRapportScreenState();
 }
 
-class _CreateRapportScreenState extends State<CreateRapportScreen> {
+class _CreateRapportScreenState extends State<CreateRapportScreen>
+    with DockNoticeMixin {
   final _formKey = GlobalKey<FormState>();
   final _commentaireController = TextEditingController();
   final List<File> _images = [];
@@ -49,15 +54,12 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
     });
 
     // Charger les véhicules et le dernier kilométrage en parallèle
-    final results = await Future.wait([
+    final (vehiculesResult, lastKmResult) = await (
       sl.vehiculeRepository.getAllVehicules(),
       sl.vehiculeRepository.getMyLastKilometrage(),
-    ]);
+    ).wait;
 
     if (!mounted) return;
-
-    final vehiculesResult = results[0] as dynamic;
-    final lastKmResult = results[1] as dynamic;
 
     vehiculesResult.fold(
       (failure) {
@@ -83,15 +85,14 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
           );
 
           if (vehicules.isNotEmpty) {
-            final vehiculesList = vehicules as List<Vehicule>;
             // Sélectionner le dernier véhicule utilisé s'il existe dans la liste
             if (lastVehiculeId != null) {
-              _selectedVehicule = vehiculesList.firstWhere(
+              _selectedVehicule = vehicules.firstWhere(
                 (v) => v.id == lastVehiculeId,
-                orElse: () => vehiculesList.first,
+                orElse: () => vehicules.first,
               );
             } else {
-              _selectedVehicule = vehiculesList.first;
+              _selectedVehicule = vehicules.first;
             }
           }
         });
@@ -108,61 +109,39 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
         imageQuality: 85,
       );
 
-      if (image != null) {
-        setState(() {
-          _images.add(File(image.path));
-        });
+      if (image != null && mounted) {
+        setState(() => _images.add(File(image.path)));
       }
     } catch (e) {
-      _showError('Erreur lors de la sélection de l\'image');
+      showDockError('Impossible d\'ajouter la photo');
     }
   }
 
   void _removeImage(int index) {
-    setState(() {
-      _images.removeAt(index);
-    });
+    setState(() => _images.removeAt(index));
   }
 
-  void _showImageSourceBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_camera),
-              title: const Text('Prendre une photo'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.camera);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choisir depuis la galerie'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickImage(ImageSource.gallery);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _addPhoto() async {
+    clearDockNotice();
+    final source = await PhotoSourceSheet.show(context);
+    if (source == null || !mounted) return;
+    await _pickImage(source);
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    clearDockNotice();
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     if (_selectedVehicule == null) {
-      _showError('Veuillez sélectionner un véhicule');
+      showDockError('Sélectionne un véhicule');
       return;
     }
 
     // Vérifier qu'il y a au moins 2 photos
-    if (_images.length < 2) {
-      _showError('Vous devez ajouter au moins 2 photos (avant et arrière du véhicule)');
+    if (_images.length < kRapportMinPhotos) {
+      showDockError(
+        'Ajoute au moins 2 photos (avant et arrière du véhicule)',
+      );
       return;
     }
 
@@ -186,8 +165,9 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
           }
           picturesB64.add('data:$mimeType;base64,$base64String');
         } catch (e) {
+          if (!mounted) return;
           setState(() => _isLoading = false);
-          _showError('Erreur lors de la lecture des images');
+          showDockError('Impossible de lire les photos. Réessaie.');
           return;
         }
       }
@@ -203,309 +183,123 @@ class _CreateRapportScreenState extends State<CreateRapportScreen> {
 
     if (!mounted) return;
 
-    setState(() => _isLoading = false);
-
     result.fold(
-      (failure) => _showError(failure.message),
-      (rapport) {
-        final colors = context.colors;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Rapport créé avec succès'),
-            backgroundColor: colors.success,
-          ),
-        );
-        Navigator.pop(context, true);
+      (failure) {
+        setState(() => _isLoading = false);
+        showDockError(failure.message);
       },
-    );
-  }
-
-  void _showError(String message) {
-    final colors = context.colors;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: colors.destructive,
-      ),
+      (rapport) {
+        // Confirmation brève dans le dock, puis retour (bouton toujours en
+        // chargement : pas de double envoi).
+        showDockSuccess('Rapport envoyé');
+        Future.delayed(const Duration(milliseconds: 700), () {
+          if (mounted) Navigator.pop(context, true);
+        });
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final showForm = !_isLoadingVehicules &&
+        _errorMessage == null &&
+        _vehicules.isNotEmpty;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Créer un rapport'),
+    return AppPage(
+      title: 'Rapport véhicule',
+      body: _buildBody(),
+      dock: AppDock(
+        skeleton: _isLoadingVehicules,
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
+        actions: [
+          if (showForm)
+            DockAction(
+              label: 'Envoyer le rapport',
+              icon: Icons.send_rounded,
+              isLoading: _isLoading,
+              onPressed: _isLoading ? null : _submit,
+            ),
+        ],
       ),
-      body: _isLoadingVehicules
-          ? const Center(child: CircularProgressIndicator())
-          : _errorMessage != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 48, color: colors.destructive),
-                      const SizedBox(height: AppSpacing.base),
-                      Text(
-                        _errorMessage!,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.destructive),
-                      ),
-                      const SizedBox(height: AppSpacing.base),
-                      ElevatedButton(
-                        onPressed: _loadVehicules,
-                        style: ElevatedButton.styleFrom(minimumSize: const Size(48, 48)),
-                        child: const Text('Réessayer'),
-                      ),
-                    ],
-                  ),
-                )
-              : _vehicules.isEmpty
-                  ? const AppEmptyState(
-                      icon: Icons.directions_car_outlined,
-                      title: 'Aucun véhicule disponible',
-                    )
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(AppSpacing.base),
-                      child: Form(
-                        key: _formKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            // Sélection du véhicule
-                            Text(
-                              'Véhicule',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            AppSearchableSelect<Vehicule>(
-                              items: _vehicules,
-                              selectedItem: _selectedVehicule,
-                              onChanged: (value) {
-                                setState(() {
-                                  _selectedVehicule = value;
-                                });
-                              },
-                              itemLabel: (v) => '${v.brand} ${v.model}',
-                              itemSubtitle: (v) => v.immat,
-                              prefixIcon: Icons.directions_car_outlined,
-                              placeholder: 'Sélectionner un véhicule',
-                              sheetTitle: 'Choisir un véhicule',
-                              searchHint: 'Rechercher par marque, modèle ou immatriculation...',
-                              emptyMessage: 'Aucun véhicule trouvé',
-                              validator: (value) {
-                                if (value == null) {
-                                  return 'Veuillez sélectionner un véhicule';
-                                }
-                                return null;
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
+    );
+  }
 
-                            // Commentaire
-                            Text(
-                              'Commentaire (optionnel)',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                            const SizedBox(height: AppSpacing.sm),
-                            AppTextField(
-                              controller: _commentaireController,
-                              hint: 'État du véhicule, remarques...',
-                              maxLines: 5,
-                            ),
-                            const SizedBox(height: AppSpacing.lg),
+  Widget _buildBody() {
+    if (_isLoadingVehicules) {
+      return const AppScrollView(children: [RapportSkeleton()]);
+    }
+    if (_errorMessage != null) {
+      return AppScrollView(
+        children: [
+          AppErrorState(message: _errorMessage!, onRetry: _loadVehicules),
+        ],
+      );
+    }
+    if (_vehicules.isEmpty) {
+      return const AppScrollView(
+        children: [
+          AppEmptyCard(
+            icon: Icons.directions_car_outlined,
+            message: 'Aucun véhicule disponible',
+          ),
+        ],
+      );
+    }
 
-                            // Photos
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Photos *',
-                                      style: Theme.of(context).textTheme.titleMedium,
-                                    ),
-                                    Text(
-                                      'Minimum 2 photos (avant et arrière)',
-                                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                        color: colors.mutedForeground,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                TextButton.icon(
-                                  onPressed: _showImageSourceBottomSheet,
-                                  icon: const Icon(Icons.add_photo_alternate),
-                                  label: Text('Ajouter (${_images.length}/2)'),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppSpacing.md),
-                            // Message d'avertissement si moins de 2 photos
-                            if (_images.length < 2)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                                margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                                decoration: BoxDecoration(
-                                  color: colors.warningMuted,
-                                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                                  border: Border.all(color: colors.warning.withValues(alpha: 0.3)),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline,
-                                      color: colors.warning,
-                                      size: 20,
-                                    ),
-                                    const SizedBox(width: AppSpacing.sm),
-                                    Expanded(
-                                      child: Text(
-                                        _images.isEmpty
-                                            ? 'Ajoutez 2 photos (avant et arrière du véhicule)'
-                                            : 'Ajoutez encore ${2 - _images.length} photo(s)',
-                                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                          color: colors.warning,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            // Grille de photos
-                            GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: AppSpacing.md,
-                                mainAxisSpacing: AppSpacing.md,
-                                childAspectRatio: 1,
-                              ),
-                              itemCount: _images.length + 1, // +1 pour le bouton ajouter
-                              itemBuilder: (context, index) {
-                                // Dernier élément = bouton ajouter
-                                if (index == _images.length) {
-                                  return GestureDetector(
-                                    onTap: _showImageSourceBottomSheet,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: colors.muted,
-                                        borderRadius: BorderRadius.circular(AppRadius.lg),
-                                        border: Border.all(
-                                          color: colors.border,
-                                          width: 2,
-                                          style: BorderStyle.solid,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.add_photo_alternate_outlined,
-                                            size: 40,
-                                            color: colors.mutedForeground,
-                                          ),
-                                          const SizedBox(height: AppSpacing.sm),
-                                          Text(
-                                            'Ajouter une photo',
-                                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                              color: colors.mutedForeground,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                }
-                                // Afficher les photos existantes
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.1),
-                                        blurRadius: 4,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                                    child: Stack(
-                                      fit: StackFit.expand,
-                                      children: [
-                                        Image.file(
-                                          _images[index],
-                                          fit: BoxFit.cover,
-                                        ),
-                                        // Bouton supprimer
-                                        Positioned(
-                                          top: 8,
-                                          right: 8,
-                                          child: GestureDetector(
-                                            onTap: () => _removeImage(index),
-                                            child: Container(
-                                              padding: const EdgeInsets.all(AppSpacing.sm),
-                                              decoration: BoxDecoration(
-                                                color: colors.destructive,
-                                                shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: Colors.black.withValues(alpha: 0.3),
-                                                    blurRadius: 4,
-                                                    offset: const Offset(0, 2),
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Icon(
-                                                Icons.delete_outline,
-                                                color: colors.destructiveForeground,
-                                                size: 18,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        // Label photo (avant/arrière)
-                                        Positioned(
-                                          bottom: 0,
-                                          left: 0,
-                                          right: 0,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(vertical: 6),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black.withValues(alpha: 0.5),
-                                            ),
-                                            child: Text(
-                                              index == 0 ? 'Photo avant' : index == 1 ? 'Photo arrière' : 'Photo ${index + 1}',
-                                              textAlign: TextAlign.center,
-                                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.xl),
-
-                            // Bouton de soumission
-                            AppButton(
-                              text: 'Créer le rapport',
-                              onPressed: _isLoading ? null : _submit,
-                              isLoading: _isLoading,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+    return AppScrollView(
+      children: [
+        Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const AppSectionHeader(title: 'Véhicule'),
+              AppCard(
+                child: AppSearchableSelect<Vehicule>(
+                  items: _vehicules,
+                  selectedItem: _selectedVehicule,
+                  onChanged: (value) {
+                    setState(() => _selectedVehicule = value);
+                  },
+                  itemLabel: (v) => '${v.brand} ${v.model}',
+                  itemSubtitle: (v) => v.immat,
+                  prefixIcon: Icons.directions_car_outlined,
+                  placeholder: 'Choisir un véhicule',
+                  sheetTitle: 'Choisir un véhicule',
+                  searchHint: 'Marque, modèle ou immatriculation…',
+                  emptyMessage: 'Aucun véhicule trouvé',
+                  enabled: !_isLoading,
+                  validator: (value) {
+                    if (value == null) return 'Sélectionne un véhicule';
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              AppSectionHeader(
+                title: 'Photos',
+                summary: '${_images.length} / $kRapportMinPhotos minimum',
+              ),
+              RapportPhotosCard(
+                images: _images,
+                onAdd: _isLoading ? null : _addPhoto,
+                onRemove: _isLoading ? null : _removeImage,
+              ),
+              const SizedBox(height: AppSpacing.lg),
+              const AppSectionHeader(title: 'Commentaire', summary: 'facultatif'),
+              AppCard(
+                child: AppTextField(
+                  controller: _commentaireController,
+                  hint: 'État du véhicule, remarques…',
+                  maxLines: 5,
+                  enabled: !_isLoading,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
