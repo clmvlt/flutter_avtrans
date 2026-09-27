@@ -1,15 +1,15 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/display_format.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
 import 'sign_screen.dart';
+import 'widgets/signature_detail_sheet.dart';
 
-/// Page de gestion des signatures - design shadcn/ui
+/// Mes signatures : une ligne par signature passée (détail au tap), et
+/// « Signer mes heures » dans le dock quand une signature est attendue.
 class SignaturesScreen extends StatefulWidget {
   const SignaturesScreen({super.key});
 
@@ -17,10 +17,14 @@ class SignaturesScreen extends StatefulWidget {
   State<SignaturesScreen> createState() => _SignaturesScreenState();
 }
 
-class _SignaturesScreenState extends State<SignaturesScreen> {
+class _SignaturesScreenState extends State<SignaturesScreen>
+    with DockNoticeMixin {
   List<Signature> _signatures = [];
   bool _isLoading = true;
   String? _error;
+
+  /// Vérification « faut-il signer ? » en cours (bouton du dock).
+  bool _checking = false;
 
   @override
   void initState() {
@@ -44,162 +48,127 @@ class _SignaturesScreenState extends State<SignaturesScreen> {
         _isLoading = false;
       }),
       (signatures) => setState(() {
-        _signatures = signatures;
+        // Copie modifiable : une nouvelle signature y est insérée en tête.
+        _signatures = [...signatures];
         _isLoading = false;
       }),
     );
   }
 
-  void _openSignScreen() async {
-    final summaryResult = await sl.signatureRepository.getLastSignatureSummary();
+  Future<void> _openSignScreen() async {
+    clearDockNotice();
+    setState(() => _checking = true);
+    final summaryResult =
+        await sl.signatureRepository.getLastSignatureSummary();
     if (!mounted) return;
+    setState(() => _checking = false);
 
-    summaryResult.fold(
-      (failure) => _showError(failure.message),
-      (summary) async {
-        if (!summary.needsToSign) {
-          _showError('Vous avez déjà signé vos heures pour cette période');
-          return;
-        }
-
-        final result = await Navigator.of(context).push<Signature>(
-          MaterialPageRoute(
-            builder: (_) => SignScreen(heuresLastMonth: summary.heuresLastMonth),
-          ),
-        );
-
-        if (result != null) {
-          setState(() => _signatures.insert(0, result));
-        }
+    final summary = summaryResult.fold<SignatureSummary?>(
+      (failure) {
+        showDockError(failure.message);
+        return null;
       },
+      (summary) => summary,
     );
-  }
+    if (summary == null) return;
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+    if (!summary.needsToSign) {
+      showDockNotice(
+        'Tu as déjà signé tes heures pour cette période',
+        variant: AlertVariant.info,
+      );
+      return;
+    }
+
+    final result = await Navigator.of(context).push<Signature>(
+      MaterialPageRoute(
+        builder: (_) => SignScreen(heuresLastMonth: summary.heuresLastMonth),
+      ),
     );
+
+    if (result != null && mounted) {
+      setState(() => _signatures.insert(0, result));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(title: const Text('Mes signatures')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openSignScreen,
-        backgroundColor: colors.primary,
-        icon: Icon(Icons.draw, color: colors.primaryForeground, size: 20),
-        label: Text('Signer', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: colors.primaryForeground)),
+    return AppPage(
+      title: 'Mes signatures',
+      body: _buildBody(),
+      dock: AppDock(
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
+        actions: [
+          DockAction(
+            label: 'Signer mes heures',
+            icon: Icons.draw_rounded,
+            isLoading: _checking,
+            onPressed: _checking ? null : _openSignScreen,
+          ),
+        ],
       ),
-      body: _buildBody(colors),
     );
   }
 
-  Widget _buildBody(AppColors colors) {
-    if (_isLoading) return const LoadingIndicator(message: 'Chargement...');
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const AppScrollView(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.xs,
+              0,
+              AppSpacing.xs,
+              AppSpacing.md,
+            ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: AppSkeleton(width: 100, height: 16),
+            ),
+          ),
+          AppListSkeleton(rows: 4),
+        ],
+      );
+    }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 40, color: colors.destructive),
-            const SizedBox(height: AppSpacing.base),
-            Text(_error!, style: TextStyle(color: colors.mutedForeground), textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.base),
-            AppButton(text: 'Réessayer', onPressed: _loadSignatures, fullWidth: false),
-          ],
-        ),
+      return AppScrollView(
+        onRefresh: _loadSignatures,
+        children: [AppErrorState(message: _error!, onRetry: _loadSignatures)],
       );
     }
 
     if (_signatures.isEmpty) {
-      return const AppEmptyState(
-        icon: Icons.draw_outlined,
-        title: 'Aucune signature',
-        subtitle: 'Appuyez sur "Signer" pour créer une signature',
+      return AppScrollView(
+        onRefresh: _loadSignatures,
+        children: const [
+          AppEmptyCard(
+            icon: Icons.draw_outlined,
+            message: 'Aucune signature pour l\'instant',
+            detail: 'Chaque mois, signe tes heures avec le bouton en bas.',
+          ),
+        ],
       );
     }
 
-    return RefreshIndicator(
+    return AppScrollView(
       onRefresh: _loadSignatures,
-      color: colors.primary,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        itemCount: _signatures.length,
-        itemBuilder: (context, index) => _buildSignatureCard(_signatures[index], colors),
-      ),
-    );
-  }
-
-  Widget _buildSignatureCard(Signature signature, AppColors colors) {
-    final dateFormat = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR');
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      padding: const EdgeInsets.all(AppSpacing.base),
-      decoration: BoxDecoration(
-        color: colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: colors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      children: [
+        AppSectionHeader(
+          title: 'Historique',
+          summary: DisplayFormat.plural(_signatures.length, 'signature'),
+        ),
+        AppCard(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          child: Column(
             children: [
-              Icon(Icons.calendar_today, size: 14, color: colors.mutedForeground),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: Text(
-                  dateFormat.format(signature.date),
-                  style: textTheme.labelMedium?.copyWith(
-                    color: colors.foreground,
-                  ),
-                ),
-              ),
-              AppBadge(
-                text: '${signature.heuresSignees.toStringAsFixed(1)}h',
-                variant: BadgeVariant.success,
-                icon: Icons.schedule,
-              ),
+              for (final s in _signatures)
+                SignatureRow(key: ValueKey(s.uuid), signature: s),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: colors.border),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Image.memory(
-                base64Decode(signature.signatureBase64),
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          if (signature.createdAt != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Row(
-              children: [
-                Icon(Icons.access_time, size: 12, color: colors.mutedForeground),
-                const SizedBox(width: AppSpacing.xs),
-                Text(
-                  'Signé le ${dateFormat.format(signature.createdAt!)}',
-                  style: textTheme.labelSmall?.copyWith(color: colors.mutedForeground),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

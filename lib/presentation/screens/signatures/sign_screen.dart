@@ -8,8 +8,14 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart' as models;
 import '../../widgets/widgets.dart';
+import 'widgets/sign_hours_hero.dart';
+import 'widgets/signature_pad_card.dart';
+import 'widgets/signature_paper.dart';
 
-/// Page de signature - design shadcn/ui
+/// Signature des heures : la carte hero montre le total à signer, le pavé
+/// de signature est dans une carte, « Signer mes heures » vit dans le dock.
+///
+/// Retourne la signature créée (`Navigator.pop(signature)`).
 class SignScreen extends StatefulWidget {
   final double? heuresLastMonth;
 
@@ -19,23 +25,28 @@ class SignScreen extends StatefulWidget {
   State<SignScreen> createState() => _SignScreenState();
 }
 
-class _SignScreenState extends State<SignScreen> {
+class _SignScreenState extends State<SignScreen> with DockNoticeMixin {
   late SignatureController _controller;
   final _heuresController = TextEditingController();
   bool _isSubmitting = false;
+
+  /// Total du mois en cours en chargement (quand [SignScreen.heuresLastMonth]
+  /// n'est pas fourni).
+  bool _loadingHours = false;
 
   @override
   void initState() {
     super.initState();
     _controller = SignatureController(
       penStrokeWidth: 3,
-      penColor: Colors.black,
-      exportBackgroundColor: Colors.white,
+      penColor: SignaturePaper.ink,
+      exportBackgroundColor: SignaturePaper.paper,
     );
 
     if (widget.heuresLastMonth != null) {
       _heuresController.text = widget.heuresLastMonth!.toStringAsFixed(2);
     } else {
+      _loadingHours = true;
       _loadCurrentMonthHours();
     }
   }
@@ -59,24 +70,33 @@ class _SignScreenState extends State<SignScreen> {
     if (!mounted) return;
 
     result.fold(
-      (_) {},
+      // Échec silencieux (comme avant) : le champ reste vide et modifiable.
+      (_) => setState(() => _loadingHours = false),
       (workedHours) {
         setState(() {
           _heuresController.text = (workedHours.month ?? 0).toStringAsFixed(1);
+          _loadingHours = false;
         });
       },
     );
   }
 
   Future<void> _submit() async {
+    clearDockNotice();
     if (_controller.isEmpty) {
-      _showError('Veuillez signer avant de valider');
+      showDockError('Signe dans le cadre avant de valider');
       return;
     }
 
-    final heures = double.tryParse(_heuresController.text);
+    // « 151,5 » (clavier français) comme « 151.5 ».
+    final heures =
+        double.tryParse(_heuresController.text.trim().replaceAll(',', '.'));
     if (heures == null || heures <= 0) {
-      _showError('Veuillez saisir un nombre d\'heures valide');
+      showDockError(
+        widget.heuresLastMonth != null
+            ? 'Aucune heure à signer : le total du mois dernier est nul'
+            : 'Saisis un nombre d\'heures valide (ex. 151.5)',
+      );
       return;
     }
 
@@ -84,9 +104,10 @@ class _SignScreenState extends State<SignScreen> {
 
     try {
       final Uint8List? signatureBytes = await _controller.toPngBytes();
+      if (!mounted) return;
       if (signatureBytes == null) {
-        _showError('Erreur lors de la création de la signature');
         setState(() => _isSubmitting = false);
+        showDockError('Impossible de créer la signature. Réessaie.');
         return;
       }
 
@@ -103,110 +124,54 @@ class _SignScreenState extends State<SignScreen> {
       result.fold(
         (failure) {
           setState(() => _isSubmitting = false);
-          _showError(failure.message);
+          showDockError(failure.message);
         },
         (signature) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Signature enregistrée avec succès')),
-          );
-          Future.delayed(const Duration(milliseconds: 300), () {
+          // Confirmation brève dans le dock, puis retour (bouton toujours en
+          // chargement : pas de double envoi).
+          showDockSuccess('Signature enregistrée');
+          Future.delayed(const Duration(milliseconds: 700), () {
             if (mounted) Navigator.of(context).pop(signature);
           });
         },
       );
     } catch (e) {
+      if (!mounted) return;
       setState(() => _isSubmitting = false);
-      _showError('Erreur: $e');
+      showDockError('Erreur : $e');
     }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(title: const Text('Signer mes heures')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const AppAlert(
-              description: 'Signez pour valider vos heures du mois en cours',
-              variant: AlertVariant.info,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Hours field
-            Text(
-              'Nombre d\'heures à signer',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            TextFormField(
-              controller: _heuresController,
-              enabled: widget.heuresLastMonth == null,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                hintText: 'Heures',
-                suffixText: 'h',
-                prefixIcon: Icon(Icons.schedule, color: colors.primary, size: 20),
-              ),
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Signature zone
-            Text(
-              'Signature',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: colors.foreground,
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              height: 300,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: colors.border, width: 2),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                child: Signature(
-                  controller: _controller,
-                  backgroundColor: Colors.white,
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-
-            AppButton(
-              text: 'Effacer',
-              variant: ButtonVariant.outline,
-              icon: Icons.clear,
-              onPressed: () => setState(() => _controller.clear()),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-
-            AppButton(
-              text: 'Valider la signature',
-              onPressed: _isSubmitting ? null : _submit,
-              isLoading: _isSubmitting,
-            ),
-          ],
-        ),
+    return AppPage(
+      title: 'Signer mes heures',
+      body: AppScrollView(
+        children: [
+          SignHoursHero(
+            fixedHours: widget.heuresLastMonth,
+            controller: _heuresController,
+            loading: _loadingHours,
+            enabled: !_isSubmitting,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SignaturePadCard(
+            controller: _controller,
+            onClear: _isSubmitting ? null : () => setState(_controller.clear),
+          ),
+        ],
+      ),
+      dock: AppDock(
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
+        actions: [
+          DockAction(
+            label: 'Signer mes heures',
+            icon: Icons.draw_rounded,
+            isLoading: _isSubmitting,
+            onPressed: _isSubmitting ? null : _submit,
+          ),
+        ],
       ),
     );
   }
