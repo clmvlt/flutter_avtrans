@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/display_format.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
+import '../absences/widgets/request_blocks.dart';
+import 'widgets/couchette_detail_sheet.dart';
+import 'widgets/couchette_hero.dart';
+import 'widgets/couchette_visuals.dart';
 
-/// Page de gestion des couchettes
+/// Page « Mes couchettes » : hero de la couchette du jour, historique
+/// paginé, détail en feuille, déclaration du jour dans le dock (un tap, sans
+/// formulaire : le serveur prend la date du jour).
 class CouchettesScreen extends StatefulWidget {
   const CouchettesScreen({super.key});
 
@@ -14,7 +20,8 @@ class CouchettesScreen extends StatefulWidget {
   State<CouchettesScreen> createState() => _CouchettesScreenState();
 }
 
-class _CouchettesScreenState extends State<CouchettesScreen> {
+class _CouchettesScreenState extends State<CouchettesScreen>
+    with DockNoticeMixin {
   final List<Couchette> _couchettes = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -38,6 +45,8 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
     super.dispose();
   }
 
+  // ---- données ----------------------------------------------------------
+
   void _onScroll() {
     if (_scrollController.position.pixels >=
             _scrollController.position.maxScrollExtent - 200 &&
@@ -47,34 +56,36 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
     }
   }
 
-  Future<void> _loadCouchettes() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  /// [silent] : tirer pour rafraîchir, la liste reste affichée pendant l'appel.
+  Future<void> _loadCouchettes({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
 
     final result = await sl.couchetteRepository.getMyCouchettes(page: 0);
-
     if (!mounted) return;
 
     result.fold(
-      (failure) {
-        setState(() {
-          _error = failure.message;
-          _isLoading = false;
-        });
-      },
-      (response) {
-        setState(() {
-          _couchettes.clear();
-          _couchettes.addAll(response.content);
-          _currentPage = 0;
-          _hasMore = !response.last;
-          _isLoading = false;
-        });
-      },
+      (failure) => setState(() {
+        _error = failure.message;
+        _isLoading = false;
+      }),
+      (response) => setState(() {
+        _error = null;
+        _couchettes
+          ..clear()
+          ..addAll(response.content);
+        _currentPage = 0;
+        _hasMore = !response.last;
+        _isLoading = false;
+      }),
     );
   }
+
+  Future<void> _refresh() => _loadCouchettes(silent: true);
 
   Future<void> _loadMoreCouchettes() async {
     if (_isLoadingMore) return;
@@ -83,259 +94,159 @@ class _CouchettesScreenState extends State<CouchettesScreen> {
     final result = await sl.couchetteRepository.getMyCouchettes(
       page: _currentPage + 1,
     );
-
     if (!mounted) return;
 
     result.fold(
-      (failure) => setState(() => _isLoadingMore = false),
-      (response) {
-        setState(() {
-          _couchettes.addAll(response.content);
-          _currentPage++;
-          _hasMore = !response.last;
-          _isLoadingMore = false;
-        });
-      },
+      (_) => setState(() => _isLoadingMore = false),
+      (response) => setState(() {
+        _couchettes.addAll(response.content);
+        _currentPage++;
+        _hasMore = !response.last;
+        _isLoadingMore = false;
+      }),
     );
   }
 
+  // ---- actions ----------------------------------------------------------
+
   Future<void> _createCouchette() async {
     if (_isCreating) return;
+    clearDockNotice();
     setState(() => _isCreating = true);
 
     final result = await sl.couchetteRepository.createCouchette();
-
     if (!mounted) return;
 
     setState(() => _isCreating = false);
 
     result.fold(
-      (failure) => _showError(failure.message),
+      (failure) => showDockError(failure.message),
       (couchette) {
         setState(() => _couchettes.insert(0, couchette));
-        _showSuccess('Couchette ajoutée pour aujourd\'hui');
+        showDockSuccess('Couchette ajoutée pour aujourd\'hui');
       },
     );
   }
 
+  Future<void> _openDetail(Couchette couchette) async {
+    clearDockNotice();
+    final action = await CouchetteDetailSheet.show(context, couchette);
+    if (!mounted || action != CouchetteDetailAction.delete) return;
+    await _deleteCouchette(couchette);
+  }
+
   Future<void> _deleteCouchette(Couchette couchette) async {
-    final colors = context.colors;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: colors.card,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-        ),
-        title: Text('Supprimer', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colors.foreground)),
-        content: Text(
-          'Voulez-vous vraiment supprimer cette couchette ?',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
-            child: Text('Non', style: Theme.of(context).textTheme.labelLarge?.copyWith(color: colors.mutedForeground)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: colors.destructive, minimumSize: const Size(48, 48)),
-            child: const Text('Supprimer'),
-          ),
-        ],
-      ),
+    final confirmed = await AppConfirmSheet.show(
+      context,
+      title: 'Supprimer la couchette ?',
+      message: 'La couchette du jour sera retirée. '
+          'Tu pourras la déclarer à nouveau si besoin.',
+      details: CouchetteRecap(couchette: couchette),
+      confirmLabel: 'Supprimer la couchette',
+      confirmIcon: Icons.delete_outline_rounded,
+      cancelLabel: 'Garder ma couchette',
     );
-
-    if (confirmed != true) return;
+    if (!confirmed || !mounted) return;
 
     final result = await sl.couchetteRepository.deleteCouchette(couchette.uuid);
     if (!mounted) return;
 
     result.fold(
-      (failure) => _showError(failure.message),
+      (failure) => showDockError(failure.message),
       (_) {
         setState(
-            () => _couchettes.removeWhere((c) => c.uuid == couchette.uuid));
-        _showSuccess('Couchette supprimée');
+          () => _couchettes.removeWhere((c) => c.uuid == couchette.uuid),
+        );
+        showDockSuccess('Couchette supprimée');
       },
     );
   }
 
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  void _showSuccess(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
-  }
-
-  bool _isToday(String? dateStr) {
-    if (dateStr == null) return false;
-    final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-    return dateStr == today;
-  }
+  // ---- build ------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: const Text('Mes couchettes'),
+    return AppPage(
+      title: 'Mes couchettes',
+      body: _buildBody(),
+      dock: AppDock(
+        actions: [
+          DockAction(
+            label: 'Déclarer une couchette',
+            icon: Icons.add_rounded,
+            isLoading: _isCreating,
+            onPressed: _isCreating ? null : _createCouchette,
+            semanticsHint: 'Déclare une couchette pour aujourd\'hui',
+          ),
+        ],
+        notice: dockNotice,
+        onDismissNotice: clearDockNotice,
+        absorbing: _isCreating,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _isCreating ? null : _createCouchette,
-        backgroundColor: colors.primary,
-        child: _isCreating
-            ? SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: colors.primaryForeground,
-                ),
-              )
-            : Icon(Icons.add, color: colors.primaryForeground),
-      ),
-      body: _buildBody(colors),
     );
   }
 
-  Widget _buildBody(AppColors colors) {
+  Widget _buildBody() {
     if (_isLoading) {
-      return const LoadingIndicator(message: 'Chargement...');
+      return const AppScrollView(children: [RequestsSkeleton()]);
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 48, color: colors.destructive),
-            const SizedBox(height: AppSpacing.base),
-            Text(_error!,
-                style: TextStyle(color: colors.mutedForeground),
-                textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.base),
-            AppButton(
-              text: 'Réessayer',
-              onPressed: _loadCouchettes,
-              backgroundColor: colors.primary,
-              foregroundColor: colors.primaryForeground,
-            ),
-          ],
-        ),
+      return AppScrollView(
+        onRefresh: _refresh,
+        children: [AppErrorState(message: _error!, onRetry: _loadCouchettes)],
       );
     }
 
-    if (_couchettes.isEmpty) {
-      return const AppEmptyState(
-        icon: Icons.hotel_outlined,
-        title: 'Aucune couchette',
-        subtitle: 'Appuyez sur + pour ajouter une couchette',
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadCouchettes,
-      color: colors.primary,
-      backgroundColor: colors.card,
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(AppSpacing.base),
-        itemCount: _couchettes.length + (_isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == _couchettes.length) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.base),
-                child: CircularProgressIndicator(color: colors.primary),
-              ),
-            );
-          }
-          return _buildCouchetteCard(_couchettes[index], colors);
-        },
-      ),
-    );
-  }
-
-  Widget _buildCouchetteCard(Couchette couchette, AppColors colors) {
-    final dateFormat = DateFormat('EEEE dd MMMM yyyy', 'fr_FR');
-    final isToday = _isToday(couchette.date);
-
-    String dateDisplay = 'Date non disponible';
-    if (couchette.date != null) {
-      try {
-        final date = DateTime.parse(couchette.date!);
-        dateDisplay = dateFormat.format(date);
-        // Capitalize first letter
-        dateDisplay =
-            dateDisplay[0].toUpperCase() + dateDisplay.substring(1);
-      } catch (_) {
-        dateDisplay = couchette.date!;
+    Couchette? today;
+    for (final c in _couchettes) {
+      if (isTodayCouchette(c)) {
+        today = c;
+        break;
       }
     }
+    final todayCouchette = today;
 
-    final textTheme = Theme.of(context).textTheme;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      color: colors.card,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+    final header = <Widget>[
+      CouchetteHero(
+        declared: todayCouchette != null,
+        onTap: todayCouchette == null
+            ? null
+            : () => _openDetail(todayCouchette),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.base),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: colors.info.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-              ),
-              child: Icon(Icons.hotel, color: colors.info, size: 22),
-            ),
-            const SizedBox(width: AppSpacing.base),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    dateDisplay,
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      color: colors.foreground,
-                    ),
-                  ),
-                  if (isToday)
-                    Text(
-                      'Aujourd\'hui',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: colors.primary,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            if (isToday)
-              IconButton(
-                icon: Icon(Icons.delete_outline,
-                    size: 20, color: colors.destructive),
-                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                onPressed: () => _deleteCouchette(couchette),
-                tooltip: 'Supprimer',
-              ),
-          ],
+      const SizedBox(height: AppSpacing.lg),
+      if (_couchettes.isEmpty)
+        const AppEmptyCard(
+          icon: Icons.hotel_outlined,
+          message: 'Aucune couchette',
+          detail: 'Tes couchettes déclarées apparaîtront ici.',
+        )
+      else
+        AppSectionHeader(
+          title: 'Historique',
+          summary: _hasMore
+              ? null
+              : DisplayFormat.plural(_couchettes.length, 'couchette'),
         ),
-      ),
+    ];
+
+    return AppListView(
+      controller: _scrollController,
+      onRefresh: _refresh,
+      header: header,
+      itemCount: _couchettes.length,
+      itemBuilder: (context, index) {
+        final c = _couchettes[index];
+        return AppCard(
+          padding: EdgeInsets.zero,
+          child: CouchetteRow(
+            couchette: c,
+            onTap: () => _openDetail(c),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+        );
+      },
+      footer: _isLoadingMore ? const LoadMoreFooter() : null,
     );
   }
 }
