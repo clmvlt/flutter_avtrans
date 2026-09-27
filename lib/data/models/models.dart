@@ -9,6 +9,7 @@ export 'api_response.dart';
 export 'app_version_model.dart';
 export 'auth_request_models.dart';
 export 'couchette_model.dart';
+export 'entretien_model.dart';
 export 'geo_point.dart';
 export 'google_auth_models.dart';
 export 'notification_model.dart';

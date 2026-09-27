@@ -337,3 +337,67 @@ abstract class AppVersionEndpoints {
   /// GET - Télécharger la dernière version
   static const String latestDownload = '$_base/latest/download';
 }
+
+/// Endpoints des entretiens (atelier). Toutes les routes exigent le rôle
+/// Mécanicien (l'Administrateur en hérite).
+abstract class EntretienEndpoints {
+  static const String _base = '/entretiens';
+
+  /// POST - Créer un entretien (fichiers en base64 facultatifs)
+  static const String create = _base;
+
+  /// GET / PUT / DELETE - Un entretien
+  static String byId(String id) => '$_base/$id';
+
+  /// POST - Historique filtré et paginé
+  static const String history = '$_base/history';
+
+  /// GET - Fichiers d'un entretien (avec contenu base64) / POST - Ajouter un fichier
+  static String files(String id) => '$_base/$id/files';
+
+  /// DELETE - Supprimer un fichier
+  static String deleteFile(String fileId) => '$_base/files/$fileId';
+
+  /// GET - Échéances de toute la flotte
+  static const String fleetUpcoming = '$_base/vehicules-prochains-entretiens';
+
+  /// GET - Échéances d'un véhicule
+  static String vehiculeUpcoming(String vehiculeId) =>
+      '$_base/vehicule/$vehiculeId/prochains-entretiens';
+}
+
+/// Endpoints des types d'entretien.
+abstract class TypeEntretienEndpoints {
+  static const String _base = '/types-entretien';
+
+  /// GET - Tous les types / POST - Créer un type
+  static const String all = _base;
+
+  /// PUT / DELETE - Un type
+  static String byId(String id) => '$_base/$id';
+}
+
+/// Endpoints des dossiers de types d'entretien.
+abstract class DossierTypeEntretienEndpoints {
+  static const String _base = '/dossiers-types-entretien';
+
+  /// GET - Tous les dossiers / POST - Créer un dossier
+  static const String all = _base;
+
+  /// PUT / DELETE - Un dossier
+  static String byId(String id) => '$_base/$id';
+}
+
+/// Endpoints du suivi périodique des entretiens par véhicule.
+abstract class VehiculeTypeEntretienEndpoints {
+  static const String _base = '/vehicules-types-entretien';
+
+  /// POST - Créer un suivi
+  static const String create = _base;
+
+  /// PUT / DELETE - Un suivi
+  static String byId(String id) => '$_base/$id';
+
+  /// GET - Suivis d'un véhicule (actifs et inactifs)
+  static String byVehicule(String vehiculeId) => '$_base/vehicule/$vehiculeId';
+}

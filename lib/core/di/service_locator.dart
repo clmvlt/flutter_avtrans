@@ -6,6 +6,7 @@ import '../../data/repositories/acompte_repository.dart';
 import '../../data/repositories/app_version_repository.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/couchette_repository.dart';
+import '../../data/repositories/entretien_repository.dart';
 import '../../data/repositories/geocoding_repository.dart';
 import '../../data/repositories/notification_repository.dart';
 import '../../data/repositories/routing_repository.dart';
@@ -46,6 +47,7 @@ class ServiceLocator {
   AcompteRepository? _acompteRepository;
   SignatureRepository? _signatureRepository;
   VehiculeRepository? _vehiculeRepository;
+  EntretienRepository? _entretienRepository;
   RapportRepository? _rapportRepository;
   TodoRepository? _todoRepository;
   NotificationRepository? _notificationRepository;
@@ -106,6 +108,9 @@ class ServiceLocator {
     _vehiculeRepository = VehiculeRepository(
       httpService: _httpService!,
     );
+
+    // Initialise le repository de l'atelier (entretiens, types, suivis)
+    _entretienRepository = EntretienRepository(_httpService!);
 
     // Initialise le repository des rapports
     _rapportRepository = RapportRepository(
@@ -229,6 +234,11 @@ class ServiceLocator {
   }
 
   /// Récupère le repository des véhicules
+  EntretienRepository get entretienRepository {
+    _ensureInitialized();
+    return _entretienRepository!;
+  }
+
   VehiculeRepository get vehiculeRepository {
     _ensureInitialized();
     return _vehiculeRepository!;
@@ -363,6 +373,7 @@ class ServiceLocator {
     _acompteRepository = null;
     _signatureRepository = null;
     _vehiculeRepository = null;
+    _entretienRepository = null;
     _rapportRepository = null;
     _todoRepository = null;
     _notificationRepository = null;
