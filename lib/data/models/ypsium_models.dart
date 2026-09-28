@@ -226,14 +226,87 @@ class YpsiumTransportOrder extends Equatable {
     }
   }
 
+  /// État atteint une fois l'enlèvement validé.
+  static const int etatEnleve = 4;
+
+  /// État atteint une fois la livraison validée.
+  static const int etatLivre = 5;
+
+  /// Sous-ordre (enlèvement ou livraison) terminé.
+  static const int sousEtatTermine = 2;
+
   /// À enlever : pas encore pris en charge
-  bool get isAEnlever => idEtat <= 3;
+  bool get isAEnlever => idEtat < etatEnleve;
 
   /// Enlevé, prêt pour la livraison
-  bool get isEnleve => idEtat == 4;
+  bool get isEnleve => idEtat == etatEnleve;
 
   /// Livré
-  bool get isLivre => idEtat >= 5;
+  bool get isLivre => idEtat >= etatLivre;
+
+  /// Copie avancée à [etat] ([etatEnleve] ou [etatLivre]) quand une
+  /// validation n'a pas encore été reprise par le serveur ; sous-ordres
+  /// terminés en conséquence. Inchangé si l'ordre y est déjà.
+  YpsiumTransportOrder withEtatAtLeast(int etat) {
+    if (idEtat >= etat) return this;
+    return YpsiumTransportOrder(
+      eNom: eNom,
+      eAdresse1: eAdresse1,
+      eAdresse2: eAdresse2,
+      eAdresse3: eAdresse3,
+      eCodePostal: eCodePostal,
+      eVille: eVille,
+      ePays: ePays,
+      eContact: eContact,
+      eTelephone1: eTelephone1,
+      eTelephone2: eTelephone2,
+      eEmail: eEmail,
+      eDateDebut: eDateDebut,
+      eHeureDebut: eHeureDebut,
+      eDateFin: eDateFin,
+      eHeureFin: eHeureFin,
+      eCreneau: eCreneau,
+      eCB: eCB,
+      eSignatureAuto: eSignatureAuto,
+      lNom: lNom,
+      lAdresse1: lAdresse1,
+      lAdresse2: lAdresse2,
+      lAdresse3: lAdresse3,
+      lCodePostal: lCodePostal,
+      lVille: lVille,
+      lPays: lPays,
+      lContact: lContact,
+      lTelephone1: lTelephone1,
+      lTelephone2: lTelephone2,
+      lEmail: lEmail,
+      lDateDebut: lDateDebut,
+      lHeureDebut: lHeureDebut,
+      lDateFin: lDateFin,
+      lHeureFin: lHeureFin,
+      lCreneau: lCreneau,
+      lCB: lCB,
+      lSignatureAuto: lSignatureAuto,
+      idOrdre: idOrdre,
+      idEtat: etat,
+      ediOrdre: ediOrdre,
+      bEstEDIIKEA: bEstEDIIKEA,
+      bEstUnService: bEstUnService,
+      idEtatSousOrdreSaisie: idEtatSousOrdreSaisie,
+      idEtatSousOrdreEnlevement: sousEtatTermine,
+      idEtatSousOrdreLivraison:
+          etat >= etatLivre ? sousEtatTermine : idEtatSousOrdreLivraison,
+      idContrat: idContrat,
+      client: client,
+      photoEnlDebut: photoEnlDebut,
+      photoEnlFin: photoEnlFin,
+      photoLivDebut: photoLivDebut,
+      photoLivFin: photoLivFin,
+      photoCBRT: photoCBRT,
+      photoDocEnl: photoDocEnl,
+      photoDocLiv: photoDocLiv,
+      noscan: noscan,
+    );
+  }
 
   static String _formatHeure(String heure) {
     if (heure.length == 4) {

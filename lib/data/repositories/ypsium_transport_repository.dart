@@ -25,6 +25,27 @@ class YpsiumTransportRepository {
   String get _token => _authRepository.sessionToken!;
   String get _idChauffeur => _authRepository.currentSession!.idChauffeur;
 
+  /// Validation d'enlèvement ou de livraison dans la file d'envoi
+  /// (endpoints de [YpsiumOperationEndpoints]).
+  static final _validationEndpoint = RegExp(r'^/setPoint(Enleve|Livre)/(\d+)/');
+
+  /// États visés par les validations encore dans la file d'envoi, par
+  /// `idOrdre` : le serveur ne les connaît pas encore, l'accueil les affiche
+  /// par-dessus sa liste.
+  Map<int, int> get pendingEtats {
+    final etats = <int, int>{};
+    for (final entry in _spoolerService.entries) {
+      final match = _validationEndpoint.firstMatch(entry.endpoint);
+      if (match == null) continue;
+      final idOrdre = int.parse(match.group(2)!);
+      final etat = match.group(1) == 'Enleve'
+          ? YpsiumTransportOrder.etatEnleve
+          : YpsiumTransportOrder.etatLivre;
+      if (etat > (etats[idOrdre] ?? 0)) etats[idOrdre] = etat;
+    }
+    return etats;
+  }
+
   /// Récupère la liste des ordres de transport pour une date
   /// [date] au format YYYYMMDD, [filtre] ex: "TOUS"
   /// Note : les lectures ne passent PAS par le spooler
