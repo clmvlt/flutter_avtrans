@@ -9,6 +9,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/shell/main_shell.dart';
+import 'presentation/widgets/keyboard_tap_outside.dart';
 import 'presentation/widgets/update_dialog.dart';
 
 /// Clé de navigation globale : permet de rediriger vers le login depuis la couche
@@ -77,6 +78,8 @@ class MyApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
       locale: const Locale('fr', 'FR'),
+      // Toucher hors d'un champ ferme le clavier, sur toutes les pages.
+      builder: (context, child) => KeyboardTapOutside(child: child!),
       home: const SplashScreen(),
     );
   }

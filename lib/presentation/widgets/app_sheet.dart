@@ -71,6 +71,8 @@ abstract class AppSheet {
                   Flexible(
                     child: SingleChildScrollView(
                       padding: contentPadding,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
                       child: builder(ctx),
                     ),
                   ),

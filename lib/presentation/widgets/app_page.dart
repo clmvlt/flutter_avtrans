@@ -108,7 +108,7 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
 
 /// Corps défilant standard : colonne centrée (480 dp max), marges d'écran,
 /// bas réservé au dock et à la tab bar (`paddingOf.bottom`), tirer pour
-/// rafraîchir si [onRefresh] est fourni.
+/// rafraîchir si [onRefresh] est fourni. Faire défiler ferme le clavier.
 class AppScrollView extends StatelessWidget {
   const AppScrollView({
     super.key,
@@ -136,6 +136,7 @@ class AppScrollView extends StatelessWidget {
         Widget view = SingleChildScrollView(
           controller: controller,
           physics: const AlwaysScrollableScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: EdgeInsets.fromLTRB(
             side + padding.left,
             topPadding,
@@ -200,6 +201,7 @@ class AppListView extends StatelessWidget {
         Widget view = ListView.builder(
           controller: controller,
           physics: const AlwaysScrollableScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: EdgeInsets.fromLTRB(
             side + padding.left,
             topPadding,

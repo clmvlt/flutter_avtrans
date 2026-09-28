@@ -21,6 +21,7 @@ export 'app_state_views.dart';
 export 'app_text_field.dart';
 export 'glass_nav_bar.dart';
 export 'google_sign_in_button.dart';
+export 'keyboard_tap_outside.dart';
 export 'loading_overlay.dart';
 export 'section_list.dart';
 export 'service_day_tile.dart';
