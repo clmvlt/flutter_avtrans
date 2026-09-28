@@ -190,13 +190,15 @@ class ServiceLocator {
   /// Récupère le service HTTP
   /// Initialisation minimale pour les tests de widgets : client HTTP
   /// injecté (réponses simulées), repositories de l'API AVTRANS, aucun
-  /// plugin natif (tournées, carte, Ypsium, mises à jour ne sont pas
-  /// disponibles). `SharedPreferences.setMockInitialValues` doit être
-  /// appelé avant.
+  /// plugin natif (tournées, carte, mises à jour ne sont pas disponibles).
+  /// Ypsium seulement avec [ypsiumClient], et sa file d'envoi sans `init()`
+  /// ni disque (ni fichier ni relance toutes les 30 s).
+  /// `SharedPreferences.setMockInitialValues` doit être appelé avant.
   @visibleForTesting
   Future<void> initForTesting({
     required http.Client client,
     String baseUrl = 'https://api.test',
+    http.Client? ypsiumClient,
   }) async {
     _tokenStorage = await TokenStorageService.create();
     _httpService = HttpService(client: client, baseUrl: baseUrl);
@@ -222,6 +224,33 @@ class ServiceLocator {
       httpService: _httpService!,
       downloadService: _downloadService!,
     );
+    if (ypsiumClient != null) {
+      _ypsiumHttpService = YpsiumHttpService(
+        client: ypsiumClient,
+        baseUrl: 'https://ypsium.test',
+      );
+      _ypsiumAuthRepository = YpsiumAuthRepository(
+        httpService: _ypsiumHttpService!,
+        prefs: await SharedPreferences.getInstance(),
+      );
+      _ypsiumSpoolerService = YpsiumSpoolerService(
+        httpService: _ypsiumHttpService!,
+        persist: false,
+      );
+      _ypsiumTransportRepository = YpsiumTransportRepository(
+        httpService: _ypsiumHttpService!,
+        authRepository: _ypsiumAuthRepository!,
+        spoolerService: _ypsiumSpoolerService!,
+      );
+      _ypsiumVehiculeRepository = YpsiumVehiculeRepository(
+        httpService: _ypsiumHttpService!,
+        authRepository: _ypsiumAuthRepository!,
+      );
+      _ypsiumReferentielRepository = YpsiumReferentielRepository(
+        httpService: _ypsiumHttpService!,
+        authRepository: _ypsiumAuthRepository!,
+      );
+    }
     _isInitialized = true;
   }
 

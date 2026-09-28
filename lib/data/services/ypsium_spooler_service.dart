@@ -15,6 +15,9 @@ import 'ypsium_http_service.dart';
 /// et reprend automatiquement toutes les 30 secondes.
 class YpsiumSpoolerService extends ChangeNotifier {
   final YpsiumHttpService _httpService;
+
+  /// `false` : la file n'est ni lue ni écrite sur disque (tests).
+  final bool _persist;
   final List<YpsiumSpoolerEntry> _entries = [];
   Timer? _retryTimer;
   bool _isProcessing = false;
@@ -26,8 +29,11 @@ class YpsiumSpoolerService extends ChangeNotifier {
   bool get isEmpty => _entries.isEmpty;
   bool get hasEntries => _entries.isNotEmpty;
 
-  YpsiumSpoolerService({required YpsiumHttpService httpService})
-      : _httpService = httpService;
+  YpsiumSpoolerService({
+    required YpsiumHttpService httpService,
+    bool persist = true,
+  })  : _httpService = httpService,
+        _persist = persist;
 
   /// Charge le spooler depuis le fichier persisté
   Future<void> init() async {
@@ -171,6 +177,7 @@ class YpsiumSpoolerService extends ChangeNotifier {
   }
 
   Future<void> _saveToDisk() async {
+    if (!_persist) return;
     try {
       final file = await _file;
       await file.writeAsString(YpsiumSpoolerEntry.encodeList(_entries));
@@ -180,6 +187,7 @@ class YpsiumSpoolerService extends ChangeNotifier {
   }
 
   Future<void> _loadFromDisk() async {
+    if (!_persist) return;
     try {
       final file = await _file;
       if (await file.exists()) {
