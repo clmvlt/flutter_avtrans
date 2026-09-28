@@ -30,17 +30,31 @@ class AuthLinkRow extends StatelessWidget {
           prompt,
           style: textTheme.bodyMedium?.copyWith(color: colors.mutedForeground),
         ),
-        TextButton(
-          onPressed: onPressed,
-          style: TextButton.styleFrom(
-            foregroundColor: colors.primary,
-            minimumSize: const Size(48, 48),
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            textStyle: textTheme.labelLarge,
-          ),
-          child: Text(actionLabel),
-        ),
+        AuthTextLink(label: actionLabel, onPressed: onPressed),
       ],
+    );
+  }
+}
+
+/// Action secondaire en bouton texte `primary` (48 dp) : « Créer un
+/// compte », « Mot de passe oublié ? ».
+class AuthTextLink extends StatelessWidget {
+  const AuthTextLink({super.key, required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: context.colors.primary,
+        minimumSize: const Size(48, 48),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        textStyle: Theme.of(context).textTheme.labelLarge,
+      ),
+      child: Text(label),
     );
   }
 }

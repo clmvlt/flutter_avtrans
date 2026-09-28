@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
 import '../shell/main_shell.dart';
+import 'forgot_password_screen.dart';
 import 'google_register_screen.dart';
 import 'register_screen.dart';
 import 'widgets/auth_form_message.dart';
@@ -13,9 +14,10 @@ import 'widgets/auth_header.dart';
 import 'widgets/auth_link_row.dart';
 import 'widgets/auth_scaffold.dart';
 
-/// Page de connexion : logo et nom de l'app, une carte qui porte les champs
-/// et le bouton « Se connecter » (56 dp), puis Google et le lien
-/// d'inscription. Les erreurs du repository s'affichent au-dessus du bouton.
+/// Page de connexion : logo et nom de l'app, une carte qui porte les champs,
+/// le lien « Mot de passe oublié ? » et le bouton « Se connecter » (56 dp),
+/// puis Google et le lien d'inscription. Les erreurs du repository
+/// s'affichent au-dessus du bouton.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -33,7 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isGoogleLoading = false;
   String? _errorMessage;
 
-  /// Retour de l'inscription quand l'administrateur a activé le compte.
+  /// Retour de l'inscription (compte activé) ou du mot de passe oublié
+  /// (email envoyé).
   String? _successMessage;
 
   /// Le SDK Google n'est disponible que sur Android / iOS / macOS.
@@ -148,6 +151,27 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  /// Le mot de passe oublié renvoie l'adresse à laquelle le lien est parti :
+  /// on la reprend dans le champ et on annonce l'envoi au-dessus du bouton.
+  Future<void> _goToForgotPassword() async {
+    final email = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => ForgotPasswordScreen(
+          initialEmail: _emailController.text.trim(),
+        ),
+      ),
+    );
+    if (!mounted || email == null) return;
+    _emailController.text = email;
+    _passwordController.clear();
+    setState(() {
+      _errorMessage = null;
+      _successMessage = 'Email envoyé à $email. Ouvre le lien reçu (valable '
+          '1 heure) pour choisir un nouveau mot de passe, puis connecte-toi '
+          'ici.';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return AuthScaffold(
@@ -176,6 +200,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   focusNode: _passwordFocusNode,
                   enabled: !_isBusy,
                   onSubmitted: (_) => _login(),
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: AuthTextLink(
+                    label: 'Mot de passe oublié ?',
+                    onPressed: _isBusy ? null : _goToForgotPassword,
+                  ),
                 ),
                 AuthFormMessage(
                   error: _errorMessage,

@@ -95,6 +95,7 @@ class EmailTextField extends StatelessWidget {
   final void Function(String)? onChanged;
   final void Function(String)? onSubmitted;
   final FocusNode? focusNode;
+  final TextInputAction textInputAction;
 
   const EmailTextField({
     super.key,
@@ -104,6 +105,7 @@ class EmailTextField extends StatelessWidget {
     this.onChanged,
     this.onSubmitted,
     this.focusNode,
+    this.textInputAction = TextInputAction.next,
   });
 
   @override
@@ -114,6 +116,7 @@ class EmailTextField extends StatelessWidget {
       hint: 'exemple@email.com',
       errorText: errorText,
       keyboardType: TextInputType.emailAddress,
+      textInputAction: textInputAction,
       prefixIcon: const Icon(Icons.mail_outline, size: 20),
       enabled: enabled,
       onChanged: onChanged,
