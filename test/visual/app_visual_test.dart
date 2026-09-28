@@ -7,6 +7,7 @@ import 'package:av_pointage/presentation/screens/auth/login_screen.dart';
 import 'package:av_pointage/presentation/screens/couchettes/couchettes_screen.dart';
 import 'package:av_pointage/presentation/screens/notifications/notifications_screen.dart';
 import 'package:av_pointage/presentation/screens/profile/edit_profile_screen.dart';
+import 'package:av_pointage/presentation/screens/services/kilometrage_required_screen.dart';
 import 'package:av_pointage/presentation/screens/shell/home_dashboard_screen.dart';
 import 'package:av_pointage/presentation/screens/shell/moi_tab.dart';
 import 'package:av_pointage/presentation/screens/todos/todos_screen.dart';
@@ -86,6 +87,17 @@ void main() {
     await tester.tap(find.text('Changer'));
     await settle(tester);
     await capture(tester, 'app_vehicule_photo_feuille');
+  }, skip: _skip);
+
+  // Clavier ouvert : le bouton du dock reste au-dessus (pavé numérique iOS).
+  testWidgets('kilometrage_clavier', (tester) async {
+    addTearDown(tester.view.reset);
+    await setUpApp(user: fakeUser(), routes: appRoutes());
+    await pumpScreen(tester, const KilometrageRequiredScreen(isRequired: true));
+    await tester.tap(find.byType(TextFormField).last);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300 * 3);
+    await settle(tester);
+    await capture(tester, 'app_kilometrage_clavier');
   }, skip: _skip);
 
   testWidgets('vehicule_chauffeur', (tester) async {
