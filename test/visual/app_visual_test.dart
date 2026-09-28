@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:av_pointage/presentation/screens/absences/absences_screen.dart';
 import 'package:av_pointage/presentation/screens/acomptes/acomptes_screen.dart';
+import 'package:av_pointage/presentation/screens/auth/forgot_password_screen.dart';
 import 'package:av_pointage/presentation/screens/auth/login_screen.dart';
 import 'package:av_pointage/presentation/screens/couchettes/couchettes_screen.dart';
 import 'package:av_pointage/presentation/screens/notifications/notifications_screen.dart';
@@ -31,6 +32,8 @@ const _tall = {'accueil'};
 /// Écrans à capturer : nom → écran.
 final Map<String, Widget Function()> _screens = {
   'login': () => const LoginScreen(),
+  'mot_de_passe_oublie': () =>
+      const ForgotPasswordScreen(initialEmail: 'jean@avtrans.fr'),
   'accueil': () => HomeDashboardScreen(onOpenPointage: () {}, onOpenMoi: () {}),
   'moi': () => ChangeNotifierProvider(
         create: (_) => ThemeProvider(),
