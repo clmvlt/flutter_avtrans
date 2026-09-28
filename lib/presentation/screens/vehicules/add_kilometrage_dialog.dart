@@ -136,6 +136,14 @@ class _AddKilometrageFormState extends State<_AddKilometrageForm> {
               keyboardType: TextInputType.number,
               textInputAction: TextInputAction.done,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              // Le champ défile avec le bouton « Enregistrer » sous lui :
+              // le bouton reste visible au-dessus du clavier.
+              scrollPadding: const EdgeInsets.fromLTRB(
+                AppSpacing.screen,
+                AppSpacing.screen,
+                AppSpacing.screen,
+                AppSpacing.screen + AppSpacing.lg + 56,
+              ),
               style: textTheme.titleLarge?.copyWith(
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),

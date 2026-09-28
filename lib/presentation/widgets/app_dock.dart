@@ -70,6 +70,12 @@ Color onWarningMuted(AppColors c) =>
 ///
 /// Sans bouton, sans notice et sans ligne d'état, le dock ne rend rien.
 /// Il réserve lui-même `paddingOf.bottom + bottomGap` sous les boutons.
+///
+/// Clavier ouvert (`viewInsets.bottom` visible, page du Navigator racine) :
+/// le dock remonte juste au-dessus pour que son bouton reste tapable (le
+/// pavé numérique iOS n'a pas de touche pour se fermer), sans fondu ;
+/// [AppPage] arrête alors le corps au-dessus du dock. Dans l'onglet Ypsium,
+/// la coquille a déjà réduit la page au-dessus du clavier.
 class AppDock extends StatelessWidget {
   const AppDock({
     super.key,
@@ -108,25 +114,29 @@ class AppDock extends StatelessWidget {
 
     final colors = context.colors;
     final background = colors.background;
-    final bottom = MediaQuery.paddingOf(context).bottom;
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final bottom = keyboard > 0
+        ? keyboard + AppSpacing.md
+        : MediaQuery.paddingOf(context).bottom + bottomGap;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Fondu transparent aux gestes : ce qui est visible dessous reste
         // tapable.
-        IgnorePointer(
-          child: Container(
-            height: 24,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [background.withValues(alpha: 0), background],
+        if (keyboard == 0)
+          IgnorePointer(
+            child: Container(
+              height: 24,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [background.withValues(alpha: 0), background],
+                ),
               ),
             ),
           ),
-        ),
         ColoredBox(
           color: background,
           child: Padding(
@@ -134,7 +144,7 @@ class AppDock extends StatelessWidget {
               AppSpacing.screen,
               AppSpacing.sm,
               AppSpacing.screen,
-              bottom + bottomGap,
+              bottom,
             ),
             child: Center(
               child: ConstrainedBox(

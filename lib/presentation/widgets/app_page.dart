@@ -29,6 +29,8 @@ abstract final class AppLayout {
 ///
 /// Avec un dock, le corps passe dessous (`extendBody`) : le fondu du dock
 /// remplace tout bord dur, et les corps standard réservent sa hauteur.
+/// Clavier ouvert, le dock remonte au-dessus de lui et le corps s'arrête au
+/// dock : le champ actif défile ainsi au-dessus du bouton.
 class AppPage extends StatelessWidget {
   const AppPage({
     super.key,
@@ -60,9 +62,10 @@ class AppPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     return Scaffold(
       backgroundColor: colors.background,
-      extendBody: dock != null,
+      extendBody: dock != null && !keyboardOpen,
       appBar: AppBar(
         title: Text(title),
         leading: leading,

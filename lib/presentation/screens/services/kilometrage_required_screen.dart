@@ -136,7 +136,6 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     final showForm = !_isLoading && _loadError == null && _vehicules.isNotEmpty;
 
     return PopScope(
@@ -147,19 +146,15 @@ class _KilometrageRequiredScreenState extends State<KilometrageRequiredScreen>
           Navigator.of(context).pop(false);
         }
       },
-      // Scaffold plutôt qu'AppPage : la barre de titre ne doit pas proposer
-      // de fermeture quand la saisie est obligatoire.
-      child: Scaffold(
-        backgroundColor: colors.background,
-        extendBody: true,
-        appBar: AppBar(
-          title: Text(
+      // Pas de fermeture dans la barre de titre quand la saisie est
+      // obligatoire. AppPage remonte le dock au-dessus du clavier : le pavé
+      // numérique iOS n'a pas de touche pour se fermer.
+      child: AppPage(
+        title:
             widget.isRequired ? 'Kilométrage requis' : 'Saisir le kilométrage',
-          ),
-          automaticallyImplyLeading: !widget.isRequired,
-        ),
+        automaticallyImplyLeading: !widget.isRequired,
         body: _buildBody(),
-        bottomNavigationBar: AppDock(
+        dock: AppDock(
           skeleton: _isLoading,
           notice: dockNotice,
           onDismissNotice: clearDockNotice,

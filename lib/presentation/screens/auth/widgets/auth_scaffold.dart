@@ -41,12 +41,15 @@ class AuthScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final hasBar = title != null || showBack;
+    final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       backgroundColor: colors.background,
       // Avec un dock, le contenu passe dessous : son fondu remplace tout bord
-      // dur, et le corps réserve sa hauteur (`paddingOf.bottom`).
-      extendBody: dock != null,
+      // dur, et le corps réserve sa hauteur (`paddingOf.bottom`). Clavier
+      // ouvert, le dock remonte au-dessus et le corps s'arrête à lui
+      // (comme AppPage).
+      extendBody: dock != null && !keyboardOpen,
       appBar: hasBar
           ? AppBar(
               title: title == null ? null : Text(title!),
