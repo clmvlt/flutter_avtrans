@@ -30,6 +30,7 @@ import '../../data/services/token_storage_service.dart';
 import '../../data/services/tour_service.dart';
 import '../../data/services/ypsium_http_service.dart';
 import '../../data/services/ypsium_spooler_service.dart';
+import '../services/break_reminder_service.dart';
 import '../services/location_service.dart';
 import '../services/update_checker_service.dart';
 
@@ -60,6 +61,7 @@ class ServiceLocator {
   TourService? _tourService;
   NavigationPreferenceService? _navigationPreferenceService;
   LocationService? _locationService;
+  BreakReminderService? _breakReminderService;
   DownloadService? _downloadService;
   AppVersionRepository? _appVersionRepository;
   UpdateCheckerService? _updateCheckerService;
@@ -143,6 +145,9 @@ class ServiceLocator {
     // Initialise le service de localisation
     _locationService = LocationService();
 
+    // Rappel de pause après 6 h de service (notification locale)
+    _breakReminderService = BreakReminderService();
+
     // Initialise le service de téléchargement
     _downloadService = DownloadService();
     _downloadService!.setAuthToken(_tokenStorage!.getToken());
@@ -219,6 +224,7 @@ class ServiceLocator {
     _notificationRepository = NotificationRepository(_httpService!);
     _couchetteRepository = CouchetteRepository(_httpService!);
     _locationService = LocationService();
+    _breakReminderService = BreakReminderService(enabled: false);
     _downloadService = DownloadService(client: client);
     _appVersionRepository = AppVersionRepository(
       httpService: _httpService!,
@@ -366,6 +372,12 @@ class ServiceLocator {
     return _locationService!;
   }
 
+  /// Récupère le service de rappel de pause
+  BreakReminderService get breakReminderService {
+    _ensureInitialized();
+    return _breakReminderService!;
+  }
+
   /// Récupère le service de téléchargement
   DownloadService get downloadService {
     _ensureInitialized();
@@ -455,6 +467,7 @@ class ServiceLocator {
     _navigationPreferenceService?.dispose();
     _navigationPreferenceService = null;
     _locationService = null;
+    _breakReminderService = null;
     _downloadService?.dispose();
     _downloadService = null;
     _appVersionRepository = null;

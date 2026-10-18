@@ -14,6 +14,7 @@ import 'kilometrage_required_screen.dart';
 import 'mes_heures_screen.dart';
 import 'pointage_controller.dart';
 import 'widgets/action_dock.dart';
+import 'widgets/break_reminder_card.dart';
 import 'widgets/day_timeline.dart';
 import 'widgets/end_service_sheet.dart';
 import 'widgets/hours_strip.dart';
@@ -290,6 +291,19 @@ class _ServicesScreenState extends State<ServicesScreen>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         PointageHeroCard(controller: _c),
+        AnimatedSize(
+          duration: AppDuration.base,
+          curve: Curves.easeOut,
+          alignment: Alignment.topCenter,
+          child: !_c.breakDue
+              ? const SizedBox(width: double.infinity)
+              : Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.md),
+                  child: BreakReminderCard(
+                    onPause: _c.isActing ? null : _pause,
+                  ),
+                ),
+        ),
         AnimatedSize(
           duration: AppDuration.base,
           curve: Curves.easeOut,

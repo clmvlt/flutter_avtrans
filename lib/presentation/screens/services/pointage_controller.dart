@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/errors/failures.dart';
+import '../../../core/services/break_reminder_service.dart';
 import '../../../core/services/location_service.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/auth_repository.dart';
@@ -227,6 +228,7 @@ class PointageController extends ChangeNotifier {
     RapportRepository? rapportRepository,
     AuthRepository? authRepository,
     LocationService? locationService,
+    BreakReminderService? breakReminder,
     DateTime Function()? now,
     this.prerequisitesTimeout = const Duration(seconds: 6),
   })  : _serviceRepository = serviceRepository ?? sl.serviceRepository,
@@ -235,6 +237,7 @@ class PointageController extends ChangeNotifier {
         _rapportRepository = rapportRepository ?? sl.rapportRepository,
         _authRepository = authRepository ?? sl.authRepository,
         _locationService = locationService ?? sl.locationService,
+        _breakReminder = breakReminder ?? sl.breakReminderService,
         _now = now ?? DateTime.now {
     clock = ValueNotifier<DateTime>(_now());
   }
@@ -260,6 +263,7 @@ class PointageController extends ChangeNotifier {
   final RapportRepository _rapportRepository;
   final AuthRepository _authRepository;
   final LocationService _locationService;
+  final BreakReminderService _breakReminder;
   final DateTime Function() _now;
 
   /// Horloge qui tique chaque seconde tant qu'un pointage est ouvert.
@@ -267,6 +271,10 @@ class PointageController extends ChangeNotifier {
 
   Timer? _ticker;
   bool _disposed = false;
+
+  /// Dernière valeur de [breakDue] publiée : l'horloge ne notifie la page
+  /// qu'au franchissement du seuil.
+  bool _breakDue = false;
 
   bool _isLoading = true;
   PointageActionPhase _phase = PointageActionPhase.idle;
@@ -394,6 +402,33 @@ class PointageController extends ChangeNotifier {
     return d.isNegative ? Duration.zero : d;
   }
 
+  /// Début du travail continu en cours : reprise après la dernière pause, ou
+  /// prise de service. `null` hors service ou en pause.
+  DateTime? get continuousWorkStart {
+    final active = _activeService;
+    if (active == null || active.isBreak) return null;
+    var start = active.debut;
+    for (final s in _allServicesToday()) {
+      if (!s.isBreak) continue;
+      // Une pause sans fin alors que le service a repris vient de se
+      // terminer (liste du jour pas encore resynchronisée).
+      final end = s.fin ?? _now();
+      if (end.isAfter(start)) start = end;
+    }
+    return start;
+  }
+
+  /// Temps de travail depuis [continuousWorkStart], en direct.
+  Duration get continuousWork {
+    final start = continuousWorkStart;
+    if (start == null) return Duration.zero;
+    final d = _now().difference(start);
+    return d.isNegative ? Duration.zero : d;
+  }
+
+  /// Six heures de travail sans pause : la page invite à en prendre une.
+  bool get breakDue => continuousWork >= BreakReminderService.threshold;
+
   /// Temps de pause cumulé aujourd'hui (terminé + en cours).
   Duration get breakToday {
     var seconds = 0;
@@ -505,12 +540,14 @@ class PointageController extends ChangeNotifier {
 
     String? error;
     var anySuccess = false;
+    var activeLoaded = false;
     var dailyFailed = false;
 
     results[0].fold(
       (failure) => error ??= failure.message,
       (service) {
         anySuccess = true;
+        activeLoaded = true;
         _activeService = service as Service?;
       },
     );
@@ -538,6 +575,8 @@ class PointageController extends ChangeNotifier {
     _dailyUnavailable = anySuccess && dailyFailed;
     _isLoading = false;
     _syncTicker();
+    // Hors ligne, on garde le rappel déjà programmé.
+    if (activeLoaded) _syncBreakReminder();
     notifyListeners();
   }
 
@@ -785,6 +824,15 @@ class PointageController extends ChangeNotifier {
         _phase = PointageActionPhase.idle;
         _inFlight = null;
         _syncTicker();
+        if (action == PointageAction.start ||
+            action == PointageAction.breakEnd) {
+          // Autorisation demandée au moment où le rappel devient utile.
+          unawaited(_breakReminder
+              .requestPermission()
+              .then((_) => _syncBreakReminder()));
+        } else {
+          _syncBreakReminder();
+        }
         notifyListeners();
         // Resynchronise heures et liste du jour en arrière-plan.
         unawaited(load());
@@ -815,18 +863,35 @@ class PointageController extends ChangeNotifier {
     return location;
   }
 
+  // ---- rappel de pause --------------------------------------------------
+
+  /// Programme la notification à la fin des 6 h de travail continu, ou
+  /// l'annule hors service et en pause.
+  void _syncBreakReminder() {
+    final start = continuousWorkStart;
+    unawaited(start == null
+        ? _breakReminder.cancel()
+        : _breakReminder.scheduleAt(start.add(BreakReminderService.threshold)));
+  }
+
   // ---- horloge ----------------------------------------------------------
 
   void _syncTicker() {
     if (_activeService != null) {
       _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
         clock.value = _now();
+        final due = breakDue;
+        if (due != _breakDue) {
+          _breakDue = due;
+          notifyListeners();
+        }
       });
       clock.value = _now();
     } else {
       _ticker?.cancel();
       _ticker = null;
     }
+    _breakDue = breakDue;
   }
 
   @override

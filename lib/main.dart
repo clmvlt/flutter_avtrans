@@ -32,6 +32,7 @@ Future<void> _handleUnauthorized() async {
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
+    await sl.breakReminderService.cancel();
     await sl.authRepository.logout();
   } finally {
     _isHandlingUnauthorized = false;

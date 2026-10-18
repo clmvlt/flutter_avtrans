@@ -75,6 +75,7 @@ class _MoiTabState extends State<MoiTab> {
     );
     if (!confirm || !mounted) return;
 
+    await sl.breakReminderService.cancel();
     await sl.authRepository.logout();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
