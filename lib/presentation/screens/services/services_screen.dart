@@ -99,8 +99,7 @@ class _ServicesScreenState extends State<ServicesScreen>
   void _openSign() =>
       _push(SignScreen(heuresLastMonth: _c.prerequisites.heuresLastMonth));
 
-  void _openDetail(Service service) =>
-      ServiceDetailSheet.show(context, service, now: DateTime.now());
+  void _openDetail(Service service) => ServiceDetailSheet.show(context, service);
 
   Future<void> _fixLocation() async {
     switch (_c.locationStatus) {
@@ -177,13 +176,15 @@ class _ServicesScreenState extends State<ServicesScreen>
 
   Future<void> _end() async {
     _clearNotice();
+    // Récapitulatif du service clôturé, valeurs de l'API en direct.
+    final active = _c.activeService;
     final confirmed = await EndServiceSheet.show(
       context,
-      start: _c.firstStartToday,
+      start: active?.debut,
       now: DateTime.now(),
-      worked: _c.workedToday,
-      breaks: _c.breakToday,
-      breakCount: _c.breakCount,
+      worked: active?.liveTravail.value ?? Duration.zero,
+      breaks: active?.livePauses.value ?? Duration.zero,
+      breakCount: active?.pauses.length ?? 0,
     );
     if (!confirmed || !mounted) return;
     final result = await _c.endService();
@@ -318,7 +319,7 @@ class _ServicesScreenState extends State<ServicesScreen>
         const SizedBox(height: AppSpacing.lg),
         _TodaySection(controller: _c, onTap: _openDetail),
         const SizedBox(height: AppSpacing.lg),
-        HoursStrip(hours: _c.workedHours, onTap: _openHours),
+        HoursStrip(hours: _c.workedHours, clock: _c.clock, onTap: _openHours),
       ],
     );
   }

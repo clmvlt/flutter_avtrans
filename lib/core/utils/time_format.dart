@@ -9,6 +9,12 @@ abstract final class TimeFormat {
     return durationShort(Duration(minutes: (hours * 60).round()));
   }
 
+  /// Total d'heures (compteur de l'API) → `7h15`, `45 min`, `7h`, `0h`.
+  static String hours(Duration? d) {
+    if (d == null || d.inMinutes <= 0) return '0h';
+    return durationShort(d);
+  }
+
   /// Durée compacte → `7h15`, `45 min`, `7h`, `0 min`.
   static String durationShort(Duration d) {
     final totalMinutes = d.isNegative ? 0 : d.inMinutes;
@@ -44,6 +50,25 @@ abstract final class TimeFormat {
     final m = local.minute.toString().padLeft(2, '0');
     return '$h:$m';
   }
+
+  /// Jour et mois locaux → `12/10`.
+  static String dayMonth(DateTime d) {
+    final local = d.toLocal();
+    return '${local.day.toString().padLeft(2, '0')}/'
+        '${local.month.toString().padLeft(2, '0')}';
+  }
+
+  /// Les deux instants tombent le même jour local.
+  static bool sameDay(DateTime a, DateTime b) {
+    final x = a.toLocal();
+    final y = b.toLocal();
+    return x.year == y.year && x.month == y.month && x.day == y.day;
+  }
+
+  /// Heure d'un début, avec la date s'il n'a pas eu lieu le jour de [now] →
+  /// `21:00` ou `le 12/10 à 21:00`.
+  static String hmOrDay(DateTime d, DateTime now) =>
+      sameDay(d, now) ? hm(d) : 'le ${dayMonth(d)} à ${hm(d)}';
 
   /// Plage horaire → `07:42 → 12:00`.
   static String hmRange(DateTime start, DateTime end) =>

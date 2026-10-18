@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/time_format.dart';
+import '../../../../data/models/service_model.dart';
 import '../../../widgets/app_button.dart';
 import '../../../widgets/app_hero_card.dart';
 import '../../../widgets/app_skeleton.dart';
+import '../../../widgets/live_builder.dart';
 
 /// Carte hero de Mes heures : la période choisie et son total travaillé
 /// (pauses déduites) en grand. Pour la semaine, deux boutons pour passer à
@@ -30,8 +32,8 @@ class HoursHeroCard extends StatelessWidget {
   final String title;
   final String? subtitle;
 
-  /// Heures décimales de l'API (`null` = aucune donnée).
-  final double? hours;
+  /// Total de l'API (`null` = aucune donnée) ; avance s'il est en cours.
+  final HeuresPeriode? hours;
 
   /// La valeur de la période est en cours de chargement.
   final bool loading;
@@ -57,7 +59,11 @@ class HoursHeroCard extends StatelessWidget {
     final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
     final failed = !loading && error != null;
-    final empty = !loading && !failed && (hours == null || hours! <= 0);
+    final running = hours?.enCours ?? false;
+    final empty = !loading &&
+        !failed &&
+        !running &&
+        (hours == null || hours!.secondes <= 0);
 
     return AppHeroCard(
       icon: icon,
@@ -89,16 +95,21 @@ class HoursHeroCard extends StatelessWidget {
                       AppSkeleton(width: 180, height: 52),
                     ],
                   )
-                : Semantics(
-                    key: ValueKey('value-$hours'),
-                    label: 'Travaillé, pauses déduites : '
-                        '${TimeFormat.hoursDecimal(hours)}',
-                    excludeSemantics: true,
-                    child: AppHeroFigure(
-                      label: 'Travaillé, pauses déduites',
-                      value: TimeFormat.hoursDecimal(hours),
-                      muted: empty,
-                    ),
+                : LiveBuilder(
+                    key: ValueKey('value-${hours?.secondes}'),
+                    running: running,
+                    builder: (_) {
+                      final value = TimeFormat.hours(hours?.live.value);
+                      return Semantics(
+                        label: 'Travaillé, pauses déduites : $value',
+                        excludeSemantics: true,
+                        child: AppHeroFigure(
+                          label: 'Travaillé, pauses déduites',
+                          value: value,
+                          muted: empty,
+                        ),
+                      );
+                    },
                   ),
           ),
           if (empty) ...[

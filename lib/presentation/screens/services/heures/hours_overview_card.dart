@@ -6,11 +6,13 @@ import '../../../../core/utils/time_format.dart';
 import '../../../../data/models/service_model.dart';
 import '../../../widgets/app_card.dart';
 import '../../../widgets/app_list_row.dart';
+import '../../../widgets/live_builder.dart';
 import 'hours_period.dart';
 
 /// « Mes totaux » : les cinq totaux en cours de la vue d'ensemble
 /// (aujourd'hui, semaine, mois, mois dernier, année), une ligne chacun. Un
-/// tap affiche la période dans la carte du haut.
+/// tap affiche la période dans la carte du haut. Les totaux en cours
+/// avancent en direct.
 class HoursOverviewCard extends StatelessWidget {
   const HoursOverviewCard({
     super.key,
@@ -84,14 +86,18 @@ class _Row extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
-  final double? hours;
+  final HeuresPeriode? hours;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    return LiveBuilder(running: hours?.enCours ?? false, builder: _build);
+  }
+
+  Widget _build(BuildContext context) {
     final colors = context.colors;
     final textTheme = Theme.of(context).textTheme;
-    final value = TimeFormat.hoursDecimal(hours);
+    final value = TimeFormat.hours(hours?.live.value);
 
     return AppListRow(
       title: title,

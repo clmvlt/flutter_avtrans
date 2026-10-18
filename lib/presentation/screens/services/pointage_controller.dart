@@ -7,6 +7,9 @@ import '../../../core/di/service_locator.dart';
 import '../../../core/errors/failures.dart';
 import '../../../core/services/break_reminder_service.dart';
 import '../../../core/services/location_service.dart';
+import '../../../core/utils/live_counter.dart';
+import '../../../core/utils/live_refresher.dart';
+import '../../../core/utils/time_format.dart';
 import '../../../data/models/models.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../data/repositories/rapport_repository.dart';
@@ -155,25 +158,49 @@ class PointagePrerequisites {
 }
 
 /// Segment de la journée (service ou pause) prêt à dessiner sur une
-/// chronologie : bornes locales, `end` vaut « maintenant » si en cours.
+/// chronologie : bornes locales ; une ligne en cours se termine à
+/// « début + durée en direct » à l'instant de la construction.
 @immutable
 class DaySegment {
   const DaySegment({
     required this.service,
     required this.start,
     required this.end,
+    this.counter = LiveCounter.zero,
   });
+
+  /// Segment d'une ligne de l'API (service ou pause).
+  factory DaySegment.of(Service service) {
+    final start = service.debut.toLocal();
+    final counter = service.liveDuree;
+    return DaySegment(
+      service: service,
+      start: start,
+      end: service.fin?.toLocal() ?? start.add(counter.value),
+      counter: counter,
+    );
+  }
+
+  /// Services de travail et leurs pauses, à plat, par début croissant.
+  static List<DaySegment> flatten(Iterable<Service> services) => [
+        for (final s in services) ...[
+          DaySegment.of(s),
+          for (final p in s.pauses) DaySegment.of(p),
+        ],
+      ]..sort((a, b) => a.start.compareTo(b.start));
 
   final Service service;
   final DateTime start;
   final DateTime end;
 
+  /// Durée brute de l'API, qui avance si la ligne est en cours.
+  final LiveCounter counter;
+
   bool get isBreak => service.isBreak;
-  bool get isActive => service.isActive;
-  Duration get duration {
-    final d = end.difference(start);
-    return d.isNegative ? Duration.zero : d;
-  }
+  bool get isActive => service.enCours;
+
+  /// Durée à l'instant présent.
+  Duration get duration => counter.value;
 }
 
 /// Résultat d'une action de pointage (démarrer / terminer / pause).
@@ -218,8 +245,12 @@ class PointageActionIgnored extends PointageActionResult {
 /// Deux canaux de notification :
 /// - [ChangeNotifier] pour les changements d'état (chargement, service actif,
 ///   prérequis, GPS…) ;
-/// - [clock] qui tique chaque seconde quand un pointage est ouvert, pour ne
-///   reconstruire que les compteurs et pas toute la page.
+/// - [clock] qui tique chaque seconde tant qu'un compteur avance (service en
+///   cours, période d'heures en cours), pour ne reconstruire que les
+///   compteurs et pas toute la page.
+///
+/// Aucun total n'est calculé ici : les durées viennent de l'API et avancent
+/// localement entre deux appels (voir `LiveCounter`).
 class PointageController extends ChangeNotifier {
   PointageController({
     ServiceRepository? serviceRepository,
@@ -266,11 +297,16 @@ class PointageController extends ChangeNotifier {
   final BreakReminderService _breakReminder;
   final DateTime Function() _now;
 
-  /// Horloge qui tique chaque seconde tant qu'un pointage est ouvert.
+  /// Horloge qui tique chaque seconde tant qu'un compteur avance.
   late final ValueNotifier<DateTime> clock;
 
   Timer? _ticker;
+  LiveRefresher? _refresher;
   bool _disposed = false;
+
+  /// Incrémenté à chaque action réussie : un chargement lancé avant ne
+  /// remplace pas le service renvoyé par l'action.
+  int _actionSeq = 0;
 
   /// Dernière valeur de [breakDue] publiée : l'horloge ne notifie la page
   /// qu'au franchissement du seuil.
@@ -334,7 +370,8 @@ class PointageController extends ChangeNotifier {
   Service? get activeService => _activeService;
   WorkedHours? get workedHours => _workedHours;
 
-  /// Pointages du jour, triés par heure de début croissante.
+  /// Services de travail débutés aujourd'hui (pauses imbriquées), par début
+  /// croissant.
   List<Service> get todayServices => _todayServices;
 
   LocationStatus? get locationStatus => _locationStatus;
@@ -352,28 +389,33 @@ class PointageController extends ChangeNotifier {
   PointageStatus get status {
     final active = _activeService;
     if (active == null) return PointageStatus.offDuty;
-    return active.isBreak ? PointageStatus.onBreak : PointageStatus.onDuty;
+    return active.enPause ? PointageStatus.onBreak : PointageStatus.onDuty;
   }
+
+  /// Au moins un compteur avance : l'horloge tique.
+  bool get isLive =>
+      _activeService != null || (_workedHours?.anyRunning ?? false);
 
   bool get hasActiveService => _activeService != null;
 
   /// La journée a démarré puis a été clôturée (au moins un service terminé,
   /// aucun pointage ouvert).
-  bool get dayFinished =>
-      _activeService == null && _todayServices.any((s) => !s.isBreak);
+  bool get dayFinished => _activeService == null && _todayServices.isNotEmpty;
 
   /// La journée n'a pas encore commencé.
-  bool get dayNotStarted =>
-      _activeService == null && !_todayServices.any((s) => !s.isBreak);
+  bool get dayNotStarted => _activeService == null && _todayServices.isEmpty;
 
-  /// Heure de la première prise de service du jour (locale).
+  /// Le service en cours a commencé un autre jour (service de nuit) : il
+  /// compte sur son jour de début, pas sur « Aujourd'hui ».
+  bool get activeStartedOtherDay {
+    final active = _activeService;
+    return active != null && !TimeFormat.sameDay(active.debut, _now());
+  }
+
+  /// Heure de la première prise de service affichée (locale).
   DateTime? get firstStartToday {
-    Service? first;
-    for (final s in _allServicesToday()) {
-      if (s.isBreak) continue;
-      if (first == null || s.debut.isBefore(first.debut)) first = s;
-    }
-    return first?.debut.toLocal();
+    final shown = _shownServices;
+    return shown.isEmpty ? null : shown.first.debut.toLocal();
   }
 
   /// Heure de fin du dernier service clôturé (locale) — `null` si un pointage
@@ -382,126 +424,120 @@ class PointageController extends ChangeNotifier {
     if (_activeService != null) return null;
     DateTime? last;
     for (final s in _todayServices) {
-      if (s.isBreak || s.fin == null) continue;
+      if (s.fin == null) continue;
       if (last == null || s.fin!.isAfter(last)) last = s.fin;
     }
     return last?.toLocal();
   }
 
-  /// Nombre de pauses prises aujourd'hui (terminées ou en cours).
-  int get breakCount => _allServicesToday().where((s) => s.isBreak).length;
+  /// Nombre de pauses des services affichés (terminées ou en cours).
+  int get breakCount =>
+      _shownServices.fold(0, (n, s) => n + s.pauses.length);
 
-  /// Nombre de services (hors pauses) démarrés aujourd'hui.
-  int get serviceCount => _allServicesToday().where((s) => !s.isBreak).length;
+  /// Nombre de services affichés (du jour, plus le service en cours).
+  int get serviceCount => _shownServices.length;
 
-  /// Temps écoulé sur le pointage ouvert (service ou pause).
+  /// Temps écoulé sur le pointage ouvert : la pause en cours, sinon le
+  /// service.
   Duration get currentSegmentElapsed {
     final active = _activeService;
     if (active == null) return Duration.zero;
-    final d = _now().difference(active.debut);
-    return d.isNegative ? Duration.zero : d;
+    return (active.pauseEnCours ?? active).liveDuree.value;
   }
+
+  /// Temps net du service en cours (`dureeTravail` en direct, figé pendant
+  /// une pause) ; hors service, le total « Aujourd'hui » de l'API. `null` si
+  /// inconnu.
+  Duration? get workedTime {
+    final active = _activeService;
+    if (active != null) return active.liveTravail.value;
+    return _workedHours?.day?.live.value;
+  }
+
+  /// Temps de pause des services affichés (en direct pendant une pause).
+  Duration get breakTime => _shownServices.fold(
+        Duration.zero,
+        (total, s) => total + s.livePauses.value,
+      );
 
   /// Début du travail continu en cours : reprise après la dernière pause, ou
   /// prise de service. `null` hors service ou en pause.
   DateTime? get continuousWorkStart {
     final active = _activeService;
-    if (active == null || active.isBreak) return null;
+    if (active == null || active.enPause) return null;
     var start = active.debut;
-    for (final s in _allServicesToday()) {
-      if (!s.isBreak) continue;
-      // Une pause sans fin alors que le service a repris vient de se
-      // terminer (liste du jour pas encore resynchronisée).
-      final end = s.fin ?? _now();
-      if (end.isAfter(start)) start = end;
+    for (final p in active.pauses) {
+      final end = p.fin;
+      if (end != null && end.isAfter(start)) start = end;
     }
     return start;
   }
 
-  /// Temps de travail depuis [continuousWorkStart], en direct.
+  /// Temps de travail depuis [continuousWorkStart], en direct : durée du
+  /// service moins ce qui précède la reprise (horloge monotone, pas celle du
+  /// téléphone).
   Duration get continuousWork {
+    final active = _activeService;
     final start = continuousWorkStart;
-    if (start == null) return Duration.zero;
-    final d = _now().difference(start);
+    if (active == null || start == null) return Duration.zero;
+    final d = active.liveDuree.value - start.difference(active.debut);
     return d.isNegative ? Duration.zero : d;
   }
 
   /// Six heures de travail sans pause : la page invite à en prendre une.
   bool get breakDue => continuousWork >= BreakReminderService.threshold;
 
-  /// Temps de pause cumulé aujourd'hui (terminé + en cours).
-  Duration get breakToday {
-    var seconds = 0;
-    for (final s in _allServicesToday()) {
-      if (s.isBreak) seconds += _secondsOf(s);
-    }
-    return Duration(seconds: seconds);
-  }
+  /// Segments des services affichés et de leurs pauses, par début, bornes
+  /// locales ; une ligne en cours se termine « maintenant ».
+  List<DaySegment> get segments => DaySegment.flatten(_shownServices);
 
-  /// Temps de travail effectif aujourd'hui (services − pauses), en direct.
-  Duration get workedToday {
-    var work = 0;
-    var pause = 0;
-    for (final s in _allServicesToday()) {
-      if (s.isBreak) {
-        pause += _secondsOf(s);
-      } else {
-        work += _secondsOf(s);
-      }
-    }
-    final effective = work - pause;
-    return Duration(seconds: effective > 0 ? effective : 0);
-  }
-
-  /// Segments de la journée (services et pauses) triés par début, bornes
-  /// locales, le segment ouvert se termine à « maintenant ».
-  List<DaySegment> get segments {
-    final now = _now();
-    return [
-      for (final s in _allServicesToday())
-        DaySegment(
-          service: s,
-          start: s.debut.toLocal(),
-          end: (s.fin ?? now).toLocal(),
-        ),
-    ];
-  }
-
-  /// Amplitude de la journée : de la première prise de service à maintenant
-  /// (ou à la dernière fin de service si la journée est clôturée).
+  /// Amplitude : de la première prise de service à maintenant (ou à la
+  /// dernière fin de service si la journée est clôturée).
   Duration get amplitudeToday {
     final first = firstStartToday;
     if (first == null) return Duration.zero;
-    final end = lastEndToday ?? _now().toLocal();
+    final active = _activeService;
+    final end = active != null
+        ? active.debut.toLocal().add(active.liveDuree.value)
+        : lastEndToday;
+    if (end == null) return Duration.zero;
     final d = end.difference(first);
     return d.isNegative ? Duration.zero : d;
   }
 
-  /// Pointages du jour + service actif s'il manque à la liste, triés.
-  List<Service> _allServicesToday() {
+  /// Services du jour, le service en cours à jour (et ajouté s'il manque :
+  /// service de la veille, ou liste du jour pas encore resynchronisée).
+  List<Service> get _shownServices {
     final active = _activeService;
     if (active == null) return _todayServices;
-    // Le service actif peut ne pas encore être dans la liste du jour
-    // (juste après un démarrage, avant la resynchronisation).
-    if (_todayServices.any((s) => s.uuid == active.uuid)) {
-      return _todayServices;
+    final list = <Service>[];
+    var found = false;
+    for (final s in _todayServices) {
+      final same = s.uuid == active.uuid;
+      found = found || same;
+      list.add(same ? active : s);
     }
-    return [..._todayServices, active]
-      ..sort((a, b) => a.debut.compareTo(b.debut));
-  }
-
-  int _secondsOf(Service s) {
-    if (s.fin != null) {
-      return s.duree ?? s.fin!.difference(s.debut).inSeconds;
+    if (!found) {
+      list
+        ..add(active)
+        ..sort((a, b) => a.debut.compareTo(b.debut));
     }
-    final elapsed = _now().difference(s.debut).inSeconds;
-    return elapsed > 0 ? elapsed : 0;
+    return list;
   }
 
   // ---- cycle de vie -----------------------------------------------------
 
-  /// Chargement initial : données, GPS, prérequis, en parallèle.
+  /// Chargement initial : données, GPS, prérequis, en parallèle. Lance la
+  /// resynchronisation (toutes les 5 min tant qu'un compteur avance, et au
+  /// changement de jour) ; le retour au premier plan passe par
+  /// [onAppResumed].
   Future<void> init() async {
+    _refresher ??= LiveRefresher(
+      onRefresh: load,
+      isLive: () => isLive,
+      now: _now,
+      observeLifecycle: false,
+    )..start();
     await Future.wait([
       load(),
       checkLocationStatus(),
@@ -529,49 +565,56 @@ class PointageController extends ChangeNotifier {
     ]);
   }
 
-  /// Recharge service actif, heures et pointages du jour.
-  Future<void> load() async {
-    final results = await Future.wait([
-      _serviceRepository.getActiveService(),
-      _serviceRepository.getWorkedHours(const WorkedHoursParams()),
-      _serviceRepository.getDailyServices(),
-    ]);
+  /// Recharge heures, services du jour et (sauf [withActive] à `false`) le
+  /// service en cours.
+  Future<void> load({bool withActive = true}) async {
+    final seq = _actionSeq;
+    final activeFuture =
+        withActive ? _serviceRepository.getActiveService() : null;
+    final hoursFuture =
+        _serviceRepository.getWorkedHours(const WorkedHoursParams());
+    final dailyFuture = _serviceRepository.getDailyServices();
+    final activeResult = await activeFuture;
+    final hoursResult = await hoursFuture;
+    final dailyResult = await dailyFuture;
     if (_disposed) return;
 
     String? error;
     var anySuccess = false;
     var activeLoaded = false;
     var dailyFailed = false;
+    // Une action a abouti pendant le chargement : son service fait foi.
+    final stale = seq != _actionSeq;
 
-    results[0].fold(
+    activeResult?.fold(
       (failure) => error ??= failure.message,
       (service) {
         anySuccess = true;
         activeLoaded = true;
-        _activeService = service as Service?;
+        if (!stale) _activeService = service;
       },
     );
-    results[1].fold(
+    hoursResult.fold(
       (failure) => error ??= failure.message,
       (hours) {
         anySuccess = true;
-        _workedHours = hours as WorkedHours;
+        _workedHours = hours;
       },
     );
-    results[2].fold(
+    dailyResult.fold(
       (failure) {
         error ??= failure.message;
         dailyFailed = true;
       },
       (services) {
         anySuccess = true;
-        _todayServices = List<Service>.from(services as List)
-          ..sort((a, b) => a.debut.compareTo(b.debut));
+        _todayServices = services;
       },
     );
 
     // Sans aucune donnée, on remonte l'erreur ; sinon on garde l'affichage.
-    _loadError = anySuccess ? null : error;
+    // Après une action, le service renvoyé suffit à l'affichage.
+    _loadError = anySuccess || !withActive ? null : error;
     _dailyUnavailable = anySuccess && dailyFailed;
     _isLoading = false;
     _syncTicker();
@@ -774,11 +817,8 @@ class PointageController extends ChangeNotifier {
     );
   }
 
-  Future<PointageActionResult> endService() => _perform(
-        PointageAction.end,
-        _serviceRepository.endService,
-        clearsActive: true,
-      );
+  Future<PointageActionResult> endService() =>
+      _perform(PointageAction.end, _serviceRepository.endService);
 
   Future<PointageActionResult> startBreak() =>
       _perform(PointageAction.breakStart, _serviceRepository.startBreak);
@@ -789,7 +829,6 @@ class PointageController extends ChangeNotifier {
   Future<PointageActionResult> _perform(
     PointageAction action,
     Future<Either<Failure, Service>> Function(ServiceGpsRequest request) call, {
-    bool clearsActive = false,
     bool alreadyActing = false,
   }) async {
     if (isActing && !alreadyActing) return const PointageActionIgnored();
@@ -820,7 +859,12 @@ class PointageController extends ChangeNotifier {
         return PointageActionFailure(failure.message);
       },
       (service) {
-        _activeService = clearsActive ? null : service;
+        // L'action renvoie le service de travail dans son état complet.
+        _actionSeq++;
+        _activeService = service.enCours ? service : null;
+        _todayServices = [
+          for (final s in _todayServices) s.uuid == service.uuid ? service : s,
+        ];
         _phase = PointageActionPhase.idle;
         _inFlight = null;
         _syncTicker();
@@ -835,7 +879,7 @@ class PointageController extends ChangeNotifier {
         }
         notifyListeners();
         // Resynchronise heures et liste du jour en arrière-plan.
-        unawaited(load());
+        unawaited(load(withActive: false));
         return PointageActionSuccess(service);
       },
     );
@@ -866,18 +910,27 @@ class PointageController extends ChangeNotifier {
   // ---- rappel de pause --------------------------------------------------
 
   /// Programme la notification à la fin des 6 h de travail continu, ou
-  /// l'annule hors service et en pause.
+  /// l'annule hors service et en pause. L'heure vient du temps restant (pas
+  /// d'un écart avec l'horloge du téléphone), arrondie à la minute pour ne
+  /// pas reprogrammer à chaque rechargement.
   void _syncBreakReminder() {
-    final start = continuousWorkStart;
-    unawaited(start == null
-        ? _breakReminder.cancel()
-        : _breakReminder.scheduleAt(start.add(BreakReminderService.threshold)));
+    if (continuousWorkStart == null) {
+      unawaited(_breakReminder.cancel());
+      return;
+    }
+    final at = _now().add(BreakReminderService.threshold - continuousWork);
+    const minute = Duration.millisecondsPerMinute;
+    final rounded = DateTime.fromMillisecondsSinceEpoch(
+      (at.millisecondsSinceEpoch / minute).round() * minute,
+      isUtc: at.isUtc,
+    );
+    unawaited(_breakReminder.scheduleAt(rounded));
   }
 
   // ---- horloge ----------------------------------------------------------
 
   void _syncTicker() {
-    if (_activeService != null) {
+    if (isLive) {
       _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) {
         clock.value = _now();
         final due = breakDue;
@@ -898,6 +951,7 @@ class PointageController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _ticker?.cancel();
+    _refresher?.dispose();
     clock.dispose();
     super.dispose();
   }

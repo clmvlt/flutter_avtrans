@@ -1,16 +1,20 @@
 import 'package:equatable/equatable.dart';
 
-/// Modèle représentant un pointage : un service OU une pause (ServiceDTO, contrat API §2.4).
+import '../../core/utils/live_counter.dart';
+
+/// Modèle représentant un pointage : un service de travail OU une pause
+/// (ServiceDTO).
 ///
-/// `isBreak == false` → service, `isBreak == true` → pause (enregistrement séparé).
-/// `fin == null` → en cours ; `duree` (secondes) est alors calculée à la volée par le serveur.
+/// `isBreak == false` → service de travail, qui porte ses [pauses] ;
+/// `isBreak == true` → pause, rattachée à son service par
+/// [serviceParentUuid] (même si elle commence après minuit).
+///
+/// Toutes les durées viennent de l'API, calculées à [calculeLe]. L'app ne
+/// fait que les avancer entre deux appels (`live…`, à partir de [anchor]).
 class Service extends Equatable {
   final String uuid;
   final DateTime debut;
   final DateTime? fin;
-
-  /// Durée en secondes. Figée si `fin != null`, sinon `now - debut` à l'instant de la réponse.
-  final int? duree;
   final bool isBreak;
 
   /// GPS de début (peut être null)
@@ -25,11 +29,42 @@ class Service extends Equatable {
   final bool isAdmin;
   final String userUuid;
 
+  /// Durée brute en secondes à [calculeLe] (en cours : `calculeLe − debut`).
+  final int duree;
+
+  /// Instant du calcul côté serveur — affichage et debug seulement.
+  final DateTime? calculeLe;
+
+  /// La ligne n'a pas de fin.
+  final bool enCours;
+
+  // ---- service de travail uniquement ----
+
+  /// Pauses du service, par début croissant.
+  final List<Service> pauses;
+
+  /// Durée des pauses (bornées au service, chevauchements fusionnés), en s.
+  final int dureePauses;
+
+  /// Temps net en secondes : `duree − dureePauses`.
+  final int dureeTravail;
+
+  /// Service en cours ET une pause en cours.
+  final bool enPause;
+
+  // ---- pause uniquement ----
+
+  /// Service de travail auquel la pause appartient.
+  final String? serviceParentUuid;
+
+  /// Réception de la réponse (horloge monotone) : point de départ des
+  /// valeurs en direct. Hors égalité.
+  final LiveAnchor anchor;
+
   const Service({
     required this.uuid,
     required this.debut,
     this.fin,
-    this.duree,
     required this.isBreak,
     this.latitude,
     this.longitude,
@@ -37,14 +72,26 @@ class Service extends Equatable {
     this.longitudeEnd,
     required this.isAdmin,
     required this.userUuid,
-  });
+    this.duree = 0,
+    this.calculeLe,
+    bool? enCours,
+    this.pauses = const [],
+    this.dureePauses = 0,
+    this.dureeTravail = 0,
+    this.enPause = false,
+    this.serviceParentUuid,
+    this.anchor = const LiveAnchor.frozen(),
+  }) : enCours = enCours ?? fin == null;
 
-  factory Service.fromJson(Map<String, dynamic> json) {
+  /// [anchor] : réception de la réponse ; par défaut, maintenant.
+  factory Service.fromJson(Map<String, dynamic> json, {LiveAnchor? anchor}) {
+    final a = anchor ?? LiveAnchor.now();
+    final fin = json['fin'] != null ? DateTime.parse(json['fin'] as String) : null;
+    final pauses = json['pauses'] as List?;
     return Service(
       uuid: json['uuid'] as String,
       debut: DateTime.parse(json['debut'] as String),
-      fin: json['fin'] != null ? DateTime.parse(json['fin'] as String) : null,
-      duree: (json['duree'] as num?)?.toInt(),
+      fin: fin,
       isBreak: json['isBreak'] as bool? ?? false,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
@@ -52,6 +99,22 @@ class Service extends Equatable {
       longitudeEnd: (json['longitudeEnd'] as num?)?.toDouble(),
       isAdmin: json['isAdmin'] as bool? ?? false,
       userUuid: json['userUuid'] as String? ?? '',
+      duree: (json['duree'] as num?)?.toInt() ?? 0,
+      calculeLe: json['calculeLe'] != null
+          ? DateTime.parse(json['calculeLe'] as String)
+          : null,
+      enCours: json['enCours'] as bool? ?? fin == null,
+      pauses: pauses == null
+          ? const []
+          : [
+              for (final p in pauses)
+                Service.fromJson(p as Map<String, dynamic>, anchor: a),
+            ],
+      dureePauses: (json['dureePauses'] as num?)?.toInt() ?? 0,
+      dureeTravail: (json['dureeTravail'] as num?)?.toInt() ?? 0,
+      enPause: json['enPause'] as bool? ?? false,
+      serviceParentUuid: json['serviceParentUuid'] as String?,
+      anchor: a,
     );
   }
 
@@ -60,7 +123,6 @@ class Service extends Equatable {
       'uuid': uuid,
       'debut': debut.toIso8601String(),
       'fin': fin?.toIso8601String(),
-      'duree': duree,
       'isBreak': isBreak,
       'latitude': latitude,
       'longitude': longitude,
@@ -68,24 +130,55 @@ class Service extends Equatable {
       'longitudeEnd': longitudeEnd,
       'isAdmin': isAdmin,
       'userUuid': userUuid,
+      'duree': duree,
+      'calculeLe': calculeLe?.toIso8601String(),
+      'enCours': enCours,
+      if (!isBreak) ...{
+        'pauses': [for (final p in pauses) p.toJson()],
+        'dureePauses': dureePauses,
+        'dureeTravail': dureeTravail,
+        'enPause': enPause,
+      },
+      if (isBreak) 'serviceParentUuid': serviceParentUuid,
     };
   }
 
-  /// Vérifie si le service est en cours (pas encore terminé)
-  bool get isActive => fin == null;
-
-  /// Calcule la durée en heures
-  double? get durationInHours {
-    if (duree == null) return null;
-    return duree! / 3600; // seconds to hours
+  /// Pause en cours (`null` hors pause).
+  Service? get pauseEnCours {
+    for (final p in pauses.reversed) {
+      if (p.enCours) return p;
+    }
+    return null;
   }
+
+  // ---- valeurs en direct ----
+
+  /// Durée brute : avance tant que la ligne est en cours.
+  LiveCounter get liveDuree => LiveCounter(
+        Duration(seconds: duree),
+        running: enCours,
+        anchor: anchor,
+      );
+
+  /// Temps net : avance en service, figé pendant une pause.
+  LiveCounter get liveTravail => LiveCounter(
+        Duration(seconds: dureeTravail),
+        running: enCours && !enPause,
+        anchor: anchor,
+      );
+
+  /// Temps de pause : avance pendant une pause.
+  LiveCounter get livePauses => LiveCounter(
+        Duration(seconds: dureePauses),
+        running: enPause,
+        anchor: anchor,
+      );
 
   /// Copie le service avec de nouvelles valeurs
   Service copyWith({
     String? uuid,
     DateTime? debut,
     DateTime? fin,
-    int? duree,
     bool? isBreak,
     double? latitude,
     double? longitude,
@@ -93,12 +186,20 @@ class Service extends Equatable {
     double? longitudeEnd,
     bool? isAdmin,
     String? userUuid,
+    int? duree,
+    DateTime? calculeLe,
+    bool? enCours,
+    List<Service>? pauses,
+    int? dureePauses,
+    int? dureeTravail,
+    bool? enPause,
+    String? serviceParentUuid,
+    LiveAnchor? anchor,
   }) {
     return Service(
       uuid: uuid ?? this.uuid,
       debut: debut ?? this.debut,
       fin: fin ?? this.fin,
-      duree: duree ?? this.duree,
       isBreak: isBreak ?? this.isBreak,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
@@ -106,6 +207,15 @@ class Service extends Equatable {
       longitudeEnd: longitudeEnd ?? this.longitudeEnd,
       isAdmin: isAdmin ?? this.isAdmin,
       userUuid: userUuid ?? this.userUuid,
+      duree: duree ?? this.duree,
+      calculeLe: calculeLe ?? this.calculeLe,
+      enCours: enCours ?? this.enCours,
+      pauses: pauses ?? this.pauses,
+      dureePauses: dureePauses ?? this.dureePauses,
+      dureeTravail: dureeTravail ?? this.dureeTravail,
+      enPause: enPause ?? this.enPause,
+      serviceParentUuid: serviceParentUuid ?? this.serviceParentUuid,
+      anchor: anchor ?? this.anchor,
     );
   }
 
@@ -114,7 +224,6 @@ class Service extends Equatable {
         uuid,
         debut,
         fin,
-        duree,
         isBreak,
         latitude,
         longitude,
@@ -122,20 +231,86 @@ class Service extends Equatable {
         longitudeEnd,
         isAdmin,
         userUuid,
+        duree,
+        calculeLe,
+        enCours,
+        pauses,
+        dureePauses,
+        dureeTravail,
+        enPause,
+        serviceParentUuid,
       ];
 }
 
-/// Heures travaillées (WorkedHoursDto, contrat API §4.2 `GET /services/hours`).
+/// Total d'heures d'une période (HeuresPeriodeDTO).
+class HeuresPeriode extends Equatable {
+  /// Temps net en secondes, à `calculeLe`.
+  final int secondes;
+
+  /// Même total en heures décimales.
+  final double heures;
+
+  /// Un service de la période est en cours hors pause : le total avance
+  /// d'une seconde par seconde.
+  final bool enCours;
+
+  /// Réception de la réponse. Hors égalité.
+  final LiveAnchor anchor;
+
+  const HeuresPeriode({
+    required this.secondes,
+    required this.heures,
+    this.enCours = false,
+    this.anchor = const LiveAnchor.frozen(),
+  });
+
+  /// Construit à partir de secondes (heures déduites).
+  const HeuresPeriode.seconds(
+    this.secondes, {
+    this.enCours = false,
+    this.anchor = const LiveAnchor.frozen(),
+  }) : heures = secondes / 3600;
+
+  factory HeuresPeriode.fromJson(Map<String, dynamic> json, {LiveAnchor? anchor}) {
+    final secondes = (json['secondes'] as num?)?.toInt() ?? 0;
+    return HeuresPeriode(
+      secondes: secondes,
+      heures: (json['heures'] as num?)?.toDouble() ?? secondes / 3600,
+      enCours: json['enCours'] as bool? ?? false,
+      anchor: anchor ?? LiveAnchor.now(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'secondes': secondes,
+        'heures': heures,
+        'enCours': enCours,
+      };
+
+  /// Total en direct.
+  LiveCounter get live => LiveCounter(
+        Duration(seconds: secondes),
+        running: enCours,
+        anchor: anchor,
+      );
+
+  @override
+  List<Object?> get props => [secondes, heures, enCours];
+}
+
+/// Heures travaillées (`GET /services/hours`).
 ///
-/// Heures décimales (services − pauses), arrondies à 2 décimales, potentiellement négatives.
-/// Seuls les champs non null sont sérialisés par le serveur : sans `period`, les 5 clés
-/// sont présentes ; avec `period=month`, seule `month` l'est.
+/// Sans `period`, les cinq périodes sont présentes ; avec `period=month`,
+/// seule `month` l'est.
 class WorkedHours extends Equatable {
-  final double? year;
-  final double? month;
-  final double? lastMonth;
-  final double? week;
-  final double? day;
+  final HeuresPeriode? year;
+  final HeuresPeriode? month;
+  final HeuresPeriode? lastMonth;
+  final HeuresPeriode? week;
+  final HeuresPeriode? day;
+
+  /// Instant du calcul côté serveur — affichage et debug seulement.
+  final DateTime? calculeLe;
 
   const WorkedHours({
     this.year,
@@ -143,28 +318,46 @@ class WorkedHours extends Equatable {
     this.lastMonth,
     this.week,
     this.day,
+    this.calculeLe,
   });
 
-  factory WorkedHours.fromJson(Map<String, dynamic> json) {
+  /// [anchor] : réception de la réponse ; par défaut, maintenant.
+  factory WorkedHours.fromJson(Map<String, dynamic> json, {LiveAnchor? anchor}) {
+    final a = anchor ?? LiveAnchor.now();
+    HeuresPeriode? period(String key) {
+      final value = json[key];
+      return value is Map<String, dynamic>
+          ? HeuresPeriode.fromJson(value, anchor: a)
+          : null;
+    }
+
     return WorkedHours(
-      year: (json['year'] as num?)?.toDouble(),
-      month: (json['month'] as num?)?.toDouble(),
-      lastMonth: (json['lastMonth'] as num?)?.toDouble(),
-      week: (json['week'] as num?)?.toDouble(),
-      day: (json['day'] as num?)?.toDouble(),
+      year: period('year'),
+      month: period('month'),
+      lastMonth: period('lastMonth'),
+      week: period('week'),
+      day: period('day'),
+      calculeLe: json['calculeLe'] != null
+          ? DateTime.parse(json['calculeLe'] as String)
+          : null,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      if (year != null) 'year': year,
-      if (month != null) 'month': month,
-      if (lastMonth != null) 'lastMonth': lastMonth,
-      if (week != null) 'week': week,
-      if (day != null) 'day': day,
+      if (calculeLe != null) 'calculeLe': calculeLe!.toIso8601String(),
+      if (year != null) 'year': year!.toJson(),
+      if (month != null) 'month': month!.toJson(),
+      if (lastMonth != null) 'lastMonth': lastMonth!.toJson(),
+      if (week != null) 'week': week!.toJson(),
+      if (day != null) 'day': day!.toJson(),
     };
   }
 
+  /// Au moins une période avance.
+  bool get anyRunning => [year, month, lastMonth, week, day]
+      .any((p) => p?.enCours ?? false);
+
   @override
-  List<Object?> get props => [year, month, lastMonth, week, day];
+  List<Object?> get props => [year, month, lastMonth, week, day, calculeLe];
 }

@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'fake_app_data.dart';
 import 'fake_data.dart';
+import 'fake_services.dart';
 import 'visual_harness.dart';
 
 final _skip = Platform.environment['VISUAL'] == null;
@@ -51,12 +52,11 @@ void main() {
 
   // 6 h de travail sans pause : carte « Pause conseillée ».
   testWidgets('pointage_pause', (tester) async {
-    final service = {
-      'uuid': 's1',
-      'debut': iso(DateTime(2026, 9, 27, 4, 0)),
-      'isBreak': false,
-      'userUuid': 'u-1',
-    };
+    final service = fakeWorkService(
+      's1',
+      DateTime(2026, 9, 27, 4, 0),
+      now: DateTime(2026, 9, 27, 10, 5),
+    );
     await setUpApp(user: fakeUser(), routes: [
       FakeRoute('GET', '/services/active',
           (_, _) => {'success': true, 'service': service}),
@@ -69,6 +69,39 @@ void main() {
     );
     await pumpScreen(tester, ServicesScreen(controller: controller));
     await capture(tester, 'pointage_pause');
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  }, skip: _skip);
+
+  // Service de nuit : commencé la veille à 21:00, pause de 01:00 à 02:00, il
+  // est 03:00. Il compte sur la veille : « Aujourd'hui » vaut 0.
+  testWidgets('pointage_nuit', (tester) async {
+    final now = DateTime(2026, 10, 13, 3);
+    final service = fakeWorkService(
+      's1',
+      DateTime(2026, 10, 12, 21),
+      now: now,
+      pauses: [(DateTime(2026, 10, 13, 1), DateTime(2026, 10, 13, 2))],
+    );
+    await setUpApp(user: fakeUser(), routes: [
+      FakeRoute('GET', '/services/active',
+          (_, _) => {'success': true, 'service': service}),
+      FakeRoute('GET', '/services/user/daily', (_, _) => []),
+      FakeRoute('GET', '/services/hours', (_, _) => {
+            'day': fakeHeures(0),
+            'week': fakeHeures(5 * 3600, enCours: true),
+            'month': fakeHeures(5 * 3600, enCours: true),
+            'lastMonth': fakeHeuresDecimal(151.75),
+            'year': fakeHeuresDecimal(1203.5, enCours: true),
+          }),
+      ...appRoutes(),
+    ]);
+    final controller = PointageController(
+      locationService: _FakeLocation(),
+      now: () => now,
+    );
+    await pumpScreen(tester, ServicesScreen(controller: controller));
+    await capture(tester, 'pointage_nuit');
     await tester.pumpWidget(const SizedBox.shrink());
     controller.dispose();
   }, skip: _skip);

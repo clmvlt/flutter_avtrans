@@ -12,8 +12,8 @@ import 'pointage_status.dart';
 /// Carte hero de la page Pointage : le seul point focal.
 ///
 /// Ligne d'état (icône teintée + mot d'état 22 sp en `foreground` + sous-ligne
-/// + point pulsant), « Travaillé aujourd'hui », chrono 52 sp tabulaire, ruban
-/// de la journée. La carte reste sur `card` dans tous les états : l'état vit
+/// + point pulsant), temps travaillé (net du service en cours, sinon total
+/// du jour de l'API) en chrono 52 sp tabulaire, ruban de la journée. La carte reste sur `card` dans tous les états : l'état vit
 /// dans l'icône, le mot et le ruban — jamais dans un fond teinté.
 class PointageHeroCard extends StatelessWidget {
   const PointageHeroCard({super.key, required this.controller});
@@ -60,16 +60,22 @@ class PointageHeroCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
-          Text('Travaillé aujourd\'hui', style: textTheme.bodySmall),
+          Text(_workedLabel(c), style: textTheme.bodySmall),
           const SizedBox(height: AppSpacing.xs),
           LiveTimer(
             clock: c.clock,
-            duration: () => c.workedToday,
+            duration: () => c.workedTime ?? Duration.zero,
             showSeconds: moment == PointageMoment.onDuty,
             color: moment == PointageMoment.notStarted
                 ? colors.mutedForeground
                 : colors.foreground,
-            placeholder: moment == PointageMoment.offline ? '–:––' : null,
+            semanticsSuffix: c.hasActiveService
+                ? 'travaillées sur ce service'
+                : 'travaillées aujourd\'hui',
+            placeholder:
+                moment == PointageMoment.offline || c.workedTime == null
+                    ? '–:––'
+                    : null,
           ),
           AnimatedSize(
             duration: reduceMotion ? Duration.zero : AppDuration.base,
@@ -88,7 +94,7 @@ class PointageHeroCard extends StatelessWidget {
                         liveAccent: visual.accent,
                         serviceCount: c.serviceCount,
                         breakCount: c.breakCount,
-                        breakTotal: c.breakToday,
+                        breakTotal: c.breakTime,
                       ),
                     ),
                   ),
@@ -96,6 +102,16 @@ class PointageHeroCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Le chrono montre le service en cours ; « aujourd'hui » seulement s'il
+  /// se confond avec la journée (service unique, commencé aujourd'hui).
+  static String _workedLabel(PointageController c) {
+    if (!c.hasActiveService) return 'Travaillé aujourd\'hui';
+    if (c.activeStartedOtherDay || c.serviceCount > 1) {
+      return 'Travaillé sur ce service';
+    }
+    return 'Travaillé aujourd\'hui';
   }
 }
 
@@ -120,15 +136,18 @@ class _StatusLine extends StatelessWidget {
       case PointageMoment.notStarted:
         return 'Aucun pointage aujourd\'hui';
       case PointageMoment.onDuty:
-        final since = first != null ? 'Depuis ${TimeFormat.hm(first)}' : '';
+        final active = c.activeService;
+        if (active == null) return '';
+        // Service de nuit : « Depuis le 12/10 à 21:00 ».
+        final since = 'Depuis ${TimeFormat.hmOrDay(active.debut, now)}';
         return c.serviceCount > 1
             ? '$since · ${c.serviceCount}e service'
             : since;
       case PointageMoment.onBreak:
-        final active = c.activeService;
-        if (active == null) return 'En pause';
-        return 'Pause depuis ${TimeFormat.hm(active.debut)} · '
-            '${TimeFormat.durationShort(now.difference(active.debut))}';
+        final pause = c.activeService?.pauseEnCours;
+        if (pause == null) return 'En pause';
+        return 'Pause depuis ${TimeFormat.hm(pause.debut)} · '
+            '${TimeFormat.durationShort(pause.liveDuree.value)}';
       case PointageMoment.dayDone:
         final end = c.lastEndToday;
         if (first == null || end == null) return 'Service terminé';

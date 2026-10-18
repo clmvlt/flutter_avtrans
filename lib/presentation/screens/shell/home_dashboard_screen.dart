@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/live_refresher.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
 import '../absences/absences_screen.dart';
@@ -69,11 +70,25 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
   bool get _showAtelier => _user?.canManageFleet ?? false;
 
+  /// Retour au premier plan, changement de jour, et toutes les 5 min tant
+  /// qu'un compteur avance.
+  late final LiveRefresher _refresher = LiveRefresher(
+    onRefresh: _load,
+    isLive: () => _activeService != null || (_hours?.anyRunning ?? false),
+  );
+
   @override
   void initState() {
     super.initState();
     _user = sl.authRepository.getCachedUser();
     _load();
+    _refresher.start();
+  }
+
+  @override
+  void dispose() {
+    _refresher.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {

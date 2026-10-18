@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
@@ -21,7 +20,9 @@ class DayTimeline extends StatelessWidget {
   });
 
   final List<DaySegment> segments;
-  final ValueListenable<DateTime> clock;
+
+  /// Tique chaque seconde : seules les lignes en cours l'écoutent.
+  final Listenable clock;
   final ValueChanged<Service>? onTap;
 
   /// Écart minimal entre deux services pour afficher une coupure.
@@ -98,7 +99,7 @@ class DayTimelineRow extends StatelessWidget {
   });
 
   final DaySegment segment;
-  final ValueListenable<DateTime> clock;
+  final Listenable clock;
   final VoidCallback? onTap;
 
   @override
@@ -113,10 +114,10 @@ class DayTimelineRow extends StatelessWidget {
 
     final tabular = const [FontFeature.tabularFigures()];
 
-    Widget subline(DateTime now) {
+    Widget subline() {
       final text = isActive
           ? 'depuis ${TimeFormat.hm(segment.start)} · '
-                '${TimeFormat.durationShort(now.difference(segment.start))}'
+                '${TimeFormat.durationShort(segment.counter.value)}'
           : TimeFormat.hmRange(segment.start, segment.end);
       return Text(
         text,
@@ -230,12 +231,12 @@ class DayTimelineRow extends StatelessWidget {
                           Text(title, style: textTheme.titleMedium),
                           const SizedBox(height: 1),
                           if (isActive)
-                            ValueListenableBuilder<DateTime>(
-                              valueListenable: clock,
-                              builder: (_, now, __) => subline(now),
+                            ListenableBuilder(
+                              listenable: clock,
+                              builder: (_, _) => subline(),
                             )
                           else
-                            subline(segment.end),
+                            subline(),
                         ],
                       ),
                     ),

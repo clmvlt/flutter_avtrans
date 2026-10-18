@@ -5,9 +5,11 @@ import '../../core/utils/time_format.dart';
 import '../../data/models/service_model.dart';
 import 'app_card.dart';
 import 'app_list_row.dart';
+import 'live_builder.dart';
 
 /// Carte d'un pointage (service ou pause) : boîte d'icône teintée, titre,
-/// plage horaire, et la durée (ou « En cours ») en pastille à droite.
+/// plage horaire, et la durée de l'API (ou « En cours ») en pastille à
+/// droite. Une ligne en cours avance en direct.
 ///
 /// Les listes du jour utilisent plutôt le fil de la page Pointage
 /// (`DayTimeline`) ; cette carte reste pour un pointage isolé.
@@ -19,42 +21,42 @@ class ServiceDayTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LiveBuilder(running: service.enCours, builder: _build);
+  }
+
+  Widget _build(BuildContext context) {
     final colors = context.colors;
     final isBreak = service.isBreak;
-    final isActive = service.isActive;
+    final isActive = service.enCours;
     final accent = isBreak ? colors.warning : colors.success;
     final label = isBreak ? 'Pause' : 'Service';
 
     final start = service.debut.toLocal();
     final end = service.fin?.toLocal();
-    final duration = isActive
-        ? DateTime.now().difference(start)
-        : end?.difference(start);
+    // Service : temps net ; pause : sa durée.
+    final duration =
+        (isBreak ? service.liveDuree : service.liveTravail).value;
 
     final String timeLine;
     if (isActive) {
-      timeLine = duration != null
-          ? 'Depuis ${TimeFormat.hm(start)} · ${TimeFormat.durationShort(duration)}'
-          : 'Depuis ${TimeFormat.hm(start)}';
+      timeLine =
+          'Depuis ${TimeFormat.hm(start)} · ${TimeFormat.durationShort(duration)}';
     } else if (end != null) {
       timeLine = TimeFormat.hmRange(start, end);
     } else {
       timeLine = TimeFormat.hm(start);
     }
 
-    Widget? pill;
-    if (isActive) {
-      pill = AppStatusChip(
-        label: 'En cours',
-        color: accent,
-        icon: Icons.fiber_manual_record_rounded,
-      );
-    } else if (duration != null) {
-      pill = AppStatusChip(
-        label: TimeFormat.durationShort(duration),
-        color: accent,
-      );
-    }
+    final Widget pill = isActive
+        ? AppStatusChip(
+            label: 'En cours',
+            color: accent,
+            icon: Icons.fiber_manual_record_rounded,
+          )
+        : AppStatusChip(
+            label: TimeFormat.durationShort(duration),
+            color: accent,
+          );
 
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),

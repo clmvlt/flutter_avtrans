@@ -1,10 +1,10 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/live_counter.dart';
+import '../../../core/utils/live_refresher.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
 import 'history/history_calendar_card.dart';
@@ -17,7 +17,10 @@ import 'widgets/service_detail_sheet.dart';
 /// ligne ouvre son détail.
 ///
 /// Chaque mois affiché déclenche un `GET /services/month` (mis en cache
-/// mémoire). La sélection d'un jour filtre localement les services du mois.
+/// mémoire) : services de travail débutés dans le mois, pauses imbriquées.
+/// Un service compte en entier sur son jour de début, pauses comprises (même
+/// après minuit) ; la sélection d'un jour lit localement les services du
+/// mois. Les lignes en cours avancent en direct.
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -32,9 +35,12 @@ class _HistoryScreenState extends State<HistoryScreen> {
   /// Échec du dernier chargement d'un mois (affiché sous le calendrier).
   final Map<String, String> _monthErrors = {};
 
-  /// Horloge des lignes « en cours » du fil.
-  final ValueNotifier<DateTime> _clock = ValueNotifier(DateTime.now());
-  Timer? _ticker;
+  /// Mois rechargés au retour au premier plan, au changement de jour, et
+  /// toutes les 5 min tant qu'une ligne est en cours.
+  late final LiveRefresher _refresher = LiveRefresher(
+    onRefresh: _resync,
+    isLive: () => _cache.values.any((m) => m.any((s) => s.enCours)),
+  );
 
   DateTime _focusedDay = _today();
   DateTime? _selectedDay = _today();
@@ -44,18 +50,25 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _ticker = Timer.periodic(
-      const Duration(seconds: 30),
-      (_) => _clock.value = DateTime.now(),
-    );
     _loadMonth(_focusedDay);
+    _refresher.start();
   }
 
   @override
   void dispose() {
-    _ticker?.cancel();
-    _clock.dispose();
+    _refresher.dispose();
     super.dispose();
+  }
+
+  /// Recharge sans squelette le mois affiché et celui du jour choisi.
+  Future<void> _resync() async {
+    final months = {
+      _monthKey(_focusedDay): _focusedDay,
+      if (_selectedDay != null) _monthKey(_selectedDay!): _selectedDay!,
+    };
+    await Future.wait([
+      for (final m in months.values) _loadMonth(m, force: true, silent: true),
+    ]);
   }
 
   static DateTime _today() {
@@ -74,16 +87,23 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return _focusedDay.year == now.year && _focusedDay.month == now.month;
   }
 
-  Future<void> _loadMonth(DateTime month, {bool force = false}) async {
+  /// [silent] : resynchronisation, sans indicateur ni message d'erreur.
+  Future<void> _loadMonth(
+    DateTime month, {
+    bool force = false,
+    bool silent = false,
+  }) async {
     final key = _monthKey(month);
     if (!force && (_cache.containsKey(key) || _loadingMonths.contains(key))) {
       return;
     }
 
-    setState(() {
-      _loadingMonths.add(key);
-      _monthErrors.remove(key);
-    });
+    if (!silent) {
+      setState(() {
+        _loadingMonths.add(key);
+        _monthErrors.remove(key);
+      });
+    }
 
     final result = await sl.serviceRepository.getMonthServices(
       year: month.year,
@@ -94,6 +114,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
     result.fold(
       (failure) {
+        if (silent) return;
         setState(() {
           _loadingMonths.remove(key);
           _monthErrors[key] = failure.message;
@@ -109,25 +130,30 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  List<Service> _servicesOfMonth(DateTime month) {
-    final services = _cache[_monthKey(month)] ?? const [];
-    final isBreak = _typeFilter.isBreak;
-    if (isBreak == null) return services;
-    return services.where((s) => s.isBreak == isBreak).toList();
+  /// Services de travail débutés un jour, lus dans le mois affiché
+  /// (marqueurs du calendrier) ou, pour la liste du jour choisi, dans le
+  /// mois de ce jour ([month]) : après un changement de mois, le jour choisi
+  /// garde ses pointages au lieu d'apparaître vide.
+  List<Service> _servicesForDay(DateTime day, {DateTime? month}) {
+    final services = _cache[_monthKey(month ?? _focusedDay)] ?? const [];
+    return services.where((s) {
+      final local = s.debut.toLocal();
+      return local.year == day.year &&
+          local.month == day.month &&
+          local.day == day.day;
+    }).toList();
   }
 
-  /// Pointages d'un jour, lus dans le mois affiché (marqueurs du
-  /// calendrier) ou, pour la liste du jour choisi, dans le mois de ce jour
-  /// ([month]) : après un changement de mois, le jour choisi garde ses
-  /// pointages au lieu d'apparaître vide.
-  List<Service> _servicesForDay(DateTime day, {DateTime? month}) {
-    final normalized = DateTime(day.year, day.month, day.day);
-    return _servicesOfMonth(month ?? _focusedDay).where((s) {
-      final local = s.debut.toLocal();
-      return local.year == normalized.year &&
-          local.month == normalized.month &&
-          local.day == normalized.day;
-    }).toList();
+  /// Lignes d'un jour (services puis leurs pauses, à plat, par début),
+  /// selon le filtre de type. Les pauses suivent leur service, même après
+  /// minuit.
+  List<Service> _entriesForDay(DateTime day, {DateTime? month}) {
+    final isBreak = _typeFilter.isBreak;
+    final entries = [
+      for (final s in _servicesForDay(day, month: month)) ...[s, ...s.pauses],
+    ]..sort((a, b) => a.debut.compareTo(b.debut));
+    if (isBreak == null) return entries;
+    return entries.where((s) => s.isBreak == isBreak).toList();
   }
 
   Future<void> _onRefresh() async {
@@ -149,8 +175,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     setState(() => _typeFilter = picked);
   }
 
-  void _openDetail(Service service) =>
-      ServiceDetailSheet.show(context, service, now: DateTime.now());
+  void _openDetail(Service service) => ServiceDetailSheet.show(context, service);
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +209,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             selectedDay: _selectedDay,
             format: _calendarFormat,
             loading: _isCurrentMonthLoading,
-            eventLoader: _servicesForDay,
+            eventLoader: _entriesForDay,
             onDaySelected: (selectedDay, focusedDay) {
               setState(() {
                 _selectedDay = selectedDay;
@@ -205,7 +230,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
             services: selected == null
                 ? const []
                 : _servicesForDay(selected, month: selected),
-            clock: _clock,
+            entries: selected == null
+                ? const []
+                : _entriesForDay(selected, month: selected),
+            clock: LiveTicker.instance,
             loading: _loadingMonths.contains(dayKey) && monthMissing,
             error: monthMissing ? _monthErrors[dayKey] : null,
             filter: _typeFilter,

@@ -74,7 +74,8 @@ class _SignScreenState extends State<SignScreen> with DockNoticeMixin {
       (_) => setState(() => _loadingHours = false),
       (workedHours) {
         setState(() {
-          _heuresController.text = (workedHours.month ?? 0).toStringAsFixed(1);
+          _heuresController.text =
+              (workedHours.month?.heures ?? 0).toStringAsFixed(1);
           _loadingHours = false;
         });
       },

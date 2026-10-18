@@ -1,20 +1,23 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/display_format.dart';
+import '../../../../core/utils/time_format.dart';
 import '../../../../data/models/service_model.dart';
 import '../../../widgets/app_card.dart';
 import '../../../widgets/app_list_row.dart';
 import '../../../widgets/app_skeleton.dart';
 import '../../../widgets/app_state_views.dart';
+import '../../../widgets/live_builder.dart';
 import '../pointage_controller.dart';
 import '../widgets/day_timeline.dart';
 import '../widgets/pointage_layout.dart';
 import 'history_filter.dart';
 
 /// Section du jour choisi : en-tête (date + résumé) puis le fil de la
-/// journée, au même dessin que « Aujourd'hui » sur la page Pointage.
+/// journée, au même dessin que « Aujourd'hui » sur la page Pointage. Le
+/// résumé donne le temps net du jour : somme des `dureeTravail` des services
+/// débutés ce jour-là, en direct si l'un est en cours.
 ///
 /// Gère ses états : mois en chargement (squelette), mois en échec (erreur +
 /// « Réessayer »), jour vide (avec « Tout afficher » si un filtre masque
@@ -24,6 +27,7 @@ class HistoryDaySection extends StatelessWidget {
     super.key,
     required this.day,
     required this.services,
+    required this.entries,
     required this.clock,
     required this.loading,
     required this.error,
@@ -36,9 +40,14 @@ class HistoryDaySection extends StatelessWidget {
   /// Jour choisi (`null` = aucun).
   final DateTime? day;
 
-  /// Pointages du jour, déjà filtrés et triés.
+  /// Services de travail débutés ce jour (pauses imbriquées), sans filtre.
   final List<Service> services;
-  final ValueListenable<DateTime> clock;
+
+  /// Lignes à afficher (services et pauses à plat), filtrées et triées.
+  final List<Service> entries;
+
+  /// Horloge des lignes en cours.
+  final Listenable clock;
 
   /// Le mois du jour n'est pas encore chargé.
   final bool loading;
@@ -54,12 +63,17 @@ class HistoryDaySection extends StatelessWidget {
   /// court, le jour de la semaine se lit dans le calendrier juste au-dessus.
   String _title(DateTime d) => DisplayFormat.relativeDay(d);
 
+  /// « 7h30 travaillées · 2 services · 1 pause ».
   String _summary() {
-    final serviceCount = services.where((s) => !s.isBreak).length;
-    final breakCount = services.length - serviceCount;
+    final serviceCount = services.length;
+    final breakCount = services.fold(0, (n, s) => n + s.pauses.length);
+    final worked = services.fold(
+      Duration.zero,
+      (total, s) => total + s.liveTravail.value,
+    );
     return [
-      if (serviceCount > 0)
-        '$serviceCount ${serviceCount > 1 ? 'services' : 'service'}',
+      if (serviceCount > 0) '${TimeFormat.durationShort(worked)} travaillées',
+      if (serviceCount > 1) '$serviceCount services',
       if (breakCount > 0) '$breakCount ${breakCount > 1 ? 'pauses' : 'pause'}',
     ].join(' · ');
   }
@@ -78,11 +92,16 @@ class HistoryDaySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AppSectionHeader(title: _title(selected), summary: _summary()),
+        LiveBuilder(
+          running: services.any((s) => s.enCours),
+          clock: clock,
+          builder: (_) =>
+              AppSectionHeader(title: _title(selected), summary: _summary()),
+        ),
         AnimatedSwitcher(
           duration: AppDuration.base,
           child: KeyedSubtree(
-            key: ValueKey('${selected.toIso8601String()}-${services.length}'
+            key: ValueKey('${selected.toIso8601String()}-${entries.length}'
                 '-$loading-${error != null}-${filter.name}'),
             child: _body(context),
           ),
@@ -92,7 +111,7 @@ class HistoryDaySection extends StatelessWidget {
   }
 
   Widget _body(BuildContext context) {
-    if (services.isEmpty) {
+    if (entries.isEmpty) {
       if (loading) return const _TimelineSkeleton();
       if (error != null) {
         return AppErrorState(message: error!, onRetry: onRetry);
@@ -111,15 +130,7 @@ class HistoryDaySection extends StatelessWidget {
       );
     }
 
-    final now = clock.value;
-    final segments = [
-      for (final s in services)
-        DaySegment(
-          service: s,
-          start: s.debut.toLocal(),
-          end: (s.fin ?? now).toLocal(),
-        ),
-    ];
+    final segments = [for (final s in entries) DaySegment.of(s)];
 
     return AppCard(
       padding: const EdgeInsets.symmetric(

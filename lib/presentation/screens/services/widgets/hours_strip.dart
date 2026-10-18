@@ -5,25 +5,45 @@ import '../../../../core/utils/time_format.dart';
 import '../../../../data/models/service_model.dart';
 import '../../../widgets/app_card.dart';
 import '../../../widgets/app_skeleton.dart';
+import '../../../widgets/live_builder.dart';
 
 /// Bandeau des repères « Semaine · Mois · Mois dernier » — une seule ligne
 /// discrète qui remplace les quatre tuiles et mène à l'écran Mes heures.
 /// « Aujourd'hui » n'y figure pas : c'est le compteur du hero.
+///
+/// Les périodes en cours (service ouvert hors pause) avancent en direct.
 class HoursStrip extends StatelessWidget {
-  const HoursStrip({super.key, required this.hours, required this.onTap});
+  const HoursStrip({
+    super.key,
+    required this.hours,
+    required this.onTap,
+    this.clock,
+  });
 
   final WorkedHours? hours;
   final VoidCallback onTap;
 
+  /// Horloge des valeurs en direct (par défaut, l'horloge partagée).
+  final Listenable? clock;
+
   @override
   Widget build(BuildContext context) {
+    return LiveBuilder(
+      running: hours?.anyRunning ?? false,
+      clock: clock,
+      builder: _build,
+    );
+  }
+
+  Widget _build(BuildContext context) {
     final colors = context.colors;
+    String fmt(HeuresPeriode? p) => TimeFormat.hours(p?.live.value);
 
     return Semantics(
       button: true,
-      label: 'Mes heures : semaine ${TimeFormat.hoursDecimal(hours?.week)}, '
-          'mois ${TimeFormat.hoursDecimal(hours?.month)}, '
-          'mois dernier ${TimeFormat.hoursDecimal(hours?.lastMonth)}',
+      label: 'Mes heures : semaine ${fmt(hours?.week)}, '
+          'mois ${fmt(hours?.month)}, '
+          'mois dernier ${fmt(hours?.lastMonth)}',
       excludeSemantics: true,
       child: AppCard(
         onTap: onTap,
@@ -55,7 +75,7 @@ class _Figure extends StatelessWidget {
   });
 
   final String label;
-  final double? hours;
+  final HeuresPeriode? hours;
   final bool loading;
 
   @override
@@ -73,7 +93,7 @@ class _Figure extends StatelessWidget {
             const AppSkeleton(width: 64, height: 19)
           else
             Text(
-              TimeFormat.hoursDecimal(hours),
+              TimeFormat.hours(hours?.live.value),
               style: textTheme.titleLarge?.copyWith(
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/di/service_locator.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/live_refresher.dart';
 import '../../../data/models/models.dart';
 import '../../widgets/widgets.dart';
 import 'heures/hours_hero_card.dart';
@@ -18,7 +19,10 @@ import 'heures/hours_pickers.dart';
 /// cinq totaux en cours.
 ///
 /// Appels : `GET /services/hours` sans filtre (vue d'ensemble), puis avec
-/// `period` = day / week / month / year pour une période choisie.
+/// `period` = day / week / month / year pour une période choisie. Les
+/// périodes en cours (`enCours`) avancent en direct ; la vue d'ensemble est
+/// rechargée au retour au premier plan, au changement de jour et toutes les
+/// 5 min tant qu'elle avance.
 class MesHeuresScreen extends StatefulWidget {
   const MesHeuresScreen({super.key});
 
@@ -44,7 +48,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
 
   // Résultat, requête, chargement et erreur de la dernière requête filtrée,
   // par segment. Sans résultat, le segment lit la vue d'ensemble.
-  final Map<HoursPeriod, double?> _values = {};
+  final Map<HoursPeriod, HeuresPeriode?> _values = {};
   final Map<HoursPeriod, WorkedHoursParams> _queries = {};
   final Set<HoursPeriod> _loadingPeriods = {};
   final Map<HoursPeriod, String> _periodErrors = {};
@@ -53,6 +57,11 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
   /// un retour à la période en cours est ignorée.
   final Map<HoursPeriod, int> _tokens = {};
 
+  late final LiveRefresher _refresher = LiveRefresher(
+    onRefresh: _resyncOverview,
+    isLive: () => _overview?.anyRunning ?? false,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -60,6 +69,24 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     _weekNumber = HoursWeeks.weekNumber(now);
     _weekYear = now.year;
     _loadOverview();
+    _refresher.start();
+  }
+
+  @override
+  void dispose() {
+    _refresher.dispose();
+    super.dispose();
+  }
+
+  /// Resynchronisation silencieuse : la vue d'ensemble est remplacée sans
+  /// squelette ni retour des segments à la période en cours.
+  Future<void> _resyncOverview() async {
+    if (_overview == null) return _loadOverview();
+    final result = await sl.serviceRepository.getWorkedHours(
+      const WorkedHoursParams(),
+    );
+    if (!mounted) return;
+    result.fold((_) {}, (hours) => setState(() => _overview = hours));
   }
 
   // ---- données ------------------------------------------------------------
@@ -146,7 +173,7 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     }
   }
 
-  double? _valueFor(HoursPeriod period) {
+  HeuresPeriode? _valueFor(HoursPeriod period) {
     if (_values.containsKey(period)) return _values[period];
     final o = _overview;
     return switch (period) {

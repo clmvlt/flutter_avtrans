@@ -5,29 +5,29 @@ import '../../../../core/utils/time_format.dart';
 import '../../../../data/models/service_model.dart';
 import '../../../widgets/app_badge.dart';
 import '../../../widgets/app_sheet.dart';
+import '../../../widgets/live_builder.dart';
 import '../../../widgets/section_list.dart';
 
-/// Détail d'un pointage en lecture seule : début, fin, durée, position
-/// enregistrée, saisie administrateur.
+/// Détail d'un pointage en lecture seule : début, fin, durée (et, pour un
+/// service, pauses et temps net), position enregistrée, saisie
+/// administrateur. Une ligne en cours avance en direct.
 abstract final class ServiceDetailSheet {
-  static Future<void> show(
-    BuildContext context,
-    Service service, {
-    required DateTime now,
-  }) {
+  static Future<void> show(BuildContext context, Service service) {
     return AppSheet.show<void>(
       context,
       title: service.isBreak ? 'Pause' : 'Service',
-      builder: (_) => _Body(service: service, now: now),
+      builder: (_) => LiveBuilder(
+        running: service.enCours,
+        builder: (_) => _Body(service: service),
+      ),
     );
   }
 }
 
 class _Body extends StatelessWidget {
-  const _Body({required this.service, required this.now});
+  const _Body({required this.service});
 
   final Service service;
-  final DateTime now;
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +35,14 @@ class _Body extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final s = service;
     final end = s.fin;
-    final duration = end != null
-        ? Duration(seconds: s.duree ?? end.difference(s.debut).inSeconds)
-        : now.difference(s.debut);
+    final isWork = !s.isBreak;
     final hasPosition =
         s.latitude != null && s.longitude != null && s.latitude != 0;
+    // Service de nuit : fin datée si elle tombe le lendemain, début daté
+    // s'il est encore en cours depuis la veille.
+    final start = end == null
+        ? TimeFormat.hmOrDay(s.debut, DateTime.now())
+        : TimeFormat.hm(s.debut);
 
     TextStyle? value() => textTheme.titleSmall?.copyWith(
           fontFeatures: const [FontFeature.tabularFigures()],
@@ -55,14 +58,14 @@ class _Body extends StatelessWidget {
               label: 'Début',
               color: colors.success,
               isFirst: true,
-              trailing: Text(TimeFormat.hm(s.debut), style: value()),
+              trailing: Text(start, style: value()),
             ),
             AppTile(
               icon: Icons.stop_rounded,
               label: 'Fin',
               color: colors.mutedForeground,
               trailing: Text(
-                end != null ? TimeFormat.hm(end) : 'en cours',
+                end != null ? TimeFormat.hmOrDay(end, s.debut) : 'en cours',
                 style: value(),
               ),
             ),
@@ -70,8 +73,35 @@ class _Body extends StatelessWidget {
               icon: Icons.schedule_rounded,
               label: 'Durée',
               color: colors.domainHours,
-              trailing: Text(TimeFormat.durationShort(duration), style: value()),
+              trailing: Text(
+                TimeFormat.durationShort(s.liveDuree.value),
+                style: value(),
+              ),
             ),
+            if (isWork) ...[
+              AppTile(
+                icon: Icons.coffee_rounded,
+                label: s.pauses.isEmpty
+                    ? 'Pauses'
+                    : 'Pauses (${s.pauses.length})',
+                color: colors.warning,
+                trailing: Text(
+                  s.pauses.isEmpty
+                      ? 'Aucune'
+                      : TimeFormat.durationShort(s.livePauses.value),
+                  style: value(),
+                ),
+              ),
+              AppTile(
+                icon: Icons.timelapse_rounded,
+                label: 'Travaillé, pauses déduites',
+                color: colors.domainHours,
+                trailing: Text(
+                  TimeFormat.durationShort(s.liveTravail.value),
+                  style: value(),
+                ),
+              ),
+            ],
             AppTile(
               icon: hasPosition
                   ? Icons.location_on_rounded

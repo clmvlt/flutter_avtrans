@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/live_counter.dart';
 import '../../core/errors/exceptions.dart';
 import '../../core/errors/failures.dart';
 import '../models/paginated_response.dart';
@@ -10,7 +11,8 @@ import '../services/http_service.dart';
 
 /// Interface du repository des services
 abstract class IServiceRepository {
-  /// Démarre un nouveau service
+  /// Démarre un nouveau service. Les quatre actions renvoient le service de
+  /// travail dans son état complet après l'action (pause en cours comprise).
   Future<Either<Failure, Service>> startService(ServiceGpsRequest request);
 
   /// Termine le service actif
@@ -22,7 +24,7 @@ abstract class IServiceRepository {
   /// Termine la pause en cours
   Future<Either<Failure, Service>> endBreak(ServiceGpsRequest request);
 
-  /// Récupère les services d'un mois
+  /// Services de travail débutés dans le mois, pauses imbriquées
   Future<Either<Failure, List<Service>>> getMonthServices({
     int? year,
     int? month,
@@ -33,7 +35,7 @@ abstract class IServiceRepository {
     WorkedHoursParams params,
   );
 
-  /// Récupère le service actif
+  /// Service de travail en cours (jamais la ligne de pause), `null` sinon
   Future<Either<Failure, Service?>> getActiveService();
 
   /// Récupère l'historique paginé des services
@@ -41,7 +43,7 @@ abstract class IServiceRepository {
     ServiceHistoryParams params,
   );
 
-  /// Récupère les services du jour de l'utilisateur
+  /// Services de travail débutés aujourd'hui, pauses imbriquées
   Future<Either<Failure, List<Service>>> getDailyServices();
 }
 
@@ -143,7 +145,8 @@ class ServiceRepository implements IServiceRepository {
       if (year != null) queryParams['year'] = year.toString();
       if (month != null) queryParams['month'] = month.toString();
 
-      // `GET /services/month?year&month` (contrat API §4.2) : tableau JSON nu de ServiceDTO
+      // `GET /services/month?year&month` : tableau JSON nu des services de
+      // travail débutés dans le mois, avec leurs `pauses`
       final response = await _httpService.get(
         ServiceEndpoints.month,
         queryParameters: queryParams.isNotEmpty ? queryParams : null,
@@ -163,11 +166,14 @@ class ServiceRepository implements IServiceRepository {
     }
   }
 
-  /// Parse un tableau JSON nu de ServiceDTO (routes `/services/month`, `/services/user/daily`)
+  /// Parse un tableau JSON nu de ServiceDTO (routes `/services/month`,
+  /// `/services/user/daily`) ; une seule ancre pour toute la réponse.
   List<Service> _parseServiceList(dynamic response) {
     if (response is! List) return const [];
+    final anchor = LiveAnchor.now();
     return response
-        .map((json) => Service.fromJson(json as Map<String, dynamic>))
+        .map((json) =>
+            Service.fromJson(json as Map<String, dynamic>, anchor: anchor))
         .toList();
   }
 
@@ -200,8 +206,8 @@ class ServiceRepository implements IServiceRepository {
     try {
       final response = await _httpService.get(ServiceEndpoints.active);
 
-      // La réponse est { "success": true, "service": { ... } } ou { "success": true, "service": null }
-      // Peut retourner null si aucun service actif
+      // { "success": true, "service": { ... } | null } : toujours le service
+      // de travail (pauses, enPause, dureeTravail), jamais la ligne de pause
       final serviceJson = response['service'];
       if (serviceJson == null) {
         return const Right(null);
@@ -229,9 +235,11 @@ class ServiceRepository implements IServiceRepository {
         body: params.toJson(),
       );
 
+      // À plat : une pause porte `serviceParentUuid`, un service ses `pauses`.
+      final anchor = LiveAnchor.now();
       return Right(PaginatedResponse.fromJson(
         response,
-        (json) => Service.fromJson(json),
+        (json) => Service.fromJson(json, anchor: anchor),
       ));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
@@ -244,17 +252,14 @@ class ServiceRepository implements IServiceRepository {
     }
   }
 
-  /// `GET /services/user/daily` (contrat API §4.2) : services ET pauses dont `debut`
-  /// est aujourd'hui (Paris). Tableau nu, non trié côté serveur → trié ici par `debut` desc.
+  /// `GET /services/user/daily` : services de travail débutés aujourd'hui
+  /// (Paris), pauses imbriquées, par début croissant.
   @override
   Future<Either<Failure, List<Service>>> getDailyServices() async {
     try {
       final response = await _httpService.get(ServiceEndpoints.daily);
 
-      final services = _parseServiceList(response)
-        ..sort((a, b) => b.debut.compareTo(a.debut));
-
-      return Right(services);
+      return Right(_parseServiceList(response));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
     } on AuthException catch (e) {

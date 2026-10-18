@@ -4,8 +4,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/time_format.dart';
 import '../../../widgets/app_sheet.dart';
 
-/// Feuille de confirmation « Terminer le service ? » : récapitulatif de la
-/// journée (début, pauses, travaillé, fin) puis deux choix. Remplace le
+/// Feuille de confirmation « Terminer le service ? » : récapitulatif du
+/// service (début, pauses, travaillé net, fin) puis deux choix. Remplace le
 /// maintien long ou le double tap : lisible, accessible, et donne au
 /// chauffeur la preuve de son total avant de clôturer.
 abstract final class EndServiceSheet {
@@ -80,7 +80,7 @@ class _EndServiceBody extends StatelessWidget {
               _RecapRow(
                 icon: Icons.play_arrow_rounded,
                 label: 'Début',
-                value: start != null ? TimeFormat.hm(start!) : '—',
+                value: start != null ? TimeFormat.hmOrDay(start!, now) : '—',
               ),
               _RecapRow(
                 icon: Icons.coffee_rounded,

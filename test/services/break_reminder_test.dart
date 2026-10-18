@@ -1,11 +1,13 @@
 import 'package:av_pointage/core/services/break_reminder_service.dart';
 import 'package:av_pointage/core/services/location_service.dart';
+import 'package:av_pointage/core/utils/live_counter.dart';
 import 'package:av_pointage/presentation/screens/services/pointage_controller.dart';
 import 'package:av_pointage/presentation/screens/services/services_screen.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../visual/fake_data.dart';
+import '../visual/fake_services.dart';
 import '../visual/visual_harness.dart';
 
 /// Rappel enregistré en mémoire, sans plugin natif.
@@ -42,20 +44,7 @@ class _FakeLocation extends LocationService {
 DateTime _at(int hour, [int minute = 0]) =>
     DateTime.utc(2026, 9, 27, hour, minute);
 
-Map<String, dynamic> _pointage(
-  String uuid,
-  DateTime debut, {
-  DateTime? fin,
-  bool isBreak = false,
-}) => {
-  'uuid': uuid,
-  'debut': debut.toIso8601String(),
-  'fin': fin?.toIso8601String(),
-  'isBreak': isBreak,
-  'userUuid': 'u-1',
-};
-
-/// Journée simulée : pointage ouvert [active] et liste du jour [daily].
+/// Journée simulée : service en cours [active] et liste du jour [daily].
 List<FakeRoute> _routes({
   Map<String, dynamic>? active,
   required List<Map<String, dynamic>> daily,
@@ -65,14 +54,23 @@ List<FakeRoute> _routes({
     '/services/active',
     (_, _) => {'success': true, 'service': active},
   ),
-  FakeRoute('GET', '/services/hours', (_, _) => {'day': 6.0}),
+  FakeRoute(
+    'GET',
+    '/services/hours',
+    (_, _) => {'day': fakeHeures(6 * 3600, enCours: active != null)},
+  ),
   FakeRoute('GET', '/services/user/daily', (_, _) => daily),
 ];
 
 void main() {
   late _FakeReminder reminder;
 
-  setUp(() => reminder = _FakeReminder());
+  setUp(() {
+    reminder = _FakeReminder();
+    // Horloge monotone figée : seules les durées de l'API comptent.
+    LiveClock.debugSource = () => Duration.zero;
+  });
+  tearDown(() => LiveClock.debugSource = null);
 
   PointageController controller(DateTime now) => PointageController(
     breakReminder: reminder,
@@ -81,7 +79,7 @@ void main() {
   );
 
   test('should_ask_for_a_break_when_6h_worked_without_break', () async {
-    final service = _pointage('s1', _at(5));
+    final service = fakeWorkService('s1', _at(5), now: _at(11, 5));
     await setUpApp(
       user: fakeUser(),
       routes: _routes(active: service, daily: [service]),
@@ -97,16 +95,15 @@ void main() {
   });
 
   test('should_restart_count_when_break_taken', () async {
-    final service = _pointage('s1', _at(5));
+    final service = fakeWorkService(
+      's1',
+      _at(5),
+      now: _at(12),
+      pauses: [(_at(8), _at(8, 20))],
+    );
     await setUpApp(
       user: fakeUser(),
-      routes: _routes(
-        active: service,
-        daily: [
-          service,
-          _pointage('b1', _at(8), fin: _at(8, 20), isBreak: true),
-        ],
-      ),
+      routes: _routes(active: service, daily: [service]),
     );
     final c = controller(_at(12));
 
@@ -120,10 +117,15 @@ void main() {
   });
 
   test('should_cancel_reminder_when_on_break', () async {
-    final pause = _pointage('b1', _at(10), isBreak: true);
+    final service = fakeWorkService(
+      's1',
+      _at(4),
+      now: _at(11),
+      pauses: [(_at(10), null)],
+    );
     await setUpApp(
       user: fakeUser(),
-      routes: _routes(active: pause, daily: [_pointage('s1', _at(4)), pause]),
+      routes: _routes(active: service, daily: [service]),
     );
     final c = controller(_at(11));
 
@@ -138,7 +140,9 @@ void main() {
   test('should_cancel_reminder_when_off_duty', () async {
     await setUpApp(
       user: fakeUser(),
-      routes: _routes(daily: [_pointage('s1', _at(4), fin: _at(12))]),
+      routes: _routes(
+        daily: [fakeWorkService('s1', _at(4), now: _at(13), fin: _at(12))],
+      ),
     );
     final c = controller(_at(13));
 
@@ -167,7 +171,7 @@ void main() {
   ]) {
     testWidgets(name, (tester) async {
       addTearDown(tester.view.reset);
-      final service = _pointage('s1', _at(5));
+      final service = fakeWorkService('s1', _at(5), now: now);
       await setUpApp(
         user: fakeUser(),
         routes: _routes(active: service, daily: [service]),

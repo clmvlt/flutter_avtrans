@@ -1,6 +1,7 @@
 // Données simulées des écrans chauffeur (pointage, demandes, notifications…).
 
 import 'fake_data.dart';
+import 'fake_services.dart';
 import 'visual_harness.dart';
 
 String iso(DateTime d) => '${d.toIso8601String().split('.').first}+02:00';
@@ -119,6 +120,10 @@ Map<String, dynamic> todoPage(List<Map<String, dynamic>> list) => {
       'totalElements': list.length,
     };
 
+/// Service en cours depuis 07:42, calculé à [today] (10:00).
+Map<String, dynamic> _serviceDuJour() =>
+    fakeWorkService('s1', DateTime(2026, 9, 27, 7, 42), now: today);
+
 /// Routes des écrans chauffeur + atelier.
 List<FakeRoute> appRoutes({Map<String, dynamic>? user}) => [
       ...atelierRoutes(),
@@ -126,28 +131,17 @@ List<FakeRoute> appRoutes({Map<String, dynamic>? user}) => [
       FakeRoute('GET', '/auth/me', (_, _) => {'success': true, 'user': user ?? fakeUser()}),
       FakeRoute('GET', '/services/active', (_, _) => {
             'success': true,
-            'service': {
-              'uuid': 's1',
-              'debut': iso(DateTime(2026, 9, 27, 7, 42)),
-              'isBreak': false,
-              'userUuid': 'u-1',
-            },
+            'service': _serviceDuJour(),
           }),
       FakeRoute('GET', '/services/hours', (_, _) => {
-            'day': 2.3,
-            'week': 31.5,
-            'month': 142.25,
-            'lastMonth': 151.75,
-            'year': 1203.5,
+            'calculeLe': today.toIso8601String(),
+            'day': fakeHeures(2 * 3600 + 18 * 60, enCours: true),
+            'week': fakeHeuresDecimal(31.5, enCours: true),
+            'month': fakeHeuresDecimal(142.25, enCours: true),
+            'lastMonth': fakeHeuresDecimal(151.75),
+            'year': fakeHeuresDecimal(1203.5, enCours: true),
           }),
-      FakeRoute('GET', '/services/user/daily', (_, _) => [
-            {
-              'uuid': 's1',
-              'debut': iso(DateTime(2026, 9, 27, 7, 42)),
-              'isBreak': false,
-              'userUuid': 'u-1',
-            },
-          ]),
+      FakeRoute('GET', '/services/user/daily', (_, _) => [_serviceDuJour()]),
       FakeRoute('GET', '/notifications/unread/count', (_, _) => {'success': true, 'count': 2}),
       FakeRoute('GET', '/notifications', (_, _) => {'success': true, 'notifications': notifications}),
       FakeRoute('GET', '/notifications/unread', (_, _) => {
