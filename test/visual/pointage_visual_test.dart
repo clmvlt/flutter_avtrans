@@ -48,4 +48,29 @@ void main() {
       controller.dispose();
     }, skip: _skip);
   }
+
+  // 6 h de travail sans pause : carte « Pause conseillée ».
+  testWidgets('pointage_pause', (tester) async {
+    final service = {
+      'uuid': 's1',
+      'debut': iso(DateTime(2026, 9, 27, 4, 0)),
+      'isBreak': false,
+      'userUuid': 'u-1',
+    };
+    await setUpApp(user: fakeUser(), routes: [
+      FakeRoute('GET', '/services/active',
+          (_, _) => {'success': true, 'service': service}),
+      FakeRoute('GET', '/services/user/daily', (_, _) => [service]),
+      ...appRoutes(),
+    ]);
+    final controller = PointageController(
+      locationService: _FakeLocation(),
+      now: () => DateTime(2026, 9, 27, 10, 5),
+    );
+    await pumpScreen(tester, ServicesScreen(controller: controller));
+    await capture(tester, 'pointage_pause');
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  }, skip: _skip);
+
 }
