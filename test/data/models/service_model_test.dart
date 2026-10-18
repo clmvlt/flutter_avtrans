@@ -141,7 +141,68 @@ void main() {
     });
   });
 
+  group('JourneeTravail.fromJson', () {
+    test('should_read_night_day_when_service_from_previous_day', () {
+      final ended = {
+        ..._nightService,
+        'fin': '2026-10-13T06:00:00+02:00',
+        'duree': 32400,
+        'calculeLe': '2026-10-13T06:30:00+02:00',
+        'enCours': false,
+        'dureeTravail': 28800,
+      };
+      final j = JourneeTravail.fromJson({
+        'success': true,
+        'date': '2026-10-12',
+        'aujourdhui': false,
+        'heures': {'secondes': 28800, 'heures': 8.0, 'enCours': false},
+        'services': [ended],
+        'calculeLe': '2026-10-13T06:30:00+02:00',
+      });
+
+      expect(j.date, DateTime(2026, 10, 12));
+      expect(j.aujourdhui, isFalse);
+      expect(j.heures.secondes, 28800);
+      expect(j.heures.enCours, isFalse);
+      expect(j.calculeLe, DateTime.parse('2026-10-13T06:30:00+02:00'));
+      expect(j.services, hasLength(1));
+      final s = j.services.single;
+      expect(s.uuid, 's1');
+      expect(s.enCours, isFalse);
+      expect(s.dureeTravail, 28800);
+      expect(s.pauses.single.serviceParentUuid, 's1');
+      expect(identical(s.anchor, j.heures.anchor), isTrue);
+
+      monotonic += const Duration(minutes: 5);
+      expect(j.heures.live.value, const Duration(hours: 8));
+    });
+
+    test('should_be_today_and_empty_when_no_service', () {
+      final j = JourneeTravail.fromJson({
+        'success': true,
+        'date': '2026-10-13',
+        'aujourdhui': true,
+        'heures': {'secondes': 0, 'heures': 0.0, 'enCours': false},
+        'services': <Object>[],
+      });
+
+      expect(j.aujourdhui, isTrue);
+      expect(j.date, DateTime(2026, 10, 13));
+      expect(j.services, isEmpty);
+    });
+  });
+
   group('WorkedHours.fromJson', () {
+    test('should_read_working_day_when_jour_present', () {
+      final h = WorkedHours.fromJson({
+        'jour': '2026-10-12',
+        'day': {'secondes': 28800, 'heures': 8.0, 'enCours': false},
+      });
+
+      expect(h.jour, DateTime(2026, 10, 12));
+      expect(h.day?.secondes, 28800);
+    });
+
     test('should_read_periods_when_full_overview', () {
       final h = WorkedHours.fromJson({
         'calculeLe': '2026-10-13T03:00:00+02:00',

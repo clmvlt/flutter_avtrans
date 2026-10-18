@@ -116,4 +116,40 @@ void main() {
     controller.dispose();
   }, skip: _skip);
 
+  // Le lendemain à 06:30, service de nuit terminé à 06:00 (pause 02:00 →
+  // 03:00) : la journée reste celle du 12/10, 8h nettes figées.
+  testWidgets('pointage_nuit_terminee', (tester) async {
+    final now = DateTime(2026, 10, 13, 6, 30);
+    final service = fakeWorkService(
+      's1',
+      DateTime(2026, 10, 12, 21),
+      now: now,
+      fin: DateTime(2026, 10, 13, 6),
+      pauses: [(DateTime(2026, 10, 13, 2), DateTime(2026, 10, 13, 3))],
+    );
+    final journee =
+        fakeJournee(DateTime(2026, 10, 12), now: now, services: [service]);
+    await setUpApp(user: fakeUser(), routes: [
+      FakeRoute('GET', '/services/active',
+          (_, _) => {'success': true, 'service': null}),
+      FakeRoute('GET', '/services/user/daily', (_, _) => journee),
+      FakeRoute('GET', '/services/hours', (_, _) => {
+            'jour': '2026-10-12',
+            'day': journee['heures'],
+            'week': fakeHeures(8 * 3600),
+            'month': fakeHeures(8 * 3600),
+            'lastMonth': fakeHeuresDecimal(151.75),
+            'year': fakeHeuresDecimal(1203.5),
+          }),
+      ...appRoutes(),
+    ]);
+    final controller = PointageController(
+      locationService: _FakeLocation(),
+      now: () => now,
+    );
+    await pumpScreen(tester, ServicesScreen(controller: controller));
+    await capture(tester, 'pointage_nuit_terminee');
+    await tester.pumpWidget(const SizedBox.shrink());
+    controller.dispose();
+  }, skip: _skip);
 }
