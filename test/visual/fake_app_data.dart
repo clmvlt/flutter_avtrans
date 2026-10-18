@@ -135,13 +135,15 @@ List<FakeRoute> appRoutes({Map<String, dynamic>? user}) => [
           }),
       FakeRoute('GET', '/services/hours', (_, _) => {
             'calculeLe': today.toIso8601String(),
+            'jour': '2026-09-27',
             'day': fakeHeures(2 * 3600 + 18 * 60, enCours: true),
             'week': fakeHeuresDecimal(31.5, enCours: true),
             'month': fakeHeuresDecimal(142.25, enCours: true),
             'lastMonth': fakeHeuresDecimal(151.75),
             'year': fakeHeuresDecimal(1203.5, enCours: true),
           }),
-      FakeRoute('GET', '/services/user/daily', (_, _) => [_serviceDuJour()]),
+      FakeRoute('GET', '/services/user/daily', (_, _) =>
+          fakeJournee(today, now: today, services: [_serviceDuJour()])),
       FakeRoute('GET', '/notifications/unread/count', (_, _) => {'success': true, 'count': 2}),
       FakeRoute('GET', '/notifications', (_, _) => {'success': true, 'notifications': notifications}),
       FakeRoute('GET', '/notifications/unread', (_, _) => {

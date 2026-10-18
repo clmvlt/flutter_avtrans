@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/display_format.dart';
 import '../../../../core/utils/time_format.dart';
 import '../../../../data/models/service_model.dart';
 import '../pointage_controller.dart';
@@ -17,9 +18,14 @@ class DayTimeline extends StatelessWidget {
     required this.segments,
     required this.clock,
     this.onTap,
+    this.day,
   });
 
   final List<DaySegment> segments;
+
+  /// Jour de la journée : une heure qui tombe un autre jour (le lendemain
+  /// pour un service de nuit) s'affiche avec son jour.
+  final DateTime? day;
 
   /// Tique chaque seconde : seules les lignes en cours l'écoutent.
   final Listenable clock;
@@ -50,6 +56,7 @@ class DayTimeline extends StatelessWidget {
           key: ValueKey(seg.service.uuid),
           segment: seg,
           clock: clock,
+          day: day,
           onTap: onTap == null ? null : () => onTap!(seg.service),
         ),
       );
@@ -96,11 +103,13 @@ class DayTimelineRow extends StatelessWidget {
     required this.segment,
     required this.clock,
     this.onTap,
+    this.day,
   });
 
   final DaySegment segment;
   final Listenable clock;
   final VoidCallback? onTap;
+  final DateTime? day;
 
   @override
   Widget build(BuildContext context) {
@@ -116,9 +125,9 @@ class DayTimelineRow extends StatelessWidget {
 
     Widget subline() {
       final text = isActive
-          ? 'depuis ${TimeFormat.hm(segment.start)} · '
+          ? 'depuis ${DisplayFormat.hmOn(segment.start, day)} · '
                 '${TimeFormat.durationShort(segment.counter.value)}'
-          : TimeFormat.hmRange(segment.start, segment.end);
+          : DisplayFormat.hmRangeOn(segment.start, segment.end, day);
       return Text(
         text,
         style: textTheme.bodySmall?.copyWith(fontFeatures: tabular),
@@ -157,9 +166,9 @@ class DayTimelineRow extends StatelessWidget {
     );
 
     final semanticsLabel = isActive
-        ? '$title en cours depuis ${TimeFormat.hm(segment.start)}'
-        : '$title de ${TimeFormat.hm(segment.start)} à '
-              '${TimeFormat.hm(segment.end)}, '
+        ? '$title en cours depuis ${DisplayFormat.hmOn(segment.start, day)}'
+        : '$title de ${DisplayFormat.hmOn(segment.start, day)} à '
+              '${DisplayFormat.hmOn(segment.end, day)}, '
               '${TimeFormat.durationShort(segment.duration)}';
 
     return Semantics(

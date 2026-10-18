@@ -232,6 +232,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         HomePointageCard(
           activeService: _activeService,
           hoursToday: _hours?.day,
+          jour: _hours?.jour,
           onTap: widget.onOpenPointage,
         ),
       if (_needsSignature) ...[

@@ -43,8 +43,8 @@ abstract class IServiceRepository {
     ServiceHistoryParams params,
   );
 
-  /// Services de travail débutés aujourd'hui, pauses imbriquées
-  Future<Either<Failure, List<Service>>> getDailyServices();
+  /// Journée de travail en cours (la veille pour un service de nuit)
+  Future<Either<Failure, JourneeTravail>> getDailyServices();
 }
 
 /// Implémentation du repository des services
@@ -166,8 +166,8 @@ class ServiceRepository implements IServiceRepository {
     }
   }
 
-  /// Parse un tableau JSON nu de ServiceDTO (routes `/services/month`,
-  /// `/services/user/daily`) ; une seule ancre pour toute la réponse.
+  /// Parse un tableau JSON nu de ServiceDTO (`/services/month`) ; une seule
+  /// ancre pour toute la réponse.
   List<Service> _parseServiceList(dynamic response) {
     if (response is! List) return const [];
     final anchor = LiveAnchor.now();
@@ -252,14 +252,15 @@ class ServiceRepository implements IServiceRepository {
     }
   }
 
-  /// `GET /services/user/daily` : services de travail débutés aujourd'hui
-  /// (Paris), pauses imbriquées, par début croissant.
+  /// `GET /services/user/daily` : journée de travail en cours
+  /// `{ success, date, aujourdhui, heures, services, calculeLe }`, services
+  /// de travail avec leurs pauses.
   @override
-  Future<Either<Failure, List<Service>>> getDailyServices() async {
+  Future<Either<Failure, JourneeTravail>> getDailyServices() async {
     try {
       final response = await _httpService.get(ServiceEndpoints.daily);
 
-      return Right(_parseServiceList(response));
+      return Right(JourneeTravail.fromJson(response as Map<String, dynamic>));
     } on NetworkException catch (e) {
       return Left(NetworkFailure(message: e.message));
     } on AuthException catch (e) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/display_format.dart';
 import '../../../../core/utils/time_format.dart';
 import '../../../../data/models/models.dart';
 import '../../../widgets/app_hero_card.dart';
@@ -19,14 +20,19 @@ class HomePointageCard extends StatelessWidget {
     required this.activeService,
     required this.hoursToday,
     required this.onTap,
+    this.jour,
   });
 
   /// Service de travail en cours (pause en cours comprise), `null` hors
   /// service.
   final Service? activeService;
 
-  /// Total « Aujourd'hui » de l'API.
+  /// Temps net de la journée de travail en cours (`workedHours.day`).
   final HeuresPeriode? hoursToday;
+
+  /// Jour de cette journée (`workedHours.jour`) : la veille pour un salarié
+  /// de nuit après minuit, tant que son service touche aujourd'hui.
+  final DateTime? jour;
   final VoidCallback onTap;
 
   @override
@@ -59,26 +65,32 @@ class HomePointageCard extends StatelessWidget {
     };
 
     final now = DateTime.now();
+    final day = jour;
+    final isToday = day == null || TimeFormat.sameDay(day, now);
     final pause = s?.pauseEnCours;
     final subtitle = switch (s) {
-      null => worked > Duration.zero
+      // Journée de la veille : elle a forcément un service.
+      null => worked > Duration.zero || !isToday
           ? 'Aucun service en cours'
           : 'Aucun pointage aujourd\'hui',
       Service(enPause: true) when pause != null =>
         'Pause depuis ${TimeFormat.hm(pause.debut)} · '
             '${TimeFormat.durationShort(pause.liveDuree.value)}',
       Service(enPause: true) => 'En pause',
-      // Service de nuit : « Depuis le 12/10 à 21:00 ».
-      Service() => 'Depuis ${TimeFormat.hmOrDay(s.debut, now)} · '
+      // Daté s'il ne commence pas le jour de la journée.
+      Service() => 'Depuis ${DisplayFormat.hmOn(s.debut, day ?? now)} · '
           '${TimeFormat.durationShort(s.liveTravail.value)} travaillées',
     };
 
     final workedLabel = TimeFormat.hours(worked);
+    final figureLabel = isToday
+        ? 'Travaillé aujourd\'hui'
+        : 'Travaillé · journée du ${DisplayFormat.dayNumeric(day)}';
 
     return Semantics(
       button: true,
       label: 'Pointage : $label. $subtitle. '
-          'Travaillé aujourd\'hui : $workedLabel',
+          '$figureLabel : $workedLabel',
       hint: 'Ouvre la page Pointage',
       onTap: onTap,
       excludeSemantics: true,
@@ -102,7 +114,7 @@ class HomePointageCard extends StatelessWidget {
               )
             : null,
         child: AppHeroFigure(
-          label: 'Travaillé aujourd\'hui',
+          label: figureLabel,
           value: workedLabel,
           muted: worked <= Duration.zero,
         ),

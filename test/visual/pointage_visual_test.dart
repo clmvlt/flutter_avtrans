@@ -60,7 +60,11 @@ void main() {
     await setUpApp(user: fakeUser(), routes: [
       FakeRoute('GET', '/services/active',
           (_, _) => {'success': true, 'service': service}),
-      FakeRoute('GET', '/services/user/daily', (_, _) => [service]),
+      FakeRoute('GET', '/services/user/daily', (_, _) => fakeJournee(
+            DateTime(2026, 9, 27),
+            now: DateTime(2026, 9, 27, 10, 5),
+            services: [service],
+          )),
       ...appRoutes(),
     ]);
     final controller = PointageController(
@@ -74,7 +78,7 @@ void main() {
   }, skip: _skip);
 
   // Service de nuit : commencé la veille à 21:00, pause de 01:00 à 02:00, il
-  // est 03:00. Il compte sur la veille : « Aujourd'hui » vaut 0.
+  // est 03:00. La journée affichée est celle de la veille.
   testWidgets('pointage_nuit', (tester) async {
     final now = DateTime(2026, 10, 13, 3);
     final service = fakeWorkService(
@@ -86,9 +90,15 @@ void main() {
     await setUpApp(user: fakeUser(), routes: [
       FakeRoute('GET', '/services/active',
           (_, _) => {'success': true, 'service': service}),
-      FakeRoute('GET', '/services/user/daily', (_, _) => []),
+      // Après minuit, la journée reste celle du 12/10.
+      FakeRoute('GET', '/services/user/daily', (_, _) => fakeJournee(
+            DateTime(2026, 10, 12),
+            now: now,
+            services: [service],
+          )),
       FakeRoute('GET', '/services/hours', (_, _) => {
-            'day': fakeHeures(0),
+            'jour': '2026-10-12',
+            'day': fakeHeures(5 * 3600, enCours: true),
             'week': fakeHeures(5 * 3600, enCours: true),
             'month': fakeHeures(5 * 3600, enCours: true),
             'lastMonth': fakeHeuresDecimal(151.75),

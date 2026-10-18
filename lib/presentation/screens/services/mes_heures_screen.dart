@@ -411,7 +411,8 @@ class _MesHeuresScreenState extends State<MesHeuresScreen> {
     final error = _periodErrors[period];
     final isWeek = period == HoursPeriod.week;
     final labels = switch (period) {
-      HoursPeriod.day => HoursHeroLabels.day(_selectedDate, now),
+      HoursPeriod.day =>
+        HoursHeroLabels.day(_selectedDate, now, jour: _overview?.jour),
       HoursPeriod.week => HoursHeroLabels.week(_weekNumber, _weekYear, now),
       HoursPeriod.month =>
         HoursHeroLabels.month(_selectedMonth, _selectedMonthYear, now),

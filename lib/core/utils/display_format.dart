@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import 'time_format.dart';
+
 /// Formats d'affichage partagés (dates, nombres, montants) en français.
 ///
 /// Les dates sont toujours converties en heure locale avant formatage.
@@ -35,6 +37,38 @@ abstract final class DisplayFormat {
   /// `mer. 12 mars`
   static String dayShort(DateTime d) =>
       DateFormat('EEE d MMM', _locale).format(d.toLocal());
+
+  /// `lun. 12/10`
+  static String dayNumeric(DateTime d) =>
+      DateFormat('EEE dd/MM', _locale).format(d.toLocal());
+
+  /// Titre d'une journée de travail : « Aujourd'hui », ou pour un salarié
+  /// de nuit encore sur la veille « Journée du lun. 12/10 (service de nuit) ».
+  static String workingDay(DateTime date, {required bool today}) => today
+      ? 'Aujourd\'hui'
+      : 'Journée du ${dayNumeric(date)} (service de nuit)';
+
+  /// Heure, suivie de son jour si elle ne tombe pas le jour [day] :
+  /// `21:00`, `06:00 (mar. 13/10)`.
+  static String hmOn(DateTime t, DateTime? day) {
+    if (day == null || _sameDay(t, day)) return TimeFormat.hm(t);
+    return '${TimeFormat.hm(t)} (${dayNumeric(t)})';
+  }
+
+  /// Plage horaire d'une journée [day] : `21:00 → 06:00 (mar. 13/10)` ; le
+  /// jour n'est écrit qu'une fois si les deux bornes tombent le même jour.
+  static String hmRangeOn(DateTime start, DateTime end, DateTime? day) {
+    if (day != null && !_sameDay(start, day) && _sameDay(start, end)) {
+      return '${TimeFormat.hm(start)} → ${hmOn(end, day)}';
+    }
+    return '${hmOn(start, day)} → ${hmOn(end, day)}';
+  }
+
+  static bool _sameDay(DateTime a, DateTime b) {
+    final x = a.toLocal();
+    final y = b.toLocal();
+    return x.year == y.year && x.month == y.month && x.day == y.day;
+  }
 
   /// `Mars 2025`
   static String monthYear(DateTime d) {

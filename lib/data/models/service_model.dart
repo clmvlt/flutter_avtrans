@@ -298,16 +298,115 @@ class HeuresPeriode extends Equatable {
   List<Object?> get props => [secondes, heures, enCours];
 }
 
+/// Date `yyyy-MM-dd` de l'API → minuit local de ce jour.
+DateTime? _parseDay(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  final d = DateTime.parse(value);
+  return DateTime(d.year, d.month, d.day);
+}
+
+String _formatDay(DateTime d) =>
+    '${d.year.toString().padLeft(4, '0')}-'
+    '${d.month.toString().padLeft(2, '0')}-'
+    '${d.day.toString().padLeft(2, '0')}';
+
+/// Journée de travail en cours (`GET /services/user/daily`).
+///
+/// Calculée par l'API : jour de début du dernier service qui touche
+/// aujourd'hui (commencé aujourd'hui, en cours, ou terminé aujourd'hui après
+/// minuit), sinon aujourd'hui. Un salarié de nuit voit donc encore son
+/// service de la veille après minuit ; la journée bascule sur aujourd'hui dès
+/// qu'il commence un nouveau service.
+class JourneeTravail extends Equatable {
+  /// Jour de la journée (minuit local).
+  final DateTime date;
+
+  /// La journée est aujourd'hui.
+  final bool aujourdhui;
+
+  /// Temps net de la journée ; avance si `heures.enCours`.
+  final HeuresPeriode heures;
+
+  /// Services de travail de la journée, pauses imbriquées, par début
+  /// croissant.
+  final List<Service> services;
+
+  /// Instant du calcul côté serveur — affichage et debug seulement.
+  final DateTime? calculeLe;
+
+  const JourneeTravail({
+    required this.date,
+    required this.aujourdhui,
+    required this.heures,
+    this.services = const [],
+    this.calculeLe,
+  });
+
+  /// [anchor] : réception de la réponse ; par défaut, maintenant.
+  factory JourneeTravail.fromJson(
+    Map<String, dynamic> json, {
+    LiveAnchor? anchor,
+  }) {
+    final a = anchor ?? LiveAnchor.now();
+    final heures = json['heures'];
+    final services = json['services'] as List?;
+    return JourneeTravail(
+      date: _parseDay(json['date']) ?? DateTime.now(),
+      aujourdhui: json['aujourdhui'] as bool? ?? true,
+      heures: heures is Map<String, dynamic>
+          ? HeuresPeriode.fromJson(heures, anchor: a)
+          : HeuresPeriode(secondes: 0, heures: 0, anchor: a),
+      services: services == null
+          ? const []
+          : [
+              for (final s in services)
+                Service.fromJson(s as Map<String, dynamic>, anchor: a),
+            ],
+      calculeLe: json['calculeLe'] != null
+          ? DateTime.parse(json['calculeLe'] as String)
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'date': _formatDay(date),
+        'aujourdhui': aujourdhui,
+        'heures': heures.toJson(),
+        'services': [for (final s in services) s.toJson()],
+        if (calculeLe != null) 'calculeLe': calculeLe!.toIso8601String(),
+      };
+
+  /// Copie avec un service remplacé par sa version plus récente (même
+  /// uuid), par exemple celle renvoyée par une action.
+  JourneeTravail withService(Service service) => JourneeTravail(
+        date: date,
+        aujourdhui: aujourdhui,
+        heures: heures,
+        services: [
+          for (final s in services) s.uuid == service.uuid ? service : s,
+        ],
+        calculeLe: calculeLe,
+      );
+
+  @override
+  List<Object?> get props => [date, aujourdhui, heures, services, calculeLe];
+}
+
 /// Heures travaillées (`GET /services/hours`).
 ///
 /// Sans `period`, les cinq périodes sont présentes ; avec `period=month`,
-/// seule `month` l'est.
+/// seule `month` l'est. Sans date en paramètre, `day` est la journée de
+/// travail en cours (voir [jour]) ; avec une date, le jour demandé.
 class WorkedHours extends Equatable {
   final HeuresPeriode? year;
   final HeuresPeriode? month;
   final HeuresPeriode? lastMonth;
   final HeuresPeriode? week;
   final HeuresPeriode? day;
+
+  /// Jour de [day] (minuit local) : la journée de travail en cours, qui
+  /// peut être la veille pour un salarié de nuit.
+  final DateTime? jour;
 
   /// Instant du calcul côté serveur — affichage et debug seulement.
   final DateTime? calculeLe;
@@ -318,6 +417,7 @@ class WorkedHours extends Equatable {
     this.lastMonth,
     this.week,
     this.day,
+    this.jour,
     this.calculeLe,
   });
 
@@ -337,6 +437,7 @@ class WorkedHours extends Equatable {
       lastMonth: period('lastMonth'),
       week: period('week'),
       day: period('day'),
+      jour: _parseDay(json['jour']),
       calculeLe: json['calculeLe'] != null
           ? DateTime.parse(json['calculeLe'] as String)
           : null,
@@ -346,6 +447,7 @@ class WorkedHours extends Equatable {
   Map<String, dynamic> toJson() {
     return {
       if (calculeLe != null) 'calculeLe': calculeLe!.toIso8601String(),
+      if (jour != null) 'jour': _formatDay(jour!),
       if (year != null) 'year': year!.toJson(),
       if (month != null) 'month': month!.toJson(),
       if (lastMonth != null) 'lastMonth': lastMonth!.toJson(),
@@ -359,5 +461,6 @@ class WorkedHours extends Equatable {
       .any((p) => p?.enCours ?? false);
 
   @override
-  List<Object?> get props => [year, month, lastMonth, week, day, calculeLe];
+  List<Object?> get props =>
+      [year, month, lastMonth, week, day, jour, calculeLe];
 }

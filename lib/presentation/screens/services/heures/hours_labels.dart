@@ -20,20 +20,33 @@ class HoursHeroLabels {
   final String resetLabel;
 
   /// Jour : « Aujourd'hui » ou « Mercredi 12 mars » (+ année si besoin).
-  factory HoursHeroLabels.day(DateTime? selected, DateTime now) {
+  /// Sans jour choisi, [jour] est la journée de travail en cours : la
+  /// veille pour un salarié de nuit (« Journée du lun. 12/10 »).
+  factory HoursHeroLabels.day(
+    DateTime? selected,
+    DateTime now, {
+    DateTime? jour,
+  }) {
     final custom = selected != null &&
             !(selected.year == now.year &&
                 selected.month == now.month &&
                 selected.day == now.day)
         ? selected
         : null;
+    final night = custom == null && jour != null && !TimeFormat.sameDay(jour, now);
     return HoursHeroLabels(
-      title: custom == null
-          ? 'Aujourd\'hui'
-          : custom.year == now.year
-              ? TimeFormat.dateLong(custom)
-              : '${TimeFormat.dateLong(custom)} ${custom.year}',
-      subtitle: custom == null ? TimeFormat.dateLong(now) : null,
+      title: night
+          ? 'Journée du ${DisplayFormat.dayNumeric(jour)}'
+          : custom == null
+              ? 'Aujourd\'hui'
+              : custom.year == now.year
+                  ? TimeFormat.dateLong(custom)
+                  : '${TimeFormat.dateLong(custom)} ${custom.year}',
+      subtitle: night
+          ? 'Service de nuit'
+          : custom == null
+              ? TimeFormat.dateLong(now)
+              : null,
       isCurrent: custom == null,
       resetLabel: 'Revenir à aujourd\'hui',
     );

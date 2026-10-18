@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/display_format.dart';
 import '../../../../core/utils/time_format.dart';
 import '../pointage_controller.dart';
 import 'pointage_layout.dart';
@@ -21,6 +22,7 @@ class DayRibbon extends StatelessWidget {
     required this.now,
     required this.isLive,
     required this.liveAccent,
+    this.day,
     this.serviceCount = 0,
     this.breakCount = 0,
     this.breakTotal = Duration.zero,
@@ -28,6 +30,9 @@ class DayRibbon extends StatelessWidget {
 
   final List<DaySegment> segments;
   final DateTime now;
+
+  /// Jour de la journée de travail : une heure du lendemain porte son jour.
+  final DateTime? day;
 
   /// Un pointage est ouvert : la piste va jusqu'à « maintenant ».
   final bool isLive;
@@ -85,8 +90,8 @@ class DayRibbon extends StatelessWidget {
     );
 
     return Semantics(
-      label: 'Journée de ${TimeFormat.hm(start)} à '
-          '${isLive ? 'maintenant' : TimeFormat.hm(_end)}, $_summary',
+      label: 'Journée de ${DisplayFormat.hmOn(start, day)} à '
+          '${isLive ? 'maintenant' : DisplayFormat.hmOn(_end, day)}, $_summary',
       excludeSemantics: true,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,7 +121,7 @@ class DayRibbon extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              Text(TimeFormat.hm(start), style: labelStyle),
+              Text(DisplayFormat.hmOn(start, day), style: labelStyle),
               Expanded(
                 child: Text(
                   _summary,
@@ -126,7 +131,16 @@ class DayRibbon extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(TimeFormat.hm(isLive ? now : _end), style: labelStyle),
+              // « 06:00 (mar. 13/10) » : peut céder la place en très grand
+              // texte plutôt que de déborder.
+              Flexible(
+                child: Text(
+                  DisplayFormat.hmOn(isLive ? now : _end, day),
+                  style: labelStyle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
               if (isLive) ...[
                 const SizedBox(width: AppSpacing.xs),
                 PulseDot(color: liveAccent, size: 6),

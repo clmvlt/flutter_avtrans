@@ -140,6 +140,7 @@ class HistoryDaySection extends StatelessWidget {
       child: DayTimeline(
         segments: segments,
         clock: clock,
+        day: day,
         onTap: onTapService,
       ),
     );

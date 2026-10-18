@@ -28,6 +28,10 @@ class HoursOverviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lastMonth = DateTime(now.year, now.month - 1, 1);
+    // `day` est la journée de travail en cours : la veille pour un salarié
+    // de nuit après minuit.
+    final jour = hours.jour;
+    final night = jour != null && !TimeFormat.sameDay(jour, now);
 
     return AppCard(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
@@ -35,8 +39,10 @@ class HoursOverviewCard extends StatelessWidget {
         children: [
           _Row(
             icon: Icons.today_rounded,
-            title: 'Aujourd\'hui',
-            subtitle: TimeFormat.dateLong(now),
+            title: night
+                ? 'Journée du ${DisplayFormat.dayNumeric(jour)}'
+                : 'Aujourd\'hui',
+            subtitle: night ? 'Service de nuit' : TimeFormat.dateLong(now),
             hours: hours.day,
             onTap: () => onSelect(HoursShortcut.today),
           ),

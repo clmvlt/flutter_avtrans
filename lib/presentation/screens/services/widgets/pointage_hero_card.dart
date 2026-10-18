@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/display_format.dart';
 import '../../../../core/utils/time_format.dart';
 import '../../../widgets/app_card.dart';
 import '../pointage_controller.dart';
@@ -69,9 +70,9 @@ class PointageHeroCard extends StatelessWidget {
             color: moment == PointageMoment.notStarted
                 ? colors.mutedForeground
                 : colors.foreground,
-            semanticsSuffix: c.hasActiveService
-                ? 'travaillées sur ce service'
-                : 'travaillées aujourd\'hui',
+            semanticsSuffix: c.journeeIsToday
+                ? 'travaillées aujourd\'hui'
+                : 'travaillées sur la journée de la veille',
             placeholder:
                 moment == PointageMoment.offline || c.workedTime == null
                     ? '–:––'
@@ -90,6 +91,7 @@ class PointageHeroCard extends StatelessWidget {
                       builder: (context, now, _) => DayRibbon(
                         segments: c.segments,
                         now: now,
+                        day: c.journeeDate,
                         isLive: c.hasActiveService,
                         liveAccent: visual.accent,
                         serviceCount: c.serviceCount,
@@ -104,14 +106,12 @@ class PointageHeroCard extends StatelessWidget {
     );
   }
 
-  /// Le chrono montre le service en cours ; « aujourd'hui » seulement s'il
-  /// se confond avec la journée (service unique, commencé aujourd'hui).
+  /// Le chrono montre le temps net de la journée de travail : aujourd'hui,
+  /// ou la veille pour un salarié de nuit après minuit.
   static String _workedLabel(PointageController c) {
-    if (!c.hasActiveService) return 'Travaillé aujourd\'hui';
-    if (c.activeStartedOtherDay || c.serviceCount > 1) {
-      return 'Travaillé sur ce service';
-    }
-    return 'Travaillé aujourd\'hui';
+    final date = c.journeeDate;
+    if (c.journeeIsToday || date == null) return 'Travaillé aujourd\'hui';
+    return 'Travaillé · journée du ${DisplayFormat.dayNumeric(date)}';
   }
 }
 
@@ -127,7 +127,8 @@ class _StatusLine extends StatelessWidget {
   final PointageStatusVisual visual;
 
   String _subline(PointageController c, DateTime now) {
-    final first = c.firstStartToday;
+    final first = c.firstStart;
+    final day = c.journeeDate;
     switch (c.moment) {
       case PointageMoment.loading:
         return '';
@@ -138,8 +139,8 @@ class _StatusLine extends StatelessWidget {
       case PointageMoment.onDuty:
         final active = c.activeService;
         if (active == null) return '';
-        // Service de nuit : « Depuis le 12/10 à 21:00 ».
-        final since = 'Depuis ${TimeFormat.hmOrDay(active.debut, now)}';
+        // Daté s'il ne commence pas le jour de la journée affichée.
+        final since = 'Depuis ${DisplayFormat.hmOn(active.debut, day ?? now)}';
         return c.serviceCount > 1
             ? '$since · ${c.serviceCount}e service'
             : since;
@@ -149,10 +150,11 @@ class _StatusLine extends StatelessWidget {
         return 'Pause depuis ${TimeFormat.hm(pause.debut)} · '
             '${TimeFormat.durationShort(pause.liveDuree.value)}';
       case PointageMoment.dayDone:
-        final end = c.lastEndToday;
+        final end = c.lastEnd;
         if (first == null || end == null) return 'Service terminé';
-        return '${TimeFormat.hmRange(first, end)} · '
-            'amplitude ${TimeFormat.durationShort(c.amplitudeToday)}';
+        // Service de nuit : « 21:00 → 06:00 (mar. 13/10) ».
+        return '${DisplayFormat.hmRangeOn(first, end, day)} · '
+            'amplitude ${TimeFormat.durationShort(c.amplitude)}';
     }
   }
 

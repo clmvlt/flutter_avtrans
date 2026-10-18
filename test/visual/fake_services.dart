@@ -64,6 +64,29 @@ Map<String, dynamic> fakePause(
   'serviceParentUuid': parent,
 };
 
+/// Journée de travail (`GET /services/user/daily`) du jour [date] : temps
+/// net = somme des `dureeTravail`, qui avance si un service est en cours
+/// hors pause.
+Map<String, dynamic> fakeJournee(
+  DateTime date, {
+  required DateTime now,
+  List<Map<String, dynamic>> services = const [],
+}) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return {
+    'success': true,
+    'date': '${date.year}-${two(date.month)}-${two(date.day)}',
+    'aujourdhui':
+        date.year == now.year && date.month == now.month && date.day == now.day,
+    'heures': fakeHeures(
+      services.fold<int>(0, (n, s) => n + (s['dureeTravail'] as int)),
+      enCours: services.any((s) => s['enCours'] == true && s['enPause'] != true),
+    ),
+    'services': services,
+    'calculeLe': now.toIso8601String(),
+  };
+}
+
 /// Total d'une période (HeuresPeriodeDTO).
 Map<String, dynamic> fakeHeures(int secondes, {bool enCours = false}) => {
   'secondes': secondes,

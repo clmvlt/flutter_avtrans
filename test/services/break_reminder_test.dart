@@ -59,7 +59,11 @@ List<FakeRoute> _routes({
     '/services/hours',
     (_, _) => {'day': fakeHeures(6 * 3600, enCours: active != null)},
   ),
-  FakeRoute('GET', '/services/user/daily', (_, _) => daily),
+  FakeRoute(
+    'GET',
+    '/services/user/daily',
+    (_, _) => fakeJournee(_at(0), now: _at(12), services: daily),
+  ),
 ];
 
 void main() {

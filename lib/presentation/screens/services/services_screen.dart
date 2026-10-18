@@ -488,7 +488,9 @@ class _ServicesScreenState extends State<ServicesScreen>
 
 // ---- aujourd'hui -----------------------------------------------------------
 
-/// En-tête « Aujourd'hui » + fil de la journée (ou état vide / indisponible).
+/// En-tête de la journée de travail (« Aujourd'hui », ou « Journée du
+/// lun. 12/10 (service de nuit) » après minuit) + son fil (ou état vide /
+/// indisponible).
 class _TodaySection extends StatelessWidget {
   const _TodaySection({required this.controller, required this.onTap});
 
@@ -546,6 +548,7 @@ class _TodaySection extends StatelessWidget {
         child: DayTimeline(
           segments: c.segments,
           clock: c.clock,
+          day: c.journeeDate,
           onTap: onTap,
         ),
       );
@@ -559,7 +562,7 @@ class _TodaySection extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text('Aujourd\'hui', style: textTheme.titleMedium),
+                child: Text(c.journeeTitle, style: textTheme.titleMedium),
               ),
               if (summary.isNotEmpty) Text(summary, style: textTheme.bodySmall),
             ],
