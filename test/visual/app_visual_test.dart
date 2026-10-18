@@ -9,6 +9,7 @@ import 'package:av_pointage/presentation/screens/couchettes/couchettes_screen.da
 import 'package:av_pointage/presentation/screens/notifications/notifications_screen.dart';
 import 'package:av_pointage/presentation/screens/profile/edit_profile_screen.dart';
 import 'package:av_pointage/presentation/screens/services/kilometrage_required_screen.dart';
+import 'package:av_pointage/presentation/screens/services/mes_heures_screen.dart';
 import 'package:av_pointage/presentation/screens/shell/home_dashboard_screen.dart';
 import 'package:av_pointage/presentation/screens/shell/moi_tab.dart';
 import 'package:av_pointage/presentation/screens/todos/todos_screen.dart';
@@ -48,6 +49,7 @@ final Map<String, Widget Function()> _screens = {
   'taches': () => const TodosScreen(),
   'notifications': () => const NotificationsScreen(),
   'profil': () => const EditProfileScreen(),
+  'mes_heures': () => const MesHeuresScreen(),
 };
 
 void main() {
