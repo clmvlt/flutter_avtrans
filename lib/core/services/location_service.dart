@@ -2,68 +2,52 @@ import 'package:geolocator/geolocator.dart';
 
 /// Service de géolocalisation optimisé
 class LocationService {
-  // Cache des permissions pour éviter les vérifications répétées
-  bool? _hasPermission;
-  DateTime? _lastPermissionCheck;
+  /// Délai maximal d'une recherche de position : un premier fix (téléphone
+  /// redémarré, aucune app n'a localisé depuis) dépasse souvent 3 s.
+  static const Duration fixTimeout = Duration(seconds: 10);
 
-  /// Vérifie et demande les permissions de localisation (avec cache)
+  /// Une dernière position connue plus récente est utilisée telle quelle.
+  static const Duration lastKnownMaxAge = Duration(minutes: 2);
+
+  /// Précision haute : sur Android, le fournisseur fusionné allume aussi le
+  /// GPS. En `medium`, il s'en tient au Wi-Fi et aux antennes et ne répond
+  /// jamais sans eux (émulateur, Wi-Fi coupé, dépôt mal couvert).
+  static const LocationSettings fixSettings = LocationSettings(
+    accuracy: LocationAccuracy.high,
+    timeLimit: fixTimeout,
+  );
+
+  /// Vérifie et demande les permissions de localisation.
+  ///
+  /// Pas de cache : un refus mémorisé masquait la permission accordée ou la
+  /// localisation activée juste après (retour des réglages).
   Future<bool> requestPermission() async {
-    // Utilise le cache si vérifié il y a moins de 30 secondes
-    if (_hasPermission != null &&
-        _lastPermissionCheck != null &&
-        DateTime.now().difference(_lastPermissionCheck!).inSeconds < 30) {
-      return _hasPermission!;
-    }
+    try {
+      // Vérifie si le service de localisation est activé
+      if (!await Geolocator.isLocationServiceEnabled()) return false;
 
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // Vérifie si le service de localisation est activé
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      _hasPermission = false;
-      _lastPermissionCheck = DateTime.now();
-      return false;
-    }
-
-    // Vérifie les permissions
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
+      // Vérifie les permissions
+      var permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
-        _hasPermission = false;
-        _lastPermissionCheck = DateTime.now();
-        return false;
+        permission = await Geolocator.requestPermission();
       }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      _hasPermission = false;
-      _lastPermissionCheck = DateTime.now();
+      // `unableToDetermine` (Web) : le navigateur demandera lui-même.
+      return permission != LocationPermission.denied &&
+          permission != LocationPermission.deniedForever;
+    } catch (e) {
+      // Demande déjà en cours, déclaration manquante…
       return false;
     }
-
-    _hasPermission = true;
-    _lastPermissionCheck = DateTime.now();
-    return true;
   }
 
-  /// Récupère la position actuelle (optimisé)
+  /// Récupère la position actuelle
   Future<Position?> getCurrentPosition() async {
     try {
       final hasPermission = await requestPermission();
       if (!hasPermission) {
         return null;
       }
-
-      // Utilise une précision moyenne pour plus de rapidité
-      // La précision "medium" utilise le WiFi/réseau au lieu du GPS pur
-      return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,  // Plus rapide que high
-          timeLimit: Duration(seconds: 5),     // Timeout réduit
-        ),
-      );
+      return await Geolocator.getCurrentPosition(locationSettings: fixSettings);
     } catch (e) {
       return null;
     }
@@ -75,66 +59,35 @@ class LocationService {
       // Pas besoin de vérifier les permissions pour la dernière position
       return await Geolocator.getLastKnownPosition();
     } catch (e) {
+      // Non supportée sur le Web, permission absente…
       return null;
     }
   }
 
-  /// Récupère la position rapidement avec stratégie optimisée
+  /// Récupère la position rapidement avec stratégie optimisée. Ne lève
+  /// jamais : sans position, [LocationData.isReal] est à `false`.
   Future<LocationData> getLocation() async {
     final hasPermission = await requestPermission();
-    if (!hasPermission) {
-      return const LocationData(
-        latitude: 0.0,
-        longitude: 0.0,
-        isReal: false,
-      );
-    }
+    if (!hasPermission) return LocationData.unavailable;
 
     // Stratégie : utiliser la dernière position connue d'abord si récente
-    final lastPosition = await Geolocator.getLastKnownPosition();
-
-    // Si on a une position récente (< 2 minutes), l'utiliser directement
-    if (lastPosition != null) {
-      final age = DateTime.now().difference(lastPosition.timestamp);
-      if (age.inMinutes < 2) {
-        return LocationData(
-          latitude: lastPosition.latitude,
-          longitude: lastPosition.longitude,
-          isReal: true,
-        );
-      }
+    final lastPosition = await getLastKnownPosition();
+    if (lastPosition != null &&
+        DateTime.now().difference(lastPosition.timestamp) < lastKnownMaxAge) {
+      return LocationData.fromPosition(lastPosition);
     }
 
-    // Sinon, récupérer une nouvelle position avec timeout court
+    // Sinon, récupérer une nouvelle position
     try {
       final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
-          timeLimit: Duration(seconds: 3),  // Très court
-        ),
+        locationSettings: fixSettings,
       );
-      return LocationData(
-        latitude: position.latitude,
-        longitude: position.longitude,
-        isReal: true,
-      );
+      return LocationData.fromPosition(position);
     } catch (e) {
       // En cas d'échec, utiliser la dernière position même si ancienne
-      if (lastPosition != null) {
-        return LocationData(
-          latitude: lastPosition.latitude,
-          longitude: lastPosition.longitude,
-          isReal: true,
-        );
-      }
+      if (lastPosition != null) return LocationData.fromPosition(lastPosition);
+      return LocationData.unavailable;
     }
-
-    // Valeur par défaut si aucune position disponible
-    return const LocationData(
-      latitude: 0.0,
-      longitude: 0.0,
-      isReal: false,
-    );
   }
 
   /// Vérifie si le service de localisation est disponible
@@ -180,6 +133,20 @@ class LocationData {
     required this.longitude,
     required this.isReal,
   });
+
+  LocationData.fromPosition(Position position)
+    : this(
+        latitude: position.latitude,
+        longitude: position.longitude,
+        isReal: true,
+      );
+
+  /// Aucune position disponible.
+  static const LocationData unavailable = LocationData(
+    latitude: 0.0,
+    longitude: 0.0,
+    isReal: false,
+  );
 }
 
 /// Statut de la localisation
