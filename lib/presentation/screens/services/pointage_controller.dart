@@ -327,6 +327,9 @@ class PointageController extends ChangeNotifier {
   LocationData? _cachedLocation;
   DateTime? _locationCacheTime;
 
+  /// Recherche de position en vol, partagée par tous les appelants.
+  Future<LocationData>? _locating;
+
   // ---- état exposé ------------------------------------------------------
 
   /// Premier chargement en cours (avant toute donnée).
@@ -529,7 +532,8 @@ class PointageController extends ChangeNotifier {
     await Future.wait([
       load(),
       checkLocationStatus(),
-      _preloadLocation(),
+      // Le préchargement demande la permission : le statut est relu ensuite.
+      _preloadLocation().then((_) => checkLocationStatus()),
       checkPrerequisites(),
     ]);
   }
@@ -544,11 +548,14 @@ class PointageController extends ChangeNotifier {
   }
 
   /// Retour au premier plan (réglages GPS, autre app) : statut de
-  /// localisation, position et données sont revérifiés.
+  /// localisation, position et données sont revérifiés. La position n'est
+  /// recherchée que si elle est autorisée : un refus ne relance pas la
+  /// demande (le dialogue système déclenche lui-même ce retour).
   Future<void> onAppResumed() async {
     await Future.wait([
-      checkLocationStatus(),
-      _preloadLocation(),
+      checkLocationStatus().then((_) async {
+        if (_locationStatus == LocationStatus.granted) await _preloadLocation();
+      }),
       load(),
     ]);
   }
@@ -632,8 +639,13 @@ class PointageController extends ChangeNotifier {
   Future<void> openLocationSettings() => _locationService.openLocationSettings();
   Future<void> openAppSettings() => _locationService.openAppSettings();
 
+  /// Recherche la position, ou rejoint celle déjà en vol (préchargement
+  /// pendant qu'on pointe, retours au premier plan rapprochés).
+  Future<LocationData> _locate() => _locating ??=
+      _locationService.getLocation().whenComplete(() => _locating = null);
+
   Future<void> _preloadLocation() async {
-    final location = await _locationService.getLocation();
+    final location = await _locate();
     if (_disposed) return;
     final before = locationReadiness;
     if (location.isReal) {
@@ -889,7 +901,7 @@ class PointageController extends ChangeNotifier {
       return cached;
     }
 
-    final location = await _locationService.getLocation();
+    final location = await _locate();
     if (!location.isReal) return null;
     _cachedLocation = location;
     _locationCacheTime = _now();
